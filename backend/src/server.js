@@ -31,6 +31,8 @@ const config = require("./config");
 const logger = require("./utils/logger");
 const blockchain = require("./services/blockchain");
 const db = require("./services/database");
+const depositMonitor = require("./services/depositMonitor");
+const redemptionMonitor = require("./services/redemptionMonitor");
 const { generalLimiter } = require("./middleware/rateLimiter");
 
 // ── Import Routes ────────────────────────────────────────────────────────────
@@ -115,6 +117,7 @@ app.get("/", (req, res) => {
         "GET /api/health": "System health",
         "GET /api/health/ping": "Simple ping",
         "GET /api/health/stats": "Operation statistics",
+        "GET /api/engine/status": "Auto mint/burn engine status",
       },
       admin: {
         "POST /api/mint": "Mint KAIROS (requires master API key)",
@@ -145,6 +148,25 @@ app.use("/api/health", healthRoutes);
 // Fee endpoint (defined as /fees in supply router, so mount at /api)
 const { feesRouter } = require("./routes/supply");
 app.use("/api", feesRouter);
+
+// ── Auto Engine Status ───────────────────────────────────────────────────────
+app.get("/api/engine/status", (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      engine: "KairosCoin Auto Mint/Burn Engine",
+      version: "1.0.0",
+      enabled: config.autoEngineEnabled,
+      depositMonitor: depositMonitor.getStatus(),
+      redemptionMonitor: redemptionMonitor.getStatus(),
+      description: {
+        mint: "USDT/BUSD/USDC deposits are detected automatically → KAIROS minted 1:1 to depositor",
+        burn: "KAIROS sent to redemption address → Auto-burned → USDT sent back to user",
+      },
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
 
 // ── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((req, res) => {
@@ -216,7 +238,17 @@ async function start() {
     blockchain.startEventListener();
     logger.info("Event listener started ✓");
 
-    // 6. Start HTTP server
+    // 6. Start auto mint/burn monitors
+    if (config.autoEngineEnabled) {
+      logger.info("Starting auto mint/burn engine...");
+      await depositMonitor.start();
+      await redemptionMonitor.start();
+      logger.info("Auto mint/burn engine started ✓");
+    } else {
+      logger.info("Auto mint/burn engine DISABLED");
+    }
+
+    // 7. Start HTTP server
     const server = app.listen(config.port, () => {
       logger.info(`Server running on port ${config.port}`);
       console.log(`
@@ -225,6 +257,7 @@ async function start() {
     🔗 API docs at http://localhost:${config.port}/
     📊 Health at http://localhost:${config.port}/api/health
     💰 Reserves at http://localhost:${config.port}/api/reserves
+    🔄 Auto Engine: ${config.autoEngineEnabled ? 'ENABLED' : 'DISABLED'}
   ═══════════════════════════════════════════════════════════════
       `);
     });
@@ -232,6 +265,8 @@ async function start() {
     // ── Graceful shutdown ──────────────────────────────────────────────────
     const shutdown = async (signal) => {
       logger.info(`${signal} received. Shutting down gracefully...`);
+      depositMonitor.stop();
+      redemptionMonitor.stop();
       server.close(() => {
         logger.info("HTTP server closed");
         process.exit(0);

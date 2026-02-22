@@ -40,8 +40,8 @@ function createTables() {
     -- ═══════════════════════════════════════════════════════════════════════
     CREATE TABLE IF NOT EXISTS transactions (
       id TEXT PRIMARY KEY,
-      type TEXT NOT NULL CHECK(type IN ('MINT', 'BURN')),
-      status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'SUBMITTED', 'CONFIRMED', 'FAILED')),
+      type TEXT NOT NULL CHECK(type IN ('MINT', 'BURN', 'AUTO_MINT', 'AUTO_BURN')),
+      status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'PROCESSING', 'SUBMITTED', 'CONFIRMED', 'FAILED')),
       address TEXT NOT NULL,
       amount TEXT NOT NULL,
       amount_usd TEXT,

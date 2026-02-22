@@ -24,6 +24,13 @@ const config = {
   // Rate Limiting
   rateLimitMax: parseInt(process.env.RATE_LIMIT_MAX || "100", 10),
 
+  // Auto Mint/Burn Engine
+  depositAddress: process.env.DEPOSIT_ADDRESS || "",          // Address that receives stablecoin deposits
+  redemptionAddress: process.env.REDEMPTION_ADDRESS || "",    // Address that receives KAIROS for redemption
+  depositPollInterval: parseInt(process.env.DEPOSIT_POLL_INTERVAL || "15000", 10),
+  redemptionPollInterval: parseInt(process.env.REDEMPTION_POLL_INTERVAL || "15000", 10),
+  autoEngineEnabled: process.env.AUTO_ENGINE_ENABLED !== "false", // Enabled by default
+
   // Notifications
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
   telegramChatId: process.env.TELEGRAM_CHAT_ID || "",
