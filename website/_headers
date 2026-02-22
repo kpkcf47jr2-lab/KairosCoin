@@ -1,0 +1,7 @@
+/total-supply.txt
+  Content-Type: text/plain
+  Access-Control-Allow-Origin: *
+
+/circulating-supply.txt
+  Content-Type: text/plain
+  Access-Control-Allow-Origin: *

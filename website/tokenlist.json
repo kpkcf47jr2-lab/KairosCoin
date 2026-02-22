@@ -1,0 +1,21 @@
+{
+  "name": "Kairos Token List",
+  "timestamp": "2026-02-22T18:00:00Z",
+  "version": {
+    "major": 1,
+    "minor": 0,
+    "patch": 0
+  },
+  "logoURI": "https://kairos-777.com/kairos-logo.png",
+  "keywords": ["kairos", "bsc", "bnb", "defi"],
+  "tokens": [
+    {
+      "name": "Kairos Coin",
+      "symbol": "KAIROS",
+      "address": "0x14D41707269c7D8b8DFa5095b38824a46dA05da3",
+      "chainId": 56,
+      "decimals": 18,
+      "logoURI": "https://kairos-777.com/kairos-logo.png"
+    }
+  ]
+}

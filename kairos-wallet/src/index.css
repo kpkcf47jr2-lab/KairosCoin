@@ -1,0 +1,173 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(212,160,23,0.3) transparent;
+  }
+  
+  *::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background: rgba(212,160,23,0.3);
+    border-radius: 100px;
+  }
+
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    background: #05050f;
+  }
+
+  input, textarea {
+    font-family: inherit;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply relative overflow-hidden rounded-2xl;
+    background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .glass-card-strong {
+    @apply relative overflow-hidden rounded-2xl;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.04) 100%);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+
+  .glass-button {
+    @apply relative overflow-hidden rounded-xl px-6 py-3 font-semibold transition-all duration-300;
+    background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  
+  .glass-button:hover {
+    background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.06) 100%);
+    border-color: rgba(255,255,255,0.16);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+
+  .glass-button:active {
+    transform: translateY(0);
+  }
+
+  .kairos-button {
+    @apply relative overflow-hidden rounded-xl px-6 py-3 font-bold text-dark-950 transition-all duration-300;
+    background: linear-gradient(135deg, #f7c948 0%, #d4a017 50%, #f7c948 100%);
+    background-size: 200% 200%;
+    box-shadow: 0 4px 20px rgba(212,160,23,0.3);
+  }
+
+  .kairos-button:hover {
+    background-position: 100% 100%;
+    box-shadow: 0 8px 30px rgba(212,160,23,0.5);
+    transform: translateY(-2px);
+  }
+
+  .kairos-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px rgba(212,160,23,0.3);
+  }
+
+  .kairos-text {
+    background: linear-gradient(135deg, #f7c948 0%, #d4a017 50%, #b8860b 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glass-input {
+    @apply w-full rounded-xl px-4 py-3 text-white placeholder-dark-300 outline-none transition-all duration-300;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .glass-input:focus {
+    border-color: rgba(212,160,23,0.5);
+    box-shadow: 0 0 0 3px rgba(212,160,23,0.1);
+    background: rgba(255,255,255,0.07);
+  }
+
+  .screen-container {
+    @apply flex flex-col h-full;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .balance-text {
+    font-size: clamp(1.8rem, 6vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  .token-row {
+    @apply flex items-center gap-3 p-3 rounded-xl transition-all duration-200;
+  }
+
+  .token-row:hover {
+    background: rgba(255,255,255,0.04);
+  }
+
+  .token-row:active {
+    background: rgba(255,255,255,0.06);
+    transform: scale(0.99);
+  }
+
+  .seed-word {
+    @apply flex items-center gap-2 rounded-lg px-3 py-2 font-mono text-sm;
+    background: rgba(212,160,23,0.08);
+    border: 1px solid rgba(212,160,23,0.15);
+  }
+
+  .nav-item {
+    @apply flex flex-col items-center gap-1 py-2 px-3 rounded-xl transition-all duration-200;
+  }
+
+  .nav-item.active {
+    @apply text-kairos-400;
+    background: rgba(212,160,23,0.1);
+  }
+
+  .nav-item:not(.active) {
+    @apply text-dark-300;
+  }
+
+  .shimmer-bg {
+    background: linear-gradient(90deg, transparent 0%, rgba(212,160,23,0.1) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  .dot-pattern {
+    background-image: radial-gradient(rgba(212,160,23,0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+}

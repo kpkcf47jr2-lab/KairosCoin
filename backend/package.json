@@ -1,0 +1,25 @@
+{
+  "name": "kairos-backend",
+  "version": "1.0.0",
+  "description": "KairosCoin Stablecoin Backend — Mint/Burn Engine, Proof of Reserves & API",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test src/__tests__/*.test.js"
+  },
+  "keywords": ["kairos", "stablecoin", "mint", "burn", "reserves"],
+  "author": "Kairos 777 Inc.",
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.4",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "uuid": "^11.1.0",
+    "winston": "^3.17.0"
+  }
+}

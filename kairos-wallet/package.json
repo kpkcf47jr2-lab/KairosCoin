@@ -1,0 +1,33 @@
+{
+  "name": "kairos-wallet",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Kairos Wallet — Next-generation decentralized multi-chain wallet",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@walletconnect/utils": "^2.23.6",
+    "@walletconnect/web3wallet": "^1.16.1",
+    "ethers": "^6.13.4",
+    "framer-motion": "^11.11.0",
+    "jsqr": "^1.4.0",
+    "lucide-react": "^0.456.0",
+    "qrcode.react": "^4.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "vite": "^6.0.0",
+    "vite-plugin-pwa": "^0.21.0"
+  }
+}

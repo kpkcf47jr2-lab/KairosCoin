@@ -1,0 +1,609 @@
+// ═══════════════════════════════════════════════════════
+//  KAIROS WALLET — Settings Screen
+// ═══════════════════════════════════════════════════════
+
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  ArrowLeft, User, Shield, Globe, Bell, Palette, Info,
+  ChevronRight, LogOut, Trash2, Key, Plus, Copy, Check, ExternalLink, Eye, EyeOff, AlertTriangle, Link2, FileText
+} from 'lucide-react';
+import { useStore } from '../../store/useStore';
+import { formatAddress, resetWallet, addAccount, unlockVault } from '../../services/wallet';
+import { CHAINS } from '../../constants/chains';
+import { APP_VERSION } from '../../constants/chains';
+import {
+  getAutoLockTimeout, setAutoLockTimeout, getAutoLockOptions,
+  isBiometricAvailable, isBiometricEnabled, enrollBiometric, removeBiometric,
+} from '../../services/autolock';
+import { getLanguage, setLanguage, getAvailableLanguages, t, useTranslation } from '../../services/i18n';
+
+export default function SettingsScreen() {
+  const { t } = useTranslation();
+  const {
+    activeAddress, activeChainId, goBack, navigate, lock, showToast,
+    getAllAccounts, setActiveAddress, vault,
+  } = useStore();
+  const [showAccounts, setShowAccounts] = useState(false);
+  const [hasCopied, setHasCopied] = useState(null);
+  const [showExportKey, setShowExportKey] = useState(false);
+  const [exportPassword, setExportPassword] = useState('');
+  const [exportedKey, setExportedKey] = useState(null);
+  const [exportError, setExportError] = useState('');
+  const [showKeyVisible, setShowKeyVisible] = useState(false);
+  const [autoLockMs, setAutoLockMs] = useState(getAutoLockTimeout());
+  const [biometricOn, setBiometricOn] = useState(isBiometricEnabled());
+  const [currentLang, setCurrentLang] = useState(getLanguage());
+  const [showBackupSeed, setShowBackupSeed] = useState(false);
+  const [backupPassword, setBackupPassword] = useState('');
+  const [revealedSeed, setRevealedSeed] = useState(null);
+  const [backupError, setBackupError] = useState('');
+  const [seedVisible, setSeedVisible] = useState(false);
+
+  // Modal states for Add Account & Reset Wallet
+  const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [addAccountPwd, setAddAccountPwd] = useState('');
+  const [addAccountError, setAddAccountError] = useState('');
+  const [addAccountLoading, setAddAccountLoading] = useState(false);
+
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetStep, setResetStep] = useState(1); // 1 = first confirm, 2 = second confirm
+
+  const accounts = getAllAccounts();
+  const chain = CHAINS[activeChainId];
+
+  const handleCopyAddress = async (address) => {
+    await navigator.clipboard.writeText(address);
+    setHasCopied(address);
+    showToast(t('common.copied'), 'success');
+    setTimeout(() => setHasCopied(null), 2000);
+  };
+
+  const handleAddAccount = async () => {
+    setShowAddAccountModal(true);
+    setAddAccountPwd('');
+    setAddAccountError('');
+  };
+
+  const handleAddAccountSubmit = async () => {
+    if (!addAccountPwd) return;
+    setAddAccountLoading(true);
+    setAddAccountError('');
+    try {
+      const result = await addAccount(addAccountPwd, `Wallet ${accounts.length + 1}`);
+      showToast(`Nueva wallet creada: ${formatAddress(result.address)}`, 'success');
+      setShowAddAccountModal(false);
+    } catch (err) {
+      setAddAccountError(err.message || 'Contraseña incorrecta');
+    }
+    setAddAccountLoading(false);
+  };
+
+  const handleResetWallet = () => {
+    setShowResetModal(true);
+    setResetStep(1);
+  };
+
+  const handleResetConfirm = () => {
+    if (resetStep === 1) {
+      setResetStep(2);
+    } else {
+      resetWallet();
+      navigate('welcome');
+      showToast('Wallet eliminada', 'info');
+      setShowResetModal(false);
+    }
+  };
+
+  const handleViewExplorer = () => {
+    window.open(`${chain.blockExplorerUrl}/address/${activeAddress}`, '_blank');
+  };
+
+  const handleExportPrivateKey = async () => {
+    setExportError('');
+    try {
+      const vault = await unlockVault(exportPassword);
+      const allAccounts = [...(vault.accounts || []), ...(vault.importedAccounts || [])];
+      const currentAccount = allAccounts.find(a => a.address.toLowerCase() === activeAddress?.toLowerCase());
+      if (!currentAccount) throw new Error('Cuenta no encontrada');
+      setExportedKey(currentAccount.privateKey);
+    } catch (err) {
+      setExportError(err.message || 'Contraseña incorrecta');
+    }
+  };
+
+  const handleCloseExport = () => {
+    setShowExportKey(false);
+    setExportPassword('');
+    setExportedKey(null);
+    setExportError('');
+    setShowKeyVisible(false);
+  };
+
+  const handleCopyKey = async () => {
+    if (exportedKey) {
+      await navigator.clipboard.writeText(exportedKey);
+      showToast('Clave privada copiada', 'success');
+    }
+  };
+
+  const sections = [
+    {
+      title: t('settings.accounts'),
+      items: [
+        {
+          icon: User,
+          label: t('settings.accounts'),
+          desc: `${accounts.length} wallet${accounts.length !== 1 ? 's' : ''}`,
+          action: () => setShowAccounts(!showAccounts),
+          color: 'text-blue-400',
+        },
+        {
+          icon: ExternalLink,
+          label: t('settings.explorer'),
+          desc: chain.shortName + 'Scan',
+          action: handleViewExplorer,
+          color: 'text-green-400',
+        },
+      ],
+    },
+    {
+      title: t('settings.security'),
+      items: [
+        {
+          icon: Shield,
+          label: t('settings.security'),
+          desc: t('settings.encryption'),
+          color: 'text-purple-400',
+        },
+        {
+          icon: Key,
+          label: t('settings.export_key'),
+          desc: t('settings.requires_password'),
+          action: () => setShowExportKey(true),
+          color: 'text-orange-400',
+        },
+        {
+          icon: FileText,
+          label: t('settings.backup_seed', 'Frase Semilla'),
+          desc: t('settings.backup_seed_desc', 'Ver tu frase de recuperación'),
+          action: () => setShowBackupSeed(true),
+          color: 'text-yellow-400',
+        },
+        {
+          icon: Shield,
+          label: t('settings.autolock'),
+          desc: getAutoLockOptions().find(o => o.value === autoLockMs)?.label || '5 minutos',
+          action: () => {
+            // Cycle through options
+            const options = getAutoLockOptions();
+            const idx = options.findIndex(o => o.value === autoLockMs);
+            const next = options[(idx + 1) % options.length];
+            setAutoLockTimeout(next.value);
+            setAutoLockMs(next.value);
+            showToast(`Auto-lock: ${next.label}`, 'info');
+          },
+          color: 'text-cyan-400',
+        },
+        ...(isBiometricAvailable() ? [{
+          icon: Shield,
+          label: t('settings.biometric'),
+          desc: biometricOn ? t('settings.biometric_on', 'Activada') : t('settings.biometric_off', 'Desactivada'),
+          action: async () => {
+            if (biometricOn) {
+              removeBiometric();
+              setBiometricOn(false);
+              showToast('Biometría desactivada', 'info');
+            } else {
+              try {
+                await enrollBiometric();
+                setBiometricOn(true);
+                showToast('Biometría activada', 'success');
+              } catch (err) {
+                showToast('Error: ' + err.message, 'error');
+              }
+            }
+          },
+          color: 'text-green-400',
+        }] : []),
+      ],
+    },
+    {
+      title: t('settings.general', 'General'),
+      items: [
+        {
+          icon: Link2,
+          label: t('settings.walletconnect'),
+          desc: t('settings.connect_dapps'),
+          action: () => navigate('walletconnect'),
+          color: 'text-blue-400',
+        },
+        {
+          icon: Globe,
+          label: t('settings.network'),
+          desc: `${chain.icon} ${chain.name}`,
+          color: 'text-cyan-400',
+        },
+        {
+          icon: Globe,
+          label: t('settings.language'),
+          desc: getAvailableLanguages().find(l => l.code === currentLang)?.flag + ' ' + getAvailableLanguages().find(l => l.code === currentLang)?.name,
+          action: () => {
+            const langs = getAvailableLanguages();
+            const idx = langs.findIndex(l => l.code === currentLang);
+            const next = langs[(idx + 1) % langs.length];
+            setLanguage(next.code);
+            setCurrentLang(next.code);
+            showToast(`${next.flag} ${next.name}`, 'info');
+          },
+          color: 'text-pink-400',
+        },
+        {
+          icon: Info,
+          label: t('settings.about'),
+          desc: `v${APP_VERSION} — Kairos 777 Inc.`,
+          color: 'text-kairos-400',
+        },
+      ],
+    },
+    {
+      title: t('settings.danger', 'Peligro'),
+      items: [
+        {
+          icon: LogOut,
+          label: t('settings.lock'),
+          desc: t('settings.lock_desc'),
+          action: lock,
+          color: 'text-yellow-400',
+        },
+        {
+          icon: Trash2,
+          label: t('settings.delete'),
+          desc: t('settings.delete_desc'),
+          action: handleResetWallet,
+          color: 'text-red-400',
+          danger: true,
+        },
+      ],
+    },
+  ];
+
+  return (
+    <div className="screen-container px-6 py-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <button onClick={goBack} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+          <ArrowLeft size={20} />
+        </button>
+        <h2 className="text-lg font-bold">{t('settings.title')}</h2>
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-6 -mx-1 px-1">
+        {sections.map(section => (
+          <div key={section.title}>
+            <h3 className="text-xs font-semibold text-dark-400 uppercase tracking-wider mb-2 px-1">
+              {section.title}
+            </h3>
+            <div className="glass-card overflow-hidden">
+              {section.items.map((item, i) => (
+                <button
+                  key={item.label}
+                  onClick={item.action}
+                  className={`w-full flex items-center gap-3 p-4 hover:bg-white/5 transition-all text-left ${
+                    i > 0 ? 'border-t border-white/5' : ''
+                  }`}
+                >
+                  <div className={`w-9 h-9 rounded-xl ${item.danger ? 'bg-red-500/10' : 'bg-white/5'} flex items-center justify-center`}>
+                    <item.icon size={16} className={item.color} />
+                  </div>
+                  <div className="flex-1">
+                    <span className={`text-sm font-medium ${item.danger ? 'text-red-400' : ''}`}>{item.label}</span>
+                    {item.desc && <p className="text-dark-400 text-xs">{item.desc}</p>}
+                  </div>
+                  <ChevronRight size={16} className="text-dark-500" />
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* Accounts panel */}
+        {showAccounts && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            className="glass-card-strong p-4"
+          >
+            <h4 className="text-sm font-semibold mb-3">Mis Wallets</h4>
+            <div className="space-y-2">
+              {accounts.map(acc => (
+                <div
+                  key={acc.address}
+                  className={`flex items-center gap-3 p-3 rounded-xl transition-all cursor-pointer ${
+                    acc.address === activeAddress ? 'bg-kairos-500/10 border border-kairos-500/20' : 'hover:bg-white/5'
+                  }`}
+                  onClick={() => setActiveAddress(acc.address)}
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-kairos-400 to-kairos-600 flex items-center justify-center text-xs font-bold text-dark-950">
+                    {acc.name?.charAt(0) || 'W'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{acc.name}</p>
+                    <p className="text-dark-400 text-xs font-mono">{formatAddress(acc.address, 6)}</p>
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleCopyAddress(acc.address); }}
+                    className="text-dark-400"
+                  >
+                    {hasCopied === acc.address ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
+                  </button>
+                  {acc.address === activeAddress && (
+                    <div className="w-2 h-2 rounded-full bg-kairos-400" />
+                  )}
+                </div>
+              ))}
+
+              <button
+                onClick={handleAddAccount}
+                className="w-full flex items-center gap-2 p-3 rounded-xl border border-dashed border-white/10 text-dark-400 hover:text-white hover:border-kairos-500/30 transition-all"
+              >
+                <Plus size={16} />
+                <span className="text-sm">Agregar Wallet</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Export Private Key Modal */}
+        <AnimatePresence>
+          {showExportKey && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6"
+              onClick={handleCloseExport}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="glass-card-strong p-6 w-full max-w-sm"
+                onClick={e => e.stopPropagation()}
+              >
+                <h3 className="text-lg font-bold mb-1">Exportar Clave Privada</h3>
+                <p className="text-dark-400 text-xs mb-4">{formatAddress(activeAddress)}</p>
+
+                {!exportedKey ? (
+                  <>
+                    <div className="glass-card p-3 mb-4 flex items-start gap-2">
+                      <AlertTriangle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-[11px] text-dark-300">
+                        Nunca compartas tu clave privada. Cualquiera con ella tiene control total de tus fondos.
+                      </p>
+                    </div>
+                    <input
+                      type="password"
+                      value={exportPassword}
+                      onChange={e => { setExportPassword(e.target.value); setExportError(''); }}
+                      placeholder="Ingresa tu contraseña"
+                      className="glass-input mb-3 text-sm"
+                      autoFocus
+                    />
+                    {exportError && <p className="text-red-400 text-xs mb-3">{exportError}</p>}
+                    <div className="flex gap-2">
+                      <button onClick={handleCloseExport} className="glass-button flex-1 py-3 text-center text-sm">Cancelar</button>
+                      <button
+                        onClick={handleExportPrivateKey}
+                        disabled={!exportPassword}
+                        className="kairos-button flex-1 py-3 text-sm disabled:opacity-40"
+                      >Desbloquear</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="glass-card p-3 mb-4 flex items-start gap-2 border border-red-500/30">
+                      <AlertTriangle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-[11px] text-red-300 font-medium">
+                        NO compartas esta clave. Cualquiera con ella puede robar todos tus fondos.
+                      </p>
+                    </div>
+                    <div className="bg-dark-900/80 rounded-xl p-3 mb-4 relative">
+                      <p className="font-mono text-xs break-all select-all" style={{ filter: showKeyVisible ? 'none' : 'blur(5px)' }}>
+                        {exportedKey}
+                      </p>
+                      <button
+                        onClick={() => setShowKeyVisible(!showKeyVisible)}
+                        className="absolute top-2 right-2 text-dark-400"
+                      >
+                        {showKeyVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={handleCloseExport} className="glass-button flex-1 py-3 text-center text-sm">Cerrar</button>
+                      <button onClick={handleCopyKey} className="kairos-button flex-1 py-3 text-sm flex items-center justify-center gap-1">
+                        <Copy size={14} /> Copiar
+                      </button>
+                    </div>
+                  </>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Footer */}
+        <div className="text-center pb-4">
+          <img src="/icons/logo-128.png" alt="Kairos" className="w-8 h-8 mx-auto mb-2 opacity-30" />
+          <p className="text-dark-500 text-[10px]">
+            Kairos Wallet v{APP_VERSION}<br />
+            © 2026 Kairos 777 Inc. Todos los derechos reservados.
+          </p>
+        </div>
+      </div>
+
+      {/* Backup Seed Phrase Modal */}
+      <AnimatePresence>
+        {showBackupSeed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6"
+            onClick={() => { setShowBackupSeed(false); setBackupPassword(''); setRevealedSeed(null); setBackupError(''); setSeedVisible(false); }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-card-strong p-6 w-full max-w-sm"
+              onClick={e => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold mb-1">{t('settings.backup_seed', 'Frase Semilla')}</h3>
+              <p className="text-dark-400 text-xs mb-4">{t('settings.backup_seed_modal_desc', 'Tu frase de recuperación de 12 palabras')}</p>
+
+              {!revealedSeed ? (
+                <>
+                  <div className="glass-card p-3 mb-4 flex items-start gap-2">
+                    <AlertTriangle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-[11px] text-dark-300">
+                      {t('settings.seed_warning', 'Nunca compartas tu frase semilla. Cualquiera con ella tiene control total de tus fondos.')}
+                    </p>
+                  </div>
+                  <input
+                    type="password"
+                    value={backupPassword}
+                    onChange={e => { setBackupPassword(e.target.value); setBackupError(''); }}
+                    placeholder={t('unlock.password')}
+                    className="glass-input mb-3 text-sm"
+                    autoFocus
+                  />
+                  {backupError && <p className="text-red-400 text-xs mb-3">{backupError}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={() => { setShowBackupSeed(false); setBackupPassword(''); setBackupError(''); }} className="glass-button flex-1 py-3 text-center text-sm">{t('common.cancel')}</button>
+                    <button
+                      onClick={async () => {
+                        setBackupError('');
+                        try {
+                          const vault = await unlockVault(backupPassword);
+                          if (vault.mnemonic) {
+                            setRevealedSeed(vault.mnemonic);
+                          } else {
+                            setBackupError(t('settings.no_seed', 'Wallet importada sin frase semilla'));
+                          }
+                        } catch {
+                          setBackupError(t('unlock.wrong_password'));
+                        }
+                      }}
+                      disabled={!backupPassword}
+                      className="kairos-button flex-1 py-3 text-sm disabled:opacity-40"
+                    >{t('unlock.unlock')}</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="glass-card p-3 mb-4 flex items-start gap-2 border border-red-500/30">
+                    <AlertTriangle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-[11px] text-red-300 font-medium">
+                      {t('settings.seed_danger', 'NO compartas estas palabras. Escríbelas en papel y guárdalas en un lugar seguro.')}
+                    </p>
+                  </div>
+                  <div className="bg-dark-900/80 rounded-xl p-4 mb-4 relative">
+                    <div className={`grid grid-cols-3 gap-2 ${seedVisible ? '' : 'blur-sm'}`}>
+                      {revealedSeed.split(' ').map((word, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-dark-500 w-4 text-right">{i + 1}</span>
+                          <span className="text-xs font-mono text-white">{word}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setSeedVisible(!seedVisible)}
+                      className="absolute top-2 right-2 text-dark-400 p-1"
+                    >
+                      {seedVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setShowBackupSeed(false); setBackupPassword(''); setRevealedSeed(null); setSeedVisible(false); }} className="glass-button flex-1 py-3 text-center text-sm">{t('common.close')}</button>
+                    <button
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(revealedSeed);
+                        showToast(t('common.copied'), 'success');
+                      }}
+                      className="kairos-button flex-1 py-3 text-sm flex items-center justify-center gap-1"
+                    >
+                      <Copy size={14} /> {t('common.copy')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* ── Add Account Password Modal ── */}
+        {showAddAccountModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-6"
+            onClick={() => setShowAddAccountModal(false)}
+          >
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+              className="glass-card w-full max-w-sm p-6 rounded-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-2 mb-4">
+                <Plus size={18} className="text-kairos-400" />
+                <h3 className="font-bold text-white">Nueva Wallet</h3>
+              </div>
+              <p className="text-dark-400 text-sm mb-4">Ingresa tu contraseña para crear una nueva wallet:</p>
+              <input
+                type="password"
+                value={addAccountPwd}
+                onChange={e => setAddAccountPwd(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddAccountSubmit()}
+                placeholder="Contraseña"
+                className="glass-input w-full py-3 mb-2"
+                autoFocus
+              />
+              {addAccountError && <p className="text-red-400 text-xs mb-2">{addAccountError}</p>}
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setShowAddAccountModal(false)} className="glass-button flex-1 py-3 text-center text-sm">Cancelar</button>
+                <button onClick={handleAddAccountSubmit} disabled={!addAccountPwd || addAccountLoading}
+                  className="kairos-button flex-1 py-3 text-sm disabled:opacity-40">
+                  {addAccountLoading ? 'Creando...' : 'Crear'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* ── Reset Wallet Confirmation Modal ── */}
+        {showResetModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-6"
+            onClick={() => setShowResetModal(false)}
+          >
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+              className="glass-card w-full max-w-sm p-6 rounded-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-2 mb-4">
+                <AlertTriangle size={20} className="text-red-400" />
+                <h3 className="font-bold text-red-400">{resetStep === 1 ? '⚠️ PELIGRO' : '¿ESTÁS SEGURO?'}</h3>
+              </div>
+              <p className="text-dark-300 text-sm mb-6">
+                {resetStep === 1
+                  ? 'Esto eliminará tu wallet de este dispositivo permanentemente. ¿Tienes tu frase semilla guardada?'
+                  : '¿ESTÁS COMPLETAMENTE SEGURO? No hay vuelta atrás. Tu wallet será eliminada permanentemente.'}
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => setShowResetModal(false)} className="glass-button flex-1 py-3 text-center text-sm">Cancelar</button>
+                <button onClick={handleResetConfirm}
+                  className="flex-1 py-3 text-sm font-semibold rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors">
+                  {resetStep === 1 ? 'Continuar' : 'Sí, eliminar'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

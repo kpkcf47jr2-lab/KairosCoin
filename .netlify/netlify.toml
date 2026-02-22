@@ -1,0 +1,38 @@
+plugins = []
+redirects = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "/Users/kaizenllc/KairosCoin"
+publishOrigin = "default"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[[headers]]
+for = "/total-supply.txt"
+
+[headers.values]
+Content-Type = "text/plain"
+Access-Control-Allow-Origin = "*"
+
+[[headers]]
+for = "/circulating-supply.txt"
+
+[headers.values]
+Content-Type = "text/plain"
+Access-Control-Allow-Origin = "*"

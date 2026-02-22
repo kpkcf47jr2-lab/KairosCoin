@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Kairos Wallet" />
+  <meta name="description" content="Kairos Wallet — Next-generation decentralized multi-chain wallet. Secure, fast, beautiful." />
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/logo-180.png" />
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <title>Kairos Wallet</title>
+  <script type="module" crossorigin src="/assets/index-DHv3begS.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/ui-Xh61smVQ.js">
+  <link rel="modulepreload" crossorigin href="/assets/vendor-XzCrtuzZ.js">
+  <link rel="modulepreload" crossorigin href="/assets/crypto-1JBTrmrY.js">
+  <link rel="modulepreload" crossorigin href="/assets/walletconnect-DW32CSov.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-BZd4cx0k.css">
+</head>
+<body class="bg-dark-950 text-white antialiased overflow-hidden">
+  <!-- Register Service Worker for PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').catch(function() {});
+      });
+    }
+  </script>
+  <div id="root">
+    <!-- Fallback visible while JS loads -->
+    <div id="app-loading" style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;background:#05050f;">
+      <img src="/icons/logo-128.png" alt="Kairos" width="64" height="64" style="animation:spin 2s linear infinite;" />
+      <p style="color:#9d9db8;font-family:Inter,sans-serif;font-size:14px;">Cargando Kairos Wallet...</p>
+    </div>
+    <style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
+  </div>
+  <noscript>
+    <div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;background:#05050f;color:white;font-family:Inter,sans-serif;">
+      <h2>Kairos Wallet</h2>
+      <p>JavaScript es necesario para usar esta aplicación.</p>
+    </div>
+  </noscript>
+</body>
+</html>

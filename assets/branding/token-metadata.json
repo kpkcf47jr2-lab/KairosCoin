@@ -1,0 +1,34 @@
+{
+  "name": "Kairos Coin",
+  "symbol": "KAIROS",
+  "decimals": 18,
+  "description": "USD-pegged stablecoin by Kairos 777 Inc. — 1 KAIROS = 1 USD. 60% cheaper fees than USDT/USDC.",
+  "logo": "assets/branding/kairos-coin-logo.png",
+  "motto": "In God We Trust",
+  "owner": "Kairos 777 Inc.",
+  "administrator": "Mario Isaac",
+  "website": "https://kairos-777.com",
+  "parity": "1 KAIROS = 1 USD",
+  "feeBps": 8,
+  "feeDescription": "0.08% per transfer — 60% cheaper than USDT/USDC",
+  "initialSupply": "10000000000",
+  "blockchain": "BNB Smart Chain",
+  "chainId": 56,
+  "standard": "BEP-20 + ERC-2612",
+  "brand": {
+    "primaryColor": "#D4AF37",
+    "secondaryColor": "#3D2B1F",
+    "accentColor": "#B8860B",
+    "backgroundColor": "#2A1F14",
+    "logoDescription": "Gold coin with KAIROS text, globe with network nodes, 'In God We Trust' motto"
+  },
+  "ecosystem": {
+    "wallet": "https://kairos-wallet.netlify.app",
+    "dex": "Coming Soon — Kairos Trade"
+  },
+  "social": {
+    "website": "https://kairos-777.com",
+    "twitter": "https://x.com/777_inc13680",
+    "telegram": "https://t.me/KairosCoin_777"
+  }
+}

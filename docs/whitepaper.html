@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kairos Coin — Whitepaper v1.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --gold: #D4AF37;
+      --gold-deep: #B8860B;
+      --dark: #0D0D0D;
+      --dark-surface: #151108;
+      --white: #FFFFFF;
+      --gray: #A0A0A0;
+      --gray-light: #CCCCCC;
+      --green: #22C55E;
+      --red: #EF4444;
+      --font-display: 'Playfair Display', Georgia, serif;
+      --font-body: 'Inter', -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-body);
+      background: var(--dark);
+      color: var(--gray-light);
+      line-height: 1.8;
+      font-size: 16px;
+    }
+
+    .wp-container {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 60px 32px 100px;
+    }
+
+    /* Cover */
+    .cover {
+      text-align: center;
+      padding: 80px 0 60px;
+      border-bottom: 1px solid rgba(212,175,55,0.15);
+      margin-bottom: 60px;
+    }
+
+    .cover img {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 32px;
+      box-shadow: 0 0 60px rgba(212,175,55,0.2);
+    }
+
+    .cover h1 {
+      font-family: var(--font-display);
+      font-size: 48px;
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--white), var(--gold));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .cover .subtitle {
+      font-size: 20px;
+      color: var(--gold);
+      font-weight: 400;
+      margin-bottom: 24px;
+    }
+
+    .cover .motto {
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 18px;
+      color: var(--gold);
+      margin-bottom: 32px;
+    }
+
+    .cover .meta {
+      font-size: 14px;
+      color: var(--gray);
+      line-height: 2;
+    }
+
+    .cover .meta strong {
+      color: var(--gray-light);
+    }
+
+    /* TOC */
+    .toc {
+      background: var(--dark-surface);
+      border: 1px solid rgba(212,175,55,0.1);
+      border-radius: 12px;
+      padding: 32px 40px;
+      margin-bottom: 60px;
+    }
+
+    .toc h2 {
+      font-family: var(--font-display);
+      font-size: 24px;
+      color: var(--gold);
+      margin-bottom: 20px;
+    }
+
+    .toc ol {
+      list-style: none;
+      counter-reset: toc;
+    }
+
+    .toc li {
+      counter-increment: toc;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .toc li::before {
+      content: counter(toc) ".";
+      color: var(--gold);
+      font-weight: 600;
+      margin-right: 12px;
+      font-size: 14px;
+    }
+
+    .toc a {
+      color: var(--gray-light);
+      text-decoration: none;
+      font-size: 15px;
+      transition: color 0.3s;
+    }
+
+    .toc a:hover { color: var(--gold); }
+
+    /* Sections */
+    .section {
+      margin-bottom: 56px;
+      padding-top: 20px;
+    }
+
+    h2 {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid rgba(212,175,55,0.2);
+    }
+
+    h3 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      color: var(--gold);
+      margin: 28px 0 12px;
+    }
+
+    h4 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--white);
+      margin: 20px 0 8px;
+    }
+
+    p { margin-bottom: 16px; }
+
+    strong { color: var(--white); }
+
+    ul, ol {
+      margin: 12px 0 20px 24px;
+    }
+
+    li { margin-bottom: 6px; }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      border: 1px solid rgba(255,255,255,0.06);
+      text-align: left;
+    }
+
+    th {
+      background: var(--dark-surface);
+      color: var(--gold);
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    td { color: var(--gray-light); }
+
+    tr:hover { background: rgba(212,175,55,0.03); }
+
+    .yes { color: var(--green); font-weight: 700; }
+    .no { color: var(--red); }
+
+    /* Code */
+    code {
+      font-family: var(--font-mono);
+      background: rgba(212,175,55,0.08);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 14px;
+      color: var(--gold);
+    }
+
+    pre {
+      background: var(--dark-surface);
+      border: 1px solid rgba(212,175,55,0.1);
+      border-radius: 8px;
+      padding: 20px;
+      overflow-x: auto;
+      margin: 16px 0;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      font-size: 13px;
+      color: var(--gray-light);
+    }
+
+    /* Callouts */
+    .callout {
+      background: rgba(212,175,55,0.06);
+      border-left: 3px solid var(--gold);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 20px 0;
+      font-size: 15px;
+    }
+
+    .callout strong {
+      color: var(--gold);
+    }
+
+    /* Footer */
+    .wp-footer {
+      text-align: center;
+      padding-top: 40px;
+      border-top: 1px solid rgba(212,175,55,0.1);
+      margin-top: 60px;
+    }
+
+    .wp-footer p {
+      color: var(--gray);
+      font-size: 14px;
+    }
+
+    .wp-footer .motto {
+      font-family: var(--font-display);
+      font-style: italic;
+      color: var(--gold);
+      font-size: 16px;
+      margin-top: 8px;
+    }
+
+    /* Print */
+    @media print {
+      body { background: white; color: #333; }
+      .cover h1 { -webkit-text-fill-color: #333; background: none; }
+      h2 { color: #333; border-color: #D4AF37; }
+      h3, .callout strong, code, .toc h2, .toc li::before { color: #B8860B; }
+      th { background: #f5f5f5; color: #333; }
+      .callout { background: #fef9e7; }
+    }
+
+    @media (max-width: 600px) {
+      .wp-container { padding: 32px 20px 60px; }
+      .cover h1 { font-size: 32px; }
+      h2 { font-size: 26px; }
+      .cover { padding: 40px 0 40px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wp-container">
+
+    <!-- ═══════════ COVER ═══════════ -->
+    <div class="cover">
+      <img src="../website/kairos-logo.png" alt="Kairos Coin" />
+      <h1>Kairos Coin</h1>
+      <p class="subtitle">Whitepaper v1.0 — February 2026</p>
+      <p class="motto">"In God We Trust"</p>
+      <p class="meta">
+        <strong>Token Symbol:</strong> KAIROS<br/>
+        <strong>Network:</strong> BNB Smart Chain (BSC)<br/>
+        <strong>Standard:</strong> BEP-20 + ERC-2612<br/>
+        <strong>Organization:</strong> Kairos 777 Inc.<br/>
+        <strong>Administrator:</strong> Mario Isaac<br/>
+        <strong>Contract:</strong> 0x14D41707269c7D8b8DFa5095b38824a46dA05da3
+      </p>
+    </div>
+
+    <!-- ═══════════ TABLE OF CONTENTS ═══════════ -->
+    <div class="toc">
+      <h2>Table of Contents</h2>
+      <ol>
+        <li><a href="#abstract">Abstract</a></li>
+        <li><a href="#introduction">Introduction</a></li>
+        <li><a href="#problem">Problem Statement</a></li>
+        <li><a href="#solution">The Kairos Solution</a></li>
+        <li><a href="#ecosystem">The Kairos Ecosystem</a></li>
+        <li><a href="#architecture">Technical Architecture</a></li>
+        <li><a href="#fee-system">Fee System</a></li>
+        <li><a href="#security">Security & Compliance</a></li>
+        <li><a href="#comparison">Competitive Analysis</a></li>
+        <li><a href="#tokenomics">Tokenomics</a></li>
+        <li><a href="#governance">Governance & Administration</a></li>
+        <li><a href="#roadmap">Roadmap</a></li>
+        <li><a href="#legal">Legal Disclaimer</a></li>
+      </ol>
+    </div>
+
+    <!-- ═══════════ 1. ABSTRACT ═══════════ -->
+    <div class="section" id="abstract">
+      <h2>1. Abstract</h2>
+      <p>Kairos Coin (KAIROS) is a USD-pegged stablecoin deployed on the BNB Smart Chain, designed to provide a reliable, transparent, and cost-efficient digital dollar for the global economy. With transfer fees <strong>60% lower</strong> than existing stablecoins like USDT and USDC, Kairos Coin introduces a new standard in stablecoin technology.</p>
+      <p>As the <strong>native token of the Kairos ecosystem</strong> — which includes Kairos Trade (automated trading platform) and Kairos Wallet (digital wallet) — KAIROS serves as the backbone of a comprehensive financial platform built by <strong>Kairos 777 Inc.</strong></p>
+      <p>This whitepaper outlines the technical architecture, economic model, security features, and strategic vision behind Kairos Coin.</p>
+    </div>
+
+    <!-- ═══════════ 2. INTRODUCTION ═══════════ -->
+    <div class="section" id="introduction">
+      <h2>2. Introduction</h2>
+      <p>Stablecoins have become the foundation of the digital economy, with a combined market capitalization exceeding $200 billion. They serve as the primary on/off ramp between traditional finance and decentralized finance (DeFi), facilitating trillions of dollars in annual transaction volume.</p>
+      <p>However, existing stablecoins suffer from significant limitations:</p>
+      <ul>
+        <li>High transfer fees (up to 0.20% per transaction)</li>
+        <li>Lack of on-chain transparency in minting and burning</li>
+        <li>No built-in batch transfer capability</li>
+        <li>Limited DeFi composability features</li>
+        <li>No reentrancy protection on critical functions</li>
+      </ul>
+      <p>Kairos Coin was created to address these shortcomings while serving as the native currency of a broader financial ecosystem that includes automated trading and digital wallet services.</p>
+    </div>
+
+    <!-- ═══════════ 3. PROBLEM ═══════════ -->
+    <div class="section" id="problem">
+      <h2>3. Problem Statement</h2>
+
+      <h3>3.1 High Transaction Costs</h3>
+      <p>USDT and USDC charge up to 20 basis points (0.20%) per transfer. For institutional and high-frequency users, these costs compound significantly. A user transferring $1,000,000 pays up to $2,000 in fees per transaction.</p>
+
+      <h3>3.2 Opacity in Supply Management</h3>
+      <p>Current stablecoins lack transparent on-chain tracking of total minted and burned supply. Users must rely on third-party attestations rather than verifiable on-chain data.</p>
+
+      <h3>3.3 Limited Functionality</h3>
+      <p>Existing stablecoins are basic ERC-20 tokens without advanced features like batch transfers, configurable fee systems, or gasless approval mechanisms — features that modern DeFi demands.</p>
+
+      <h3>3.4 Security Vulnerabilities</h3>
+      <p>Neither USDT nor USDC implement reentrancy guards on their contract functions, leaving potential attack vectors open. Their compliance mechanisms are opaque and centralized.</p>
+    </div>
+
+    <!-- ═══════════ 4. SOLUTION ═══════════ -->
+    <div class="section" id="solution">
+      <h2>4. The Kairos Solution</h2>
+      <p>Kairos Coin addresses every limitation of current stablecoins with a purpose-built smart contract that incorporates the latest in Solidity security patterns and DeFi composability features.</p>
+
+      <div class="callout">
+        <strong>Core Value Proposition:</strong> 1 KAIROS = 1 USD, with 60% lower fees, superior security, and native integration with the Kairos Trade and Kairos Wallet platforms.
+      </div>
+
+      <h3>4.1 Cost Efficiency</h3>
+      <p>Kairos Coin charges only <strong>8 basis points (0.08%)</strong> per transfer — 60% cheaper than the 20 bps charged by USDT and USDC. This translates to massive savings:</p>
+
+      <table>
+        <thead>
+          <tr><th>Transfer Amount</th><th>USDT/USDC Fee (20 bps)</th><th>KAIROS Fee (8 bps)</th><th>Savings</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>$1,000</td><td>$2.00</td><td>$0.80</td><td><strong>$1.20</strong></td></tr>
+          <tr><td>$10,000</td><td>$20.00</td><td>$8.00</td><td><strong>$12.00</strong></td></tr>
+          <tr><td>$100,000</td><td>$200.00</td><td>$80.00</td><td><strong>$120.00</strong></td></tr>
+          <tr><td>$1,000,000</td><td>$2,000.00</td><td>$800.00</td><td><strong>$1,200.00</strong></td></tr>
+        </tbody>
+      </table>
+
+      <h3>4.2 Transparency</h3>
+      <p>All supply management operations are tracked on-chain with public variables:</p>
+      <ul>
+        <li><code>totalMinted</code> — cumulative tokens ever created</li>
+        <li><code>totalBurned</code> — cumulative tokens ever destroyed</li>
+        <li><code>totalSupply()</code> — current circulating supply</li>
+      </ul>
+      <p>Every mint, burn, blacklist, and fee configuration change emits an event, creating a permanent and auditable record on the blockchain.</p>
+
+      <h3>4.3 Advanced DeFi Features</h3>
+      <ul>
+        <li><strong>ERC-2612 Permit:</strong> Gasless approvals via cryptographic signatures</li>
+        <li><strong>Batch Transfers:</strong> Send to up to 200 recipients in a single transaction</li>
+        <li><strong>Fee Exemptions:</strong> Configurable per-address fee waivers for exchanges and partners</li>
+        <li><strong>Configurable Caps:</strong> Per-transaction and daily minting limits</li>
+      </ul>
+    </div>
+
+    <!-- ═══════════ 5. ECOSYSTEM ═══════════ -->
+    <div class="section" id="ecosystem">
+      <h2>5. The Kairos Ecosystem</h2>
+      <p>Kairos Coin is not a standalone token — it is the <strong>native currency</strong> of a comprehensive financial ecosystem built by Kairos 777 Inc.</p>
+
+      <h3>5.1 Kairos Trade</h3>
+      <p>An automated trading platform that connects to multiple brokers, enabling users to execute algorithmic trading strategies across markets. KAIROS serves as:</p>
+      <ul>
+        <li>The primary settlement currency within the platform</li>
+        <li>Payment method for trading fees and subscriptions</li>
+        <li>Reward token for top-performing traders</li>
+        <li>Collateral for margin and leveraged positions</li>
+      </ul>
+
+      <h3>5.2 Kairos Wallet</h3>
+      <p>A digital wallet designed for seamless management of KAIROS and other digital assets. Features include:</p>
+      <ul>
+        <li>Native KAIROS support with real-time balance tracking</li>
+        <li>Integration with Kairos Trade for instant deposits/withdrawals</li>
+        <li>Multi-chain asset management</li>
+        <li>Peer-to-peer KAIROS transfers with minimal fees</li>
+      </ul>
+
+      <h3>5.3 Ecosystem Synergy</h3>
+      <table>
+        <thead>
+          <tr><th>Component</th><th>Function</th><th>KAIROS Role</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Kairos Trade</strong></td><td>Automated trading platform</td><td>Native settlement & fees</td></tr>
+          <tr><td><strong>Kairos Wallet</strong></td><td>Digital wallet</td><td>Primary asset & transfers</td></tr>
+          <tr><td><strong>Kairos Coin</strong></td><td>USD-pegged stablecoin</td><td>Ecosystem backbone</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <strong>The Binance Model:</strong> Just as BNB powers the Binance ecosystem (exchange, wallet, chain), KAIROS powers the Kairos ecosystem. This model has proven to generate massive value — BNB grew from $0.10 to over $600.
+      </div>
+    </div>
+
+    <!-- ═══════════ 6. ARCHITECTURE ═══════════ -->
+    <div class="section" id="architecture">
+      <h2>6. Technical Architecture</h2>
+
+      <h3>6.1 Smart Contract Stack</h3>
+      <table>
+        <thead>
+          <tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Language</td><td>Solidity 0.8.24</td><td>Smart contract development</td></tr>
+          <tr><td>Framework</td><td>OpenZeppelin Contracts</td><td>Battle-tested base contracts</td></tr>
+          <tr><td>Token Standard</td><td>BEP-20 (ERC-20)</td><td>Universal compatibility</td></tr>
+          <tr><td>Permit</td><td>ERC-2612</td><td>Gasless approvals</td></tr>
+          <tr><td>Access Control</td><td>Ownable</td><td>Admin role management</td></tr>
+          <tr><td>Circuit Breaker</td><td>Pausable</td><td>Emergency stop</td></tr>
+          <tr><td>Security</td><td>ReentrancyGuard</td><td>Reentrancy attack prevention</td></tr>
+          <tr><td>Network</td><td>BNB Smart Chain</td><td>Low gas, high throughput</td></tr>
+          <tr><td>Compiler</td><td>Optimizer (200 runs)</td><td>Gas-efficient bytecode</td></tr>
+        </tbody>
+      </table>
+
+      <h3>6.2 Contract Inheritance</h3>
+      <pre><code>KairosCoin
+  ├── ERC20          — Core token logic
+  ├── ERC20Permit    — Gasless approvals (EIP-2612)
+  ├── Ownable        — Admin access control
+  ├── Pausable       — Emergency pause mechanism
+  └── ReentrancyGuard — Reentrancy protection</code></pre>
+
+      <h3>6.3 Key Functions</h3>
+
+      <h4>Minting</h4>
+      <pre><code>function mint(address to, uint256 amount) external onlyOwner whenNotPaused</code></pre>
+      <p>Creates new KAIROS tokens with per-transaction and daily cap enforcement. Only the contract owner can mint, and all mints are tracked in <code>totalMinted</code>.</p>
+
+      <h4>Burning</h4>
+      <pre><code>function burn(uint256 amount) public override whenNotPaused
+function burnFrom(address account, uint256 amount) public override whenNotPaused</code></pre>
+      <p>Destroys tokens permanently, reducing total supply. Tracked in <code>totalBurned</code>.</p>
+
+      <h4>Transfer with Fee</h4>
+      <pre><code>function transfer(address to, uint256 amount) public override returns (bool)</code></pre>
+      <p>Automatically deducts the transfer fee and sends it to the reserve wallet. Fee-exempt addresses bypass this mechanism.</p>
+
+      <h4>Batch Transfer</h4>
+      <pre><code>function batchTransfer(address[] calldata recipients, uint256[] calldata amounts) external whenNotPaused nonReentrant</code></pre>
+      <p>Send to up to 200 addresses in a single transaction, dramatically reducing gas costs for distributions.</p>
+
+      <h3>6.4 Why BNB Smart Chain?</h3>
+      <table>
+        <thead>
+          <tr><th>Factor</th><th>Ethereum</th><th>BNB Smart Chain</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Gas Cost (transfer)</td><td>~$2-$50</td><td><strong>~$0.01-$0.05</strong></td></tr>
+          <tr><td>Block Time</td><td>~12 seconds</td><td><strong>~3 seconds</strong></td></tr>
+          <tr><td>Throughput</td><td>~15 TPS</td><td><strong>~160 TPS</strong></td></tr>
+          <tr><td>Ecosystem</td><td>Largest DeFi</td><td><strong>2nd largest + PancakeSwap</strong></td></tr>
+          <tr><td>EVM Compatible</td><td>Native</td><td><strong>Full compatibility</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ═══════════ 7. FEE SYSTEM ═══════════ -->
+    <div class="section" id="fee-system">
+      <h2>7. Fee System</h2>
+
+      <h3>7.1 Fee Structure</h3>
+      <table>
+        <thead>
+          <tr><th>Parameter</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Default Fee</td><td><strong>8 basis points (0.08%)</strong></td></tr>
+          <tr><td>Maximum Fee</td><td>20 basis points (0.20%)</td></tr>
+          <tr><td>Minimum Fee</td><td>0 basis points (can be disabled)</td></tr>
+          <tr><td>Fee Recipient</td><td>Kairos Reserve Wallet</td></tr>
+          <tr><td>Fee Exemptions</td><td>Configurable per address</td></tr>
+        </tbody>
+      </table>
+
+      <h3>7.2 Fee Flow</h3>
+      <pre><code>User A sends 10,000 KAIROS to User B
+  ├── Fee:      8 KAIROS (0.08%) → Reserve Wallet
+  └── Received: 9,992 KAIROS → User B</code></pre>
+
+      <h3>7.3 Fee Revenue Model</h3>
+      <p>Transfer fees are automatically collected in the <strong>Kairos Reserve Wallet</strong>. These funds are used for:</p>
+      <ul>
+        <li>Ecosystem development and maintenance</li>
+        <li>Liquidity provisioning on DEXs</li>
+        <li>Security audits and infrastructure</li>
+        <li>Community rewards and incentives</li>
+        <li>Operational expenses of Kairos 777 Inc.</li>
+      </ul>
+
+      <h3>7.4 Fee Exemptions</h3>
+      <p>Certain addresses can be exempted from transfer fees to facilitate:</p>
+      <ul>
+        <li>Exchange deposits/withdrawals (PancakeSwap, Binance, etc.)</li>
+        <li>Bridge operations for cross-chain transfers</li>
+        <li>Kairos Trade platform internal transfers</li>
+        <li>Kairos Wallet peer-to-peer transfers</li>
+        <li>Strategic partner integrations</li>
+      </ul>
+    </div>
+
+    <!-- ═══════════ 8. SECURITY ═══════════ -->
+    <div class="section" id="security">
+      <h2>8. Security & Compliance</h2>
+
+      <h3>8.1 Smart Contract Security</h3>
+      <table>
+        <thead>
+          <tr><th>Feature</th><th>Implementation</th><th>Protection Against</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>ReentrancyGuard</td><td>OpenZeppelin NonReentrant</td><td>Reentrancy attacks</td></tr>
+          <tr><td>Pausable</td><td>Emergency circuit breaker</td><td>Exploits, market manipulation</td></tr>
+          <tr><td>Ownable</td><td>Single-owner access control</td><td>Unauthorized admin actions</td></tr>
+          <tr><td>Blacklist</td><td>Address-level blocking</td><td>Fraud, sanctions compliance</td></tr>
+          <tr><td>Mint Caps</td><td>Per-tx and daily limits</td><td>Unauthorized inflation</td></tr>
+          <tr><td>SafeMath</td><td>Solidity 0.8.x built-in</td><td>Integer overflow/underflow</td></tr>
+        </tbody>
+      </table>
+
+      <h3>8.2 Testing</h3>
+      <p>The Kairos Coin smart contract has been thoroughly tested with <strong>110 automated tests</strong> covering:</p>
+      <ul>
+        <li>Deployment & initialization (16 tests)</li>
+        <li>ERC-20 standard compliance (5 tests)</li>
+        <li>Minting with cap enforcement (11 tests)</li>
+        <li>Burning mechanics (10 tests)</li>
+        <li>Blacklist system (8 tests)</li>
+        <li>Pause/unpause functionality (6 tests)</li>
+        <li>Supply cap management (6 tests)</li>
+        <li>Batch transfer operations (6 tests)</li>
+        <li>Ownership controls (4 tests)</li>
+        <li>ERC-2612 Permit (1 test)</li>
+        <li>View functions (3 tests)</li>
+        <li>Supply management (3 tests)</li>
+        <li>Fee system (31 tests)</li>
+      </ul>
+      <p><strong>All 110 tests passing with 100% success rate.</strong></p>
+
+      <h3>8.3 Verified Source Code</h3>
+      <p>The complete source code is verified and publicly available on BscScan. Anyone can audit the contract at:</p>
+      <p><code>https://bscscan.com/address/0x14D41707269c7D8b8DFa5095b38824a46dA05da3#code</code></p>
+
+      <h3>8.4 Compliance Framework</h3>
+      <ul>
+        <li><strong>Address Blacklisting:</strong> Block sanctioned or fraudulent addresses</li>
+        <li><strong>Event Logging:</strong> Every admin action emits an on-chain event</li>
+        <li><strong>Emergency Pause:</strong> Halt all transfers in case of exploit or regulatory requirement</li>
+        <li><strong>Transparent Admin:</strong> Single owner address, publicly visible on-chain</li>
+      </ul>
+    </div>
+
+    <!-- ═══════════ 9. COMPARISON ═══════════ -->
+    <div class="section" id="comparison">
+      <h2>9. Competitive Analysis</h2>
+
+      <table>
+        <thead>
+          <tr><th>Feature</th><th>USDT</th><th>USDC</th><th>KAIROS</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>USD Peg</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Gasless Approvals (ERC-2612)</td><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>On-Chain Audit Trail</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+          <tr><td>Batch Transfers</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+          <tr><td>Configurable Mint/Burn Caps</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+          <tr><td>Reentrancy Protection</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+          <tr><td>Emergency Pause</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+          <tr><td>Transfer Fee</td><td>20 bps</td><td>20 bps</td><td><strong>8 bps</strong></td></tr>
+          <tr><td>Fee Exemptions</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+          <tr><td>Reserve Wallet (Auto-collect)</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓</td></tr>
+          <tr><td>Native Trading Platform</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓ Kairos Trade</td></tr>
+          <tr><td>Native Wallet</td><td class="no">✗</td><td class="no">✗</td><td class="yes">✓ Kairos Wallet</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ═══════════ 10. TOKENOMICS ═══════════ -->
+    <div class="section" id="tokenomics">
+      <h2>10. Tokenomics</h2>
+
+      <h3>10.1 Token Specifications</h3>
+      <table>
+        <thead>
+          <tr><th>Property</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Name</td><td>Kairos Coin</td></tr>
+          <tr><td>Symbol</td><td>KAIROS</td></tr>
+          <tr><td>Standard</td><td>BEP-20 + ERC-2612</td></tr>
+          <tr><td>Decimals</td><td>18</td></tr>
+          <tr><td>Initial Supply</td><td>10,000,000,000 (10 Billion)</td></tr>
+          <tr><td>Peg</td><td>1 KAIROS = 1 USD</td></tr>
+          <tr><td>Network</td><td>BNB Smart Chain (Chain ID: 56)</td></tr>
+          <tr><td>Contract</td><td>0x14D4...da3</td></tr>
+        </tbody>
+      </table>
+
+      <h3>10.2 Supply Management</h3>
+      <p>KAIROS has a <strong>flexible supply model</strong> designed to maintain the 1:1 USD peg:</p>
+      <ul>
+        <li><strong>Minting:</strong> New tokens are created when USD reserves increase (controlled by admin with daily caps)</li>
+        <li><strong>Burning:</strong> Tokens are destroyed when USD reserves decrease or for deflationary events</li>
+        <li><strong>Caps:</strong> Per-transaction and daily minting limits prevent runaway inflation</li>
+      </ul>
+
+      <h3>10.3 Distribution Strategy</h3>
+      <table>
+        <thead>
+          <tr><th>Allocation</th><th>Percentage</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Kairos Trade Liquidity</td><td>40%</td><td>Platform trading liquidity</td></tr>
+          <tr><td>Exchange Liquidity</td><td>20%</td><td>PancakeSwap, CEX listings</td></tr>
+          <tr><td>Ecosystem Development</td><td>15%</td><td>Wallet, partnerships, integrations</td></tr>
+          <tr><td>Team & Operations</td><td>10%</td><td>Kairos 777 Inc. operational</td></tr>
+          <tr><td>Community & Airdrops</td><td>10%</td><td>User acquisition, rewards</td></tr>
+          <tr><td>Reserve</td><td>5%</td><td>Emergency fund, strategic reserve</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ═══════════ 11. GOVERNANCE ═══════════ -->
+    <div class="section" id="governance">
+      <h2>11. Governance & Administration</h2>
+
+      <h3>11.1 Admin Capabilities</h3>
+      <p>The contract owner (Kairos 777 Inc., administered by Mario Isaac) has the following capabilities:</p>
+      <table>
+        <thead>
+          <tr><th>Function</th><th>Description</th><th>Safety Mechanism</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>mint</td><td>Create new tokens</td><td>Per-tx and daily caps</td></tr>
+          <tr><td>burn / burnFrom</td><td>Destroy tokens</td><td>Requires balance/approval</td></tr>
+          <tr><td>pause / unpause</td><td>Emergency halt</td><td>Affects all transfers</td></tr>
+          <tr><td>blacklistAddress</td><td>Block an address</td><td>Cannot blacklist owner</td></tr>
+          <tr><td>setTransferFee</td><td>Adjust fee rate</td><td>Max 20 bps hard cap</td></tr>
+          <tr><td>setReserveWallet</td><td>Change fee recipient</td><td>Cannot be zero address</td></tr>
+          <tr><td>setFeeExempt</td><td>Exempt from fees</td><td>Per-address configuration</td></tr>
+          <tr><td>transferOwnership</td><td>Transfer admin role</td><td>Irreversible action</td></tr>
+        </tbody>
+      </table>
+
+      <h3>11.2 Future Governance</h3>
+      <p>As the ecosystem matures, governance will evolve:</p>
+      <ul>
+        <li><strong>Phase 1 (Current):</strong> Centralized admin — Mario Isaac / Kairos 777 Inc.</li>
+        <li><strong>Phase 2:</strong> Multi-signature wallet (3/5 signers required for admin actions)</li>
+        <li><strong>Phase 3:</strong> Timelock on critical operations (48-hour delay)</li>
+        <li><strong>Phase 4:</strong> Community governance via DAO voting</li>
+      </ul>
+    </div>
+
+    <!-- ═══════════ 12. ROADMAP ═══════════ -->
+    <div class="section" id="roadmap">
+      <h2>12. Roadmap</h2>
+
+      <h3>Phase 1 — Foundation (Q1 2026) ✅</h3>
+      <ul>
+        <li>Smart contract development with 110 passing tests</li>
+        <li>Deployment on BNB Smart Chain</li>
+        <li>Contract verification on BscScan</li>
+        <li>Brand identity and whitepaper</li>
+        <li>Website launch</li>
+      </ul>
+
+      <h3>Phase 2 — Growth (Q2 2026)</h3>
+      <ul>
+        <li>PancakeSwap liquidity pool launch</li>
+        <li>CoinGecko and CoinMarketCap listings</li>
+        <li>Kairos Trade platform integration</li>
+        <li>Kairos Wallet launch</li>
+        <li>Community building (Telegram, X, Discord)</li>
+        <li>First exchange listing (MEXC / Gate.io)</li>
+      </ul>
+
+      <h3>Phase 3 — Expansion (Q3-Q4 2026)</h3>
+      <ul>
+        <li>Additional CEX listings (KuCoin, Bybit)</li>
+        <li>Multi-chain deployment (Ethereum, Polygon, Arbitrum)</li>
+        <li>DeFi protocol integrations (lending, yield farming)</li>
+        <li>Smart contract security audit by CertiK or Trail of Bits</li>
+        <li>Multi-sig governance implementation</li>
+      </ul>
+
+      <h3>Phase 4 — Dominance (2027+)</h3>
+      <ul>
+        <li>Binance listing</li>
+        <li>Institutional partnerships</li>
+        <li>Payment gateway integrations (Visa, Mastercard partnerships)</li>
+        <li>Cross-border remittance solutions</li>
+        <li>DAO governance transition</li>
+        <li>Target: Top 10 stablecoin by market cap</li>
+      </ul>
+    </div>
+
+    <!-- ═══════════ 13. LEGAL ═══════════ -->
+    <div class="section" id="legal">
+      <h2>13. Legal Disclaimer</h2>
+      <p>This whitepaper is for informational purposes only and does not constitute financial, legal, or investment advice. Kairos Coin (KAIROS) is a utility token designed for use within the Kairos ecosystem.</p>
+      <p>The information contained herein is subject to change without notice. Kairos 777 Inc. makes no warranties or representations regarding the accuracy or completeness of the information provided.</p>
+      <p>Participation in the Kairos ecosystem involves risks, including but not limited to: smart contract vulnerabilities, regulatory changes, market volatility, and loss of funds. Users should conduct their own research and consult professional advisors before interacting with any cryptocurrency or blockchain technology.</p>
+      <p>Kairos 777 Inc. complies with all applicable laws and regulations. Users are responsible for ensuring compliance with their local jurisdiction's regulations regarding digital assets.</p>
+      <p><strong>Contact:</strong> kairos777inc@gmail.com</p>
+    </div>
+
+    <!-- ═══════════ FOOTER ═══════════ -->
+    <div class="wp-footer">
+      <p><strong>Kairos Coin — Whitepaper v1.0</strong></p>
+      <p>© 2026 Kairos 777 Inc. All rights reserved.</p>
+      <p class="motto">"In God We Trust"</p>
+    </div>
+
+  </div>
+</body>
+</html>

@@ -1,0 +1,30 @@
+# Render Blueprint — KairosCoin Stablecoin Backend
+# Deploy: https://render.com → New → Blueprint → Connect GitHub repo
+services:
+  - type: web
+    name: kairos-api
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node src/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: BSC_RPC_URL
+        sync: false
+      - key: OWNER_PRIVATE_KEY
+        sync: false
+      - key: CONTRACT_ADDRESS
+        value: "0x14D41707269c7D8b8DFa5095b38824a46dA05da3"
+      - key: CHAIN_ID
+        value: "56"
+      - key: API_MASTER_KEY
+        sync: false
+      - key: API_PUBLIC_KEY
+        sync: false
+    healthCheckPath: /api/health/ping
+    autoDeploy: true

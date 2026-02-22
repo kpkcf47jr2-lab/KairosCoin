@@ -1,0 +1,12 @@
+[build]
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/total-supply"
+  to = "/.netlify/functions/total-supply"
+  status = 200
+
+[[redirects]]
+  from = "/api/circulating-supply"
+  to = "/.netlify/functions/circulating-supply"
+  status = 200
