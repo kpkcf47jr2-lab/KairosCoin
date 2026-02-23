@@ -6,8 +6,8 @@
 //  ██║  ██╗██║  ██║██║██║  ██║╚██████╔╝███████║╚██████╗╚██████╔╝██║██║ ╚████║
 //  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝
 //
-//  Stablecoin Backend v1.0.0
-//  Real-time automated mint/burn • Proof of Reserves • Full transparency
+//  Stablecoin Backend v1.1.0
+//  Real-time automated mint/burn • Proof of Reserves • Fiat On-Ramp
 //  Superior to USDT/USDC — real-time, on-chain verifiable, 24/7 API access
 //
 //  Endpoints:
@@ -20,6 +20,9 @@
 //    GET  /api/supply/circulating— Plain text circulating supply
 //    GET  /api/fees              — Fee transparency (public)
 //    GET  /api/health            — System health (public)
+//    POST /api/fiat/create-order — Create fiat purchase order (public)
+//    GET  /api/fiat/order/:id    — Get fiat order status (public)
+//    POST /api/webhook/transak   — Transak webhook handler (automated)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 require("dotenv").config();
@@ -41,6 +44,8 @@ const burnRoutes = require("./routes/burn");
 const reservesRoutes = require("./routes/reserves");
 const supplyRoutes = require("./routes/supply");
 const healthRoutes = require("./routes/health");
+const fiatRoutes = require("./routes/fiat");
+const webhookRoutes = require("./routes/webhook");
 
 // ── Express App ──────────────────────────────────────────────────────────────
 const app = express();
@@ -54,11 +59,13 @@ app.use(
     origin: [
       "https://kairos-777.com",
       "https://www.kairos-777.com",
+      "https://global.transak.com",
+      "https://staging.transak.com",
       "http://localhost:3000",
       "http://localhost:5173",
     ],
     methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Transak-Signature", "Webhook-Secret"],
     maxAge: 86400,
   })
 );
@@ -127,6 +134,13 @@ app.get("/", (req, res) => {
         "POST /api/reserves": "Record reserve change (requires master API key)",
         "POST /api/reserves/snapshot": "Create audit snapshot (requires master API key)",
         "GET  /api/reserves/history": "Reserve history (requires master API key)",
+        "GET  /api/fiat/stats": "Fiat purchase statistics (requires master API key)",
+      },
+      fiat: {
+        "POST /api/fiat/create-order": "Create fiat purchase order",
+        "GET  /api/fiat/order/:id": "Get fiat order status",
+        "GET  /api/fiat/orders?wallet=0x...": "List orders for a wallet",
+        "POST /api/webhook/transak": "Transak webhook (automated)",
       },
     },
     documentation: "https://kairos-777.com",
@@ -144,6 +158,8 @@ app.use("/api/burn", burnRoutes);
 app.use("/api/reserves", reservesRoutes);
 app.use("/api/supply", supplyRoutes);
 app.use("/api/health", healthRoutes);
+app.use("/api/fiat", fiatRoutes);
+app.use("/api/webhook", webhookRoutes);
 
 // Fee endpoint (defined as /fees in supply router, so mount at /api)
 const { feesRouter } = require("./routes/supply");

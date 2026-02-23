@@ -31,6 +31,12 @@ const config = {
   redemptionPollInterval: parseInt(process.env.REDEMPTION_POLL_INTERVAL || "15000", 10),
   autoEngineEnabled: process.env.AUTO_ENGINE_ENABLED !== "false", // Enabled by default
 
+  // Transak Fiat On-Ramp
+  transakApiKey: process.env.TRANSAK_API_KEY || "",
+  transakApiSecret: process.env.TRANSAK_API_SECRET || "",
+  transakWebhookSecret: process.env.TRANSAK_WEBHOOK_SECRET || "",
+  transakEnvironment: process.env.TRANSAK_ENV || "STAGING",  // STAGING or PRODUCTION
+
   // Notifications
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
   telegramChatId: process.env.TELEGRAM_CHAT_ID || "",

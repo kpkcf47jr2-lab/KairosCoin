@@ -111,6 +111,32 @@ function createTables() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- ═══════════════════════════════════════════════════════════════════════
+    --  FIAT ORDERS — Track fiat-to-KAIROS purchases via Transak
+    -- ═══════════════════════════════════════════════════════════════════════
+    CREATE TABLE IF NOT EXISTS fiat_orders (
+      id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL DEFAULT 'transak' CHECK(provider IN ('transak', 'moonpay', 'changelly')),
+      provider_order_id TEXT,
+      status TEXT NOT NULL DEFAULT 'CREATED' CHECK(status IN (
+        'CREATED', 'PAYMENT_PENDING', 'PAYMENT_RECEIVED', 'PROCESSING',
+        'CRYPTO_SENT', 'MINTING', 'COMPLETED', 'FAILED', 'REFUNDED', 'EXPIRED'
+      )),
+      wallet_address TEXT NOT NULL,
+      fiat_amount TEXT NOT NULL,
+      fiat_currency TEXT NOT NULL DEFAULT 'USD',
+      crypto_amount TEXT,
+      payment_method TEXT,
+      transak_status TEXT,
+      mint_tx_id TEXT,
+      mint_tx_hash TEXT,
+      webhook_data TEXT,
+      error TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT
+    );
+
     -- Indexes for performance
     CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
     CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status);
@@ -118,6 +144,10 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_tx_created ON transactions(created_at);
     CREATE INDEX IF NOT EXISTS idx_reserves_type ON reserves(type);
     CREATE INDEX IF NOT EXISTS idx_fee_log_created ON fee_log(created_at);
+    CREATE INDEX IF NOT EXISTS idx_fiat_provider_order ON fiat_orders(provider_order_id);
+    CREATE INDEX IF NOT EXISTS idx_fiat_wallet ON fiat_orders(wallet_address);
+    CREATE INDEX IF NOT EXISTS idx_fiat_status ON fiat_orders(status);
+    CREATE INDEX IF NOT EXISTS idx_fiat_created ON fiat_orders(created_at);
   `);
 }
 
@@ -401,6 +431,98 @@ function logApiCall({ method, path, ip, ip_address, api_key_type, apiKeyType, st
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+//                       FIAT ORDER OPERATIONS
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Create a new fiat purchase order.
+ */
+function createFiatOrder({ id, provider = "transak", walletAddress, fiatAmount, fiatCurrency = "USD", paymentMethod = null }) {
+  const orderId = id || uuidv4();
+  const stmt = db.prepare(`
+    INSERT INTO fiat_orders (id, provider, status, wallet_address, fiat_amount, fiat_currency, payment_method)
+    VALUES (?, ?, 'CREATED', ?, ?, ?, ?)
+  `);
+  stmt.run(orderId, provider, walletAddress, fiatAmount, fiatCurrency, paymentMethod);
+  logger.info("Fiat order created", { id: orderId, provider, walletAddress, fiatAmount, fiatCurrency });
+  return orderId;
+}
+
+/**
+ * Update fiat order with Transak webhook data.
+ */
+function updateFiatOrder(id, updates) {
+  const fields = [];
+  const values = [];
+
+  if (updates.status) { fields.push("status = ?"); values.push(updates.status); }
+  if (updates.providerOrderId) { fields.push("provider_order_id = ?"); values.push(updates.providerOrderId); }
+  if (updates.cryptoAmount) { fields.push("crypto_amount = ?"); values.push(updates.cryptoAmount); }
+  if (updates.transakStatus) { fields.push("transak_status = ?"); values.push(updates.transakStatus); }
+  if (updates.mintTxId) { fields.push("mint_tx_id = ?"); values.push(updates.mintTxId); }
+  if (updates.mintTxHash) { fields.push("mint_tx_hash = ?"); values.push(updates.mintTxHash); }
+  if (updates.webhookData) { fields.push("webhook_data = ?"); values.push(JSON.stringify(updates.webhookData)); }
+  if (updates.error) { fields.push("error = ?"); values.push(updates.error); }
+  if (updates.paymentMethod) { fields.push("payment_method = ?"); values.push(updates.paymentMethod); }
+
+  fields.push("updated_at = datetime('now')");
+  if (updates.status === "COMPLETED") {
+    fields.push("completed_at = datetime('now')");
+  }
+
+  values.push(id);
+  db.prepare(`UPDATE fiat_orders SET ${fields.join(", ")} WHERE id = ?`).run(...values);
+  logger.info("Fiat order updated", { id, status: updates.status });
+}
+
+/**
+ * Find fiat order by provider order ID (e.g., Transak order ID).
+ */
+function getFiatOrderByProviderId(providerOrderId) {
+  return db.prepare("SELECT * FROM fiat_orders WHERE provider_order_id = ?").get(providerOrderId);
+}
+
+/**
+ * Get a fiat order by internal ID.
+ */
+function getFiatOrder(id) {
+  return db.prepare("SELECT * FROM fiat_orders WHERE id = ?").get(id);
+}
+
+/**
+ * Get fiat orders with optional filters.
+ */
+function getFiatOrders({ status, walletAddress, provider, limit = 50, offset = 0 } = {}) {
+  let sql = "SELECT * FROM fiat_orders WHERE 1=1";
+  const params = [];
+
+  if (status) { sql += " AND status = ?"; params.push(status); }
+  if (walletAddress) { sql += " AND wallet_address = ?"; params.push(walletAddress); }
+  if (provider) { sql += " AND provider = ?"; params.push(provider); }
+
+  sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+  params.push(limit, offset);
+
+  return db.prepare(sql).all(...params);
+}
+
+/**
+ * Get fiat order statistics.
+ */
+function getFiatOrderStats() {
+  return db.prepare(`
+    SELECT
+      COUNT(*) as total_orders,
+      COUNT(CASE WHEN status = 'COMPLETED' THEN 1 END) as completed_orders,
+      COUNT(CASE WHEN status = 'FAILED' THEN 1 END) as failed_orders,
+      COUNT(CASE WHEN status IN ('CREATED','PAYMENT_PENDING','PAYMENT_RECEIVED','PROCESSING','CRYPTO_SENT','MINTING') THEN 1 END) as pending_orders,
+      COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN CAST(fiat_amount AS REAL) ELSE 0 END), 0) as total_fiat_volume,
+      COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN CAST(crypto_amount AS REAL) ELSE 0 END), 0) as total_kairos_minted
+    FROM fiat_orders
+  `).get();
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 //                           EXPORTS
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -421,6 +543,13 @@ module.exports = {
   // Fees
   logFee,
   getFeeStats,
+  // Fiat Orders
+  createFiatOrder,
+  updateFiatOrder,
+  getFiatOrder,
+  getFiatOrderByProviderId,
+  getFiatOrders,
+  getFiatOrderStats,
   // API Log
   logApiCall,
   // Direct DB access (for advanced queries)
