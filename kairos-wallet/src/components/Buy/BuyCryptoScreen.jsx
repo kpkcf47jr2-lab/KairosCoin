@@ -1,196 +1,66 @@
 // ═══════════════════════════════════════════════════════
-//  KAIROS WALLET — Buy Crypto Screen
-//  On-ramp: buy crypto with fiat via providers
-//  Transak SDK embedded + other provider redirects
+//  KAIROS WALLET — Comprar KAIROS
+//  Stripe Checkout — pago con tarjeta → auto-mint KAIROS
 // ═══════════════════════════════════════════════════════
 
-import React, { useState, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CreditCard, ExternalLink, Shield, ChevronRight, X, DollarSign } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { ArrowLeft, CreditCard, Shield, Zap, Loader2, CheckCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CHAINS } from '../../constants/chains';
-import { useTranslation } from '../../services/i18n';
 
-// Transak config
-const TRANSAK_API_KEY = '02324dee-49a4-4ba2-a42b-44eb70e40e5a'; // staging — switch to prod after KYB approval
-const TRANSAK_ENV = 'STAGING'; // Change to 'PRODUCTION' after approval
-
-// ── On-ramp providers with pre-configured URLs ──
-const PROVIDERS = [
-  {
-    id: 'moonpay',
-    name: 'MoonPay',
-    icon: '🌙',
-    description: 'Visa, Mastercard, Apple Pay, Google Pay',
-    fees: '~3.5%',
-    methods: ['💳 Tarjeta', '📱 Apple Pay', '🔵 Google Pay'],
-    getUrl: (address, chainId) => {
-      const currency = { 56: 'bnb_bsc', 1: 'eth', 137: 'matic_polygon', 42161: 'eth_arbitrum', 43114: 'avax_cchain', 8453: 'eth_base' }[chainId] || 'eth';
-      return `https://www.moonpay.com/buy/${currency}?walletAddress=${address}`;
-    },
-    chains: [56, 1, 137, 42161, 43114, 8453],
-  },
-  {
-    id: 'transak',
-    name: 'Transak',
-    icon: '💫',
-    description: 'Visa, Mastercard, SEPA, transferencia',
-    fees: '~1-5%',
-    methods: ['💳 Tarjeta', '🏦 SEPA', '📱 Transferencia'],
-    embedded: true, // Uses Transak SDK
-    getUrl: (address, chainId) => {
-      const network = { 56: 'bsc', 1: 'ethereum', 137: 'polygon', 42161: 'arbitrum', 43114: 'avalanche', 8453: 'base' }[chainId] || 'ethereum';
-      const crypto = { 56: 'BNB', 1: 'ETH', 137: 'MATIC', 42161: 'ETH', 43114: 'AVAX', 8453: 'ETH' }[chainId] || 'ETH';
-      return `https://global.transak.com/?walletAddress=${address}&network=${network}&defaultCryptoCurrency=${crypto}`;
-    },
-    chains: [56, 1, 137, 42161, 43114, 8453],
-  },
-  {
-    id: 'ramp',
-    name: 'Ramp Network',
-    icon: '🚀',
-    description: 'Visa, Mastercard, transferencia bancaria',
-    fees: '~2.5%',
-    methods: ['💳 Tarjeta', '🏦 Banco', '📱 Open Banking'],
-    getUrl: (address, chainId) => {
-      const asset = { 56: 'BSC_BNB', 1: 'ETH', 137: 'MATIC_MATIC', 42161: 'ARBITRUM_ETH', 43114: 'AVAX_AVAX', 8453: 'BASE_ETH' }[chainId] || 'ETH';
-      return `https://app.ramp.network/?userAddress=${address}&swapAsset=${asset}`;
-    },
-    chains: [56, 1, 137, 42161, 43114, 8453],
-  },
-  {
-    id: 'simplex',
-    name: 'Simplex',
-    icon: '💎',
-    description: 'Visa, Mastercard, pagos instantáneos',
-    fees: '~3.5-5%',
-    methods: ['💳 Tarjeta', '📱 Apple Pay'],
-    getUrl: (address, chainId) => {
-      const crypto = { 56: 'BNB', 1: 'ETH', 137: 'MATIC', 42161: 'ETH', 43114: 'AVAX', 8453: 'ETH' }[chainId] || 'ETH';
-      return `https://buy.simplex.com/?crypto=${crypto}&walletAddress=${address}`;
-    },
-    chains: [56, 1, 137],
-  },
-  {
-    id: 'banxa',
-    name: 'Banxa',
-    icon: '🏦',
-    description: 'Tarjeta, transferencia, PIX',
-    fees: '~2-3%',
-    methods: ['💳 Tarjeta', '🏦 Transferencia', '🇧🇷 PIX'],
-    getUrl: (address, chainId) => {
-      const coin = { 56: 'BNB', 1: 'ETH', 137: 'MATIC', 42161: 'ETH', 43114: 'AVAX', 8453: 'ETH' }[chainId] || 'ETH';
-      return `https://checkout.banxa.com/?walletAddress=${address}&coinType=${coin}`;
-    },
-    chains: [56, 1, 137, 42161],
-  },
-];
-
-// ── Off-ramp providers (SELL crypto → fiat) ──
-const SELL_PROVIDERS = [
-  {
-    id: 'transak-sell',
-    name: 'Transak (Sell)',
-    icon: '💫',
-    description: 'Vende crypto a tu cuenta bancaria',
-    fees: '~1-3%',
-    methods: ['🏦 Transferencia', '💳 Tarjeta'],
-    getUrl: (address, chainId) => {
-      const network = { 56: 'bsc', 1: 'ethereum', 137: 'polygon', 42161: 'arbitrum', 43114: 'avalanche', 8453: 'base' }[chainId] || 'ethereum';
-      const crypto = { 56: 'BNB', 1: 'ETH', 137: 'MATIC', 42161: 'ETH', 43114: 'AVAX', 8453: 'ETH' }[chainId] || 'ETH';
-      return `https://global.transak.com/?walletAddress=${address}&network=${network}&defaultCryptoCurrency=${crypto}&productsAvailed=SELL`;
-    },
-    chains: [56, 1, 137, 42161, 43114, 8453],
-  },
-  {
-    id: 'moonpay-sell',
-    name: 'MoonPay (Sell)',
-    icon: '🌙',
-    description: 'Convierte crypto a fiat instantáneamente',
-    fees: '~1.5-3.5%',
-    methods: ['🏦 Transferencia', '💳 Tarjeta'],
-    getUrl: (address, chainId) => {
-      const currency = { 56: 'bnb_bsc', 1: 'eth', 137: 'matic_polygon', 42161: 'eth_arbitrum', 43114: 'avax_cchain', 8453: 'eth_base' }[chainId] || 'eth';
-      return `https://www.moonpay.com/sell/${currency}?walletAddress=${address}`;
-    },
-    chains: [56, 1, 137, 42161, 43114, 8453],
-  },
-  {
-    id: 'ramp-sell',
-    name: 'Ramp (Sell)',
-    icon: '🚀',
-    description: 'Off-ramp a cuenta bancaria européa',
-    fees: '~2%',
-    methods: ['🏦 SEPA', '📱 Open Banking'],
-    getUrl: (address, chainId) => {
-      const asset = { 56: 'BSC_BNB', 1: 'ETH', 137: 'MATIC_MATIC', 42161: 'ARBITRUM_ETH', 43114: 'AVAX_AVAX', 8453: 'BASE_ETH' }[chainId] || 'ETH';
-      return `https://app.ramp.network/?userAddress=${address}&swapAsset=${asset}&mode=offramp`;
-    },
-    chains: [1, 137, 42161],
-  },
-];
+const API_BASE = 'https://kairos-api-u6k5.onrender.com';
+const QUICK_AMOUNTS = [25, 50, 100, 250, 500, 1000];
 
 export default function BuyCryptoScreen() {
   const { activeAddress, activeChainId, goBack, showToast } = useStore();
-  const { t } = useTranslation();
   const chain = CHAINS[activeChainId];
-  const [showTransak, setShowTransak] = useState(false);
-  const [mode, setMode] = useState('buy'); // 'buy' | 'sell'
 
-  const availableProviders = useMemo(
-    () => (mode === 'buy' ? PROVIDERS : SELL_PROVIDERS).filter(p => p.chains.includes(activeChainId)),
-    [activeChainId, mode]
-  );
+  const [stripeAmount, setStripeAmount] = useState('');
+  const [isCreatingCheckout, setIsCreatingCheckout] = useState(false);
 
-  const openTransakWidget = useCallback(async () => {
-    try {
-      const { default: TransakSDK } = await import('@transak/transak-sdk');
-      const networkMap = { 56: 'bsc', 1: 'ethereum', 137: 'polygon', 42161: 'arbitrum', 43114: 'avalanche', 8453: 'base' };
-      const cryptoMap = { 56: 'BNB', 1: 'ETH', 137: 'MATIC', 42161: 'ETH', 43114: 'AVAX', 8453: 'ETH' };
-
-      const transak = new TransakSDK({
-        apiKey: TRANSAK_API_KEY,
-        environment: TRANSAK_ENV,
-        walletAddress: activeAddress,
-        defaultNetwork: networkMap[activeChainId] || 'ethereum',
-        defaultCryptoCurrency: cryptoMap[activeChainId] || 'ETH',
-        themeColor: 'D4AF37',
-        widgetHeight: '600px',
-        widgetWidth: '100%',
-      });
-
-      transak.init();
-
-      transak.on('TRANSAK_ORDER_SUCCESSFUL', (data) => {
-        showToast('¡Compra exitosa! Los fondos llegarán pronto.', 'success');
-        transak.close();
-      });
-
-      transak.on('TRANSAK_ORDER_FAILED', () => {
-        showToast('La compra falló. Intenta de nuevo.', 'error');
-      });
-
-      transak.on('TRANSAK_WIDGET_CLOSE', () => {
-        transak.close();
-      });
-    } catch (err) {
-      console.error('[Buy] Transak SDK error:', err);
-      // Fallback to URL redirect
-      const provider = PROVIDERS.find(p => p.id === 'transak');
-      if (provider) {
-        window.open(provider.getUrl(activeAddress, activeChainId), '_blank', 'noopener,noreferrer');
-      }
-    }
-  }, [activeAddress, activeChainId]);
-
-  const handleBuy = (provider) => {
-    if (provider.embedded && provider.id === 'transak') {
-      openTransakWidget();
+  // ── Stripe Checkout ──
+  const handleStripeCheckout = useCallback(async () => {
+    const amount = parseFloat(stripeAmount);
+    if (!amount || amount < 10) {
+      showToast('Mínimo $10 USD', 'error');
       return;
     }
-    const url = provider.getUrl(activeAddress, activeChainId);
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
+    if (amount > 50000) {
+      showToast('Máximo $50,000 USD', 'error');
+      return;
+    }
+    if (!activeAddress) {
+      showToast('Conecta tu wallet primero', 'error');
+      return;
+    }
+
+    setIsCreatingCheckout(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/stripe/create-checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          walletAddress: activeAddress,
+          amount,
+          currency: 'usd',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || data.message || 'Error al crear checkout');
+
+      if (data.checkoutUrl) {
+        window.open(data.checkoutUrl, '_blank', 'noopener,noreferrer');
+        showToast('Redirigiendo a Stripe...', 'info');
+      } else {
+        throw new Error('No se recibió URL de checkout');
+      }
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setIsCreatingCheckout(false);
+    }
+  }, [stripeAmount, activeAddress, showToast]);
 
   return (
     <div className="screen-container">
@@ -199,98 +69,145 @@ export default function BuyCryptoScreen() {
         <button onClick={goBack} className="p-2 -ml-2 rounded-xl hover:bg-white/5">
           <ArrowLeft size={20} className="text-dark-300" />
         </button>
-        <h1 className="font-bold text-white">{mode === 'buy' ? t('buy.title', 'Comprar Crypto') : 'Vender Crypto'}</h1>
+        <h1 className="font-bold text-white">Comprar KAIROS</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 pb-8">
-        {/* Buy/Sell Toggle */}
-        <div className="flex gap-1 p-1 rounded-xl bg-white/5 mb-4">
-          <button
-            onClick={() => setMode('buy')}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
-              mode === 'buy' ? 'bg-green-500/15 text-green-400' : 'text-dark-400'
-            }`}
-          >
-            <CreditCard size={14} /> Comprar
-          </button>
-          <button
-            onClick={() => setMode('sell')}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
-              mode === 'sell' ? 'bg-orange-500/15 text-orange-400' : 'text-dark-400'
-            }`}
-          >
-            <DollarSign size={14} /> Vender
-          </button>
-        </div>
 
-        {/* Info card */}
-        <div className="bg-gradient-to-r from-kairos-500/10 to-kairos-600/5 rounded-2xl p-4 mb-5 border border-kairos-500/10">
-          <div className="flex items-start gap-3">
-            {mode === 'buy' ? <CreditCard size={20} className="text-kairos-400 mt-0.5" /> : <DollarSign size={20} className="text-orange-400 mt-0.5" />}
-            <div>
-              <p className="text-sm font-semibold text-white mb-1">
-                {mode === 'buy' ? t('buy.subtitle', 'Compra crypto con tarjeta') : 'Vende crypto por dinero fiat'}
-              </p>
-              <p className="text-[11px] text-dark-400 leading-relaxed">
-                {mode === 'buy'
-                  ? t('buy.desc', 'Selecciona un proveedor para comprar crypto directo a tu wallet. Los fondos llegan en minutos.')
-                  : 'Convierte tus tokens a USD/EUR y recibe el dinero en tu cuenta bancaria o tarjeta.'}
-              </p>
+        {/* ★ STRIPE — Comprar KAIROS con tarjeta ★ */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-br from-[#635BFF]/15 to-[#7A73FF]/5 rounded-2xl p-5 mb-5 border-2 border-[#635BFF]/30"
+        >
+          {/* Header */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-[#635BFF]/20 flex items-center justify-center">
+              <Zap size={20} className="text-[#635BFF]" />
             </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-bold text-white">Pagar con Tarjeta</p>
+                <span className="text-[8px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 font-bold">
+                  ACTIVO
+                </span>
+              </div>
+              <p className="text-[10px] text-dark-400">Visa, Mastercard, Amex • Apple Pay • Google Pay</p>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-dark-400 mb-4 leading-relaxed">
+            Paga con tarjeta de crédito/débito. KAIROS se acuña automáticamente 1:1 con USD y se envía directo a tu wallet.
+          </p>
+
+          {/* Quick amounts */}
+          <div className="flex flex-wrap gap-2 mb-3">
+            {QUICK_AMOUNTS.map(amt => (
+              <button
+                key={amt}
+                onClick={() => setStripeAmount(String(amt))}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  stripeAmount === String(amt)
+                    ? 'bg-[#635BFF]/30 text-[#A5A0FF] border border-[#635BFF]/40'
+                    : 'bg-white/[0.04] text-dark-400 border border-white/5 hover:border-[#635BFF]/20'
+                }`}
+              >
+                ${amt}
+              </button>
+            ))}
+          </div>
+
+          {/* Amount input */}
+          <div className="relative mb-3">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500 font-medium">$</span>
+            <input
+              type="number"
+              value={stripeAmount}
+              onChange={(e) => setStripeAmount(e.target.value)}
+              placeholder="Monto en USD"
+              min="10"
+              max="50000"
+              className="w-full bg-white/[0.06] border border-white/10 rounded-xl pl-7 pr-4 py-3 text-white text-sm placeholder:text-dark-500 focus:outline-none focus:border-[#635BFF]/50 transition-colors"
+            />
+            {stripeAmount && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-dark-400">
+                = {parseFloat(stripeAmount || 0).toLocaleString()} KAIROS
+              </span>
+            )}
+          </div>
+
+          {/* Wallet display */}
+          <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5">
+            <div className="w-2 h-2 rounded-full bg-green-400"></div>
+            <span className="text-[10px] text-dark-400 truncate">
+              {activeAddress ? `Recibir en: ${activeAddress.slice(0, 8)}...${activeAddress.slice(-6)}` : 'Conecta tu wallet'}
+            </span>
+          </div>
+
+          {/* Buy button */}
+          <button
+            onClick={handleStripeCheckout}
+            disabled={isCreatingCheckout || !stripeAmount || parseFloat(stripeAmount) < 10}
+            className="w-full py-3.5 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-r from-[#635BFF] to-[#7A73FF] text-white hover:shadow-lg hover:shadow-[#635BFF]/20"
+          >
+            {isCreatingCheckout ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                Creando sesión de pago...
+              </>
+            ) : (
+              <>
+                <CreditCard size={16} />
+                Comprar {stripeAmount ? `$${parseFloat(stripeAmount).toLocaleString()} en ` : ''}KAIROS
+              </>
+            )}
+          </button>
+
+          <p className="text-[9px] text-dark-500 text-center mt-2">
+            🔒 Pago seguro con Stripe • 1 KAIROS = 1 USD • Mín $10 — Máx $50,000
+          </p>
+        </motion.div>
+
+        {/* How it works */}
+        <div className="rounded-2xl bg-white/[0.02] border border-white/5 p-4 mb-5">
+          <p className="text-xs font-semibold text-white mb-3">¿Cómo funciona?</p>
+          <div className="space-y-3">
+            {[
+              { step: '1', text: 'Ingresa el monto en USD que deseas comprar' },
+              { step: '2', text: 'Paga de forma segura con Stripe (tarjeta, Apple Pay, etc.)' },
+              { step: '3', text: 'KAIROS se acuña automáticamente y se envía a tu wallet' },
+            ].map(({ step, text }) => (
+              <div key={step} className="flex items-center gap-3">
+                <div className="w-6 h-6 rounded-full bg-[#635BFF]/15 flex items-center justify-center shrink-0">
+                  <span className="text-[10px] font-bold text-[#A5A0FF]">{step}</span>
+                </div>
+                <p className="text-[11px] text-dark-400">{text}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Chain indicator */}
-        <p className="text-[10px] text-dark-500 mb-3">
-          {t('buy.receiving', 'Recibiendo en')} {chain.icon} {chain.name}
-        </p>
-
-        {/* Security notice */}
-        <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-green-500/5 border border-green-500/10">
-          <Shield size={12} className="text-green-400 shrink-0" />
+        {/* Tip: Swap after buying */}
+        <div className="flex items-center gap-2 mb-4 px-3 py-2.5 rounded-xl bg-kairos-500/5 border border-kairos-500/10">
+          <span className="text-sm">💡</span>
           <p className="text-[10px] text-dark-400">
-            {t('buy.security', 'Los proveedores son externos. Kairos Wallet nunca accede a tu información de pago.')}
+            <strong className="text-kairos-400">Tip:</strong> Después de comprar KAIROS, ve a <strong className="text-white">Swap</strong> para intercambiarlos por BTC, ETH, BNB u otros tokens.
           </p>
         </div>
 
-        {/* Providers */}
-        <div className="space-y-3">
-          {availableProviders.map((provider, i) => (
-            <motion.button
-              key={provider.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              onClick={() => handleBuy(provider)}
-              className="w-full bg-white/[0.03] rounded-2xl p-4 border border-white/5 hover:border-kairos-500/20 transition-colors text-left"
-            >
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-xl bg-white/[0.05] flex items-center justify-center text-xl">
-                  {provider.icon}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-white">{provider.name}</p>
-                    {provider.embedded && (
-                      <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-kairos-500/20 text-kairos-400 font-medium">
-                        INTEGRADO
-                      </span>
-                    )}
-                    <span className="text-[10px] text-dark-500">{provider.fees}</span>
-                  </div>
-                  <p className="text-[10px] text-dark-400">{provider.description}</p>
-                </div>
-                <ExternalLink size={14} className="text-dark-500" />
-              </div>
-              <div className="flex flex-wrap gap-1.5 ml-13">
-                {provider.methods.map(m => (
-                  <span key={m} className="text-[9px] px-2 py-0.5 rounded-full bg-white/[0.04] text-dark-400">
-                    {m}
-                  </span>
-                ))}
-              </div>
-            </motion.button>
-          ))}
+        {/* Security + Chain */}
+        <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-green-500/5 border border-green-500/10">
+          <Shield size={12} className="text-green-400 shrink-0" />
+          <p className="text-[10px] text-dark-400">
+            Pago procesado por Stripe. Kairos Wallet nunca accede a tu información bancaria ni datos de tarjeta.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.02] border border-white/5">
+          <CheckCircle size={12} className="text-dark-500 shrink-0" />
+          <p className="text-[10px] text-dark-500">
+            Recibiendo en {chain?.icon} {chain?.name}
+          </p>
         </div>
       </div>
     </div>
