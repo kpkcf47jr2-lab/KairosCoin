@@ -8,7 +8,13 @@
     "dev": "node --watch src/server.js",
     "test": "node --test src/__tests__/*.test.js"
   },
-  "keywords": ["kairos", "stablecoin", "mint", "burn", "reserves"],
+  "keywords": [
+    "kairos",
+    "stablecoin",
+    "mint",
+    "burn",
+    "reserves"
+  ],
   "author": "Kairos 777 Inc.",
   "license": "MIT",
   "dependencies": {
@@ -19,6 +25,7 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.0.0",
+    "stripe": "^20.3.1",
     "uuid": "^11.1.0",
     "winston": "^3.17.0"
   }

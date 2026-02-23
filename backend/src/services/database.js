@@ -149,6 +149,44 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_fiat_wallet ON fiat_orders(wallet_address);
     CREATE INDEX IF NOT EXISTS idx_fiat_status ON fiat_orders(status);
     CREATE INDEX IF NOT EXISTS idx_fiat_created ON fiat_orders(created_at);
+
+    -- ═══════════════════════════════════════════════════════════════════════
+    --  REDEMPTION ACCOUNTS — Stripe Connect accounts linked to wallets
+    -- ═══════════════════════════════════════════════════════════════════════
+    CREATE TABLE IF NOT EXISTS redemption_accounts (
+      wallet_address TEXT PRIMARY KEY,
+      stripe_account_id TEXT NOT NULL UNIQUE,
+      email TEXT,
+      status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'ACTIVE', 'DISABLED')),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    -- ═══════════════════════════════════════════════════════════════════════
+    --  REDEMPTIONS — KAIROS burn → USD payout tracking
+    -- ═══════════════════════════════════════════════════════════════════════
+    CREATE TABLE IF NOT EXISTS redemptions (
+      id TEXT PRIMARY KEY,
+      wallet_address TEXT NOT NULL,
+      stripe_account_id TEXT NOT NULL,
+      amount REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN (
+        'PENDING', 'BURNED', 'PAYOUT_SENT', 'COMPLETED', 'BURN_FAILED', 'PAYOUT_FAILED'
+      )),
+      payout_method TEXT DEFAULT 'standard' CHECK(payout_method IN ('instant', 'standard')),
+      burn_tx_hash TEXT,
+      transfer_id TEXT,
+      payout_id TEXT,
+      arrival TEXT,
+      error TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_redemption_wallet ON redemptions(wallet_address);
+    CREATE INDEX IF NOT EXISTS idx_redemption_status ON redemptions(status);
+    CREATE INDEX IF NOT EXISTS idx_redemption_created ON redemptions(created_at);
   `);
 }
 
@@ -587,6 +625,90 @@ function getFiatOrderStats() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+//                      REDEMPTION ACCOUNTS
+// ═════════════════════════════════════════════════════════════════════════════
+
+function saveRedemptionAccount(walletAddress, stripeAccountId, email) {
+  const stmt = db.prepare(`
+    INSERT OR REPLACE INTO redemption_accounts (wallet_address, stripe_account_id, email, updated_at)
+    VALUES (?, ?, ?, datetime('now'))
+  `);
+  stmt.run(walletAddress.toLowerCase(), stripeAccountId, email || null);
+  logger.info("Redemption account saved", { walletAddress, stripeAccountId });
+}
+
+function getRedemptionAccount(walletAddress) {
+  return db.prepare(
+    "SELECT * FROM redemption_accounts WHERE wallet_address = ?"
+  ).get(walletAddress.toLowerCase());
+}
+
+function updateRedemptionAccountStatus(walletAddress, status) {
+  db.prepare(
+    "UPDATE redemption_accounts SET status = ?, updated_at = datetime('now') WHERE wallet_address = ?"
+  ).run(status, walletAddress.toLowerCase());
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//                      REDEMPTIONS
+// ═════════════════════════════════════════════════════════════════════════════
+
+function createRedemption({ id, walletAddress, amount, method, stripeAccountId }) {
+  const stmt = db.prepare(`
+    INSERT INTO redemptions (id, wallet_address, stripe_account_id, amount, payout_method)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  stmt.run(id, walletAddress.toLowerCase(), stripeAccountId, amount, method || 'standard');
+  logger.info("Redemption created", { id, walletAddress, amount, method });
+  return id;
+}
+
+function updateRedemption(id, { status, burnTxHash, transferId, payoutId, payoutMethod, arrival, error }) {
+  const fields = [];
+  const params = [];
+
+  if (status) { fields.push("status = ?"); params.push(status); }
+  if (burnTxHash) { fields.push("burn_tx_hash = ?"); params.push(burnTxHash); }
+  if (transferId) { fields.push("transfer_id = ?"); params.push(transferId); }
+  if (payoutId) { fields.push("payout_id = ?"); params.push(payoutId); }
+  if (payoutMethod) { fields.push("payout_method = ?"); params.push(payoutMethod); }
+  if (arrival) { fields.push("arrival = ?"); params.push(arrival); }
+  if (error) { fields.push("error = ?"); params.push(error); }
+
+  fields.push("updated_at = datetime('now')");
+  if (status === 'COMPLETED' || status === 'PAYOUT_SENT') {
+    fields.push("completed_at = datetime('now')");
+  }
+
+  params.push(id);
+  db.prepare(`UPDATE redemptions SET ${fields.join(', ')} WHERE id = ?`).run(...params);
+  logger.info("Redemption updated", { id, status });
+}
+
+function getRedemption(id) {
+  return db.prepare("SELECT * FROM redemptions WHERE id = ?").get(id);
+}
+
+function getRedemptions(walletAddress, limit = 20) {
+  return db.prepare(
+    "SELECT * FROM redemptions WHERE wallet_address = ? ORDER BY created_at DESC LIMIT ?"
+  ).all(walletAddress.toLowerCase(), limit);
+}
+
+function getRedemptionStats() {
+  return db.prepare(`
+    SELECT
+      COUNT(*) as total,
+      COUNT(CASE WHEN status IN ('PAYOUT_SENT','COMPLETED') THEN 1 END) as completed,
+      COUNT(CASE WHEN status IN ('BURN_FAILED','PAYOUT_FAILED') THEN 1 END) as failed,
+      COALESCE(SUM(CASE WHEN status IN ('PAYOUT_SENT','COMPLETED') THEN amount ELSE 0 END), 0) as total_usd_paid,
+      COUNT(CASE WHEN payout_method = 'instant' THEN 1 END) as instant_count,
+      COUNT(CASE WHEN payout_method = 'standard' THEN 1 END) as standard_count
+    FROM redemptions
+  `).get();
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 //                           EXPORTS
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -614,6 +736,15 @@ module.exports = {
   getFiatOrderByProviderId,
   getFiatOrders,
   getFiatOrderStats,
+  // Redemptions
+  saveRedemptionAccount,
+  getRedemptionAccount,
+  updateRedemptionAccountStatus,
+  createRedemption,
+  updateRedemption,
+  getRedemption,
+  getRedemptions,
+  getRedemptionStats,
   // API Log
   logApiCall,
   // Direct DB access (for advanced queries)

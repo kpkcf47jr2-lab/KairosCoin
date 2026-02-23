@@ -635,7 +635,7 @@
 
     .provider-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 20px;
       margin-bottom: 32px;
     }
@@ -685,6 +685,10 @@
       font-family: var(--font-body);
     }
     .provider-btn:hover { transform: translateY(-2px); }
+    .provider-btn.stripe-btn {
+      background: linear-gradient(135deg, #635BFF, #7A73FF);
+      color: #fff;
+    }
     .provider-btn.transak-btn {
       background: linear-gradient(135deg, #0052FF, #3375BB);
       color: #fff;
@@ -696,6 +700,63 @@
     .provider-btn.changelly-btn {
       background: linear-gradient(135deg, #25D695, #1BAA75);
       color: #fff;
+    }
+
+    /* ── Stripe Quick Form ──────────────────────────────────────── */
+    .stripe-form-container {
+      background: var(--dark-card);
+      border: 1px solid rgba(99, 91, 255, 0.2);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      margin-top: 32px;
+      display: none;
+    }
+    .stripe-form-container.visible { display: block; }
+    .stripe-form-container h3 {
+      font-family: var(--font-display);
+      font-size: 1.3rem; font-weight: 700;
+      color: #635BFF; margin-bottom: 4px;
+      text-align: center;
+    }
+    .stripe-form-container > p {
+      text-align: center; color: var(--gray);
+      font-size: 0.85rem; margin-bottom: 20px;
+    }
+    .stripe-form {
+      max-width: 400px; margin: 0 auto;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .stripe-form label {
+      font-size: 0.82rem; color: var(--gray-light); font-weight: 500;
+    }
+    .stripe-form input {
+      width: 100%; padding: 12px 16px;
+      background: var(--dark-surface);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius);
+      color: var(--white); font-size: 1rem;
+      font-family: var(--font-body);
+      outline: none; transition: border-color 0.3s;
+    }
+    .stripe-form input:focus {
+      border-color: #635BFF;
+    }
+    .stripe-form input::placeholder { color: var(--gray); }
+    .stripe-pay-btn {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #635BFF, #7A73FF);
+      color: #fff; border: none; border-radius: var(--radius);
+      font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: all 0.3s;
+      font-family: var(--font-body);
+    }
+    .stripe-pay-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(99, 91, 255, 0.4); }
+    .stripe-pay-btn:disabled {
+      opacity: 0.5; cursor: not-allowed; transform: none;
+    }
+    .stripe-note {
+      text-align: center; font-size: 0.75rem; color: var(--gray);
+      margin-top: 8px;
     }
     .provider-recommended {
       position: absolute; top: 12px; right: 12px;
@@ -1091,61 +1152,104 @@
         </div>
       </div>
 
-      <!-- Provider Cards -->
-      <div class="provider-grid">
+      <!-- ★ Primary: Stripe Card Payment ★ -->
+      <div class="provider-card" onclick="openStripeCheckout()" style="border: 2px solid rgba(99, 91, 255, 0.4); padding: 36px; margin-bottom: 32px; cursor: pointer;">
+        <div class="provider-recommended" style="background: linear-gradient(135deg, #635BFF, #7A73FF); font-size: 0.72rem; padding: 4px 14px;">✅ Active — Pay Now</div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;">
+          <div class="provider-icon" style="background: linear-gradient(135deg, rgba(99, 91, 255, 0.2), rgba(122, 115, 255, 0.12)); width: 72px; height: 72px; border-radius: 20px; font-size: 2.2rem; margin: 0;">
+            💳
+          </div>
+          <div style="text-align: left; flex: 1; min-width: 240px;">
+            <h3 style="font-size: 1.4rem; margin-bottom: 6px;">Pay with Credit/Debit Card</h3>
+            <div class="provider-desc" style="margin-bottom: 12px;">Pay with your card via Stripe's secure checkout. KAIROS tokens are automatically minted 1:1 and sent to your BSC wallet. No KYC required.</div>
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+              <div class="pf-item"><span class="check">✓</span> Visa, Mastercard, Amex</div>
+              <div class="pf-item"><span class="check">✓</span> Apple Pay & Google Pay</div>
+              <div class="pf-item"><span class="check">✓</span> Instant auto-mint</div>
+              <div class="pf-item"><span class="check">✓</span> No KYC needed</div>
+            </div>
+          </div>
+          <button class="provider-btn stripe-btn" style="width: auto; padding: 16px 36px; font-size: 1.05rem;">
+            Buy KAIROS Now →
+          </button>
+        </div>
+      </div>
+
+      <!-- Coming Soon Providers -->
+      <p style="text-align: center; color: var(--gray); font-size: 0.85rem; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">More payment options — Coming Soon</p>
+      <div class="provider-grid" style="opacity: 0.45; pointer-events: none;">
         <!-- Transak -->
-        <div class="provider-card" onclick="openTransak()">
-          <div class="provider-recommended">Recommended</div>
+        <div class="provider-card">
+          <div class="provider-recommended" style="background: rgba(255,255,255,0.1); color: var(--gray);">Coming Soon</div>
           <div class="provider-icon" style="background: linear-gradient(135deg, rgba(0, 82, 255, 0.15), rgba(51, 117, 187, 0.1));">
             💳
           </div>
           <h3>Transak</h3>
-          <div class="provider-desc">Buy KAIROS directly with your credit/debit card. Pay with USD, receive KAIROS 1:1 in your BSC wallet. Fully automated.</div>
+          <div class="provider-desc">Buy KAIROS with card or bank transfer. 160+ countries. KYB approval pending.</div>
           <div class="provider-features">
             <div class="pf-item"><span class="check">✓</span> Visa, Mastercard, Apple Pay</div>
-            <div class="pf-item"><span class="check">✓</span> Bank Transfer (ACH/SEPA/Wire)</div>
-            <div class="pf-item"><span class="check">✓</span> 160+ countries supported</div>
-            <div class="pf-item"><span class="check">✓</span> KYC verification in minutes</div>
+            <div class="pf-item"><span class="check">✓</span> Bank Transfer (ACH/SEPA)</div>
+            <div class="pf-item"><span class="check">✓</span> 160+ countries</div>
           </div>
-          <button class="provider-btn transak-btn">
-            Buy KAIROS with Card →
+          <button class="provider-btn transak-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
+            Coming Soon
           </button>
         </div>
 
         <!-- MoonPay -->
-        <div class="provider-card" onclick="openMoonPay()">
+        <div class="provider-card">
+          <div class="provider-recommended" style="background: rgba(255,255,255,0.1); color: var(--gray);">Coming Soon</div>
           <div class="provider-icon" style="background: linear-gradient(135deg, rgba(123, 97, 255, 0.15), rgba(89, 65, 214, 0.1));">
             🌙
           </div>
           <h3>MoonPay</h3>
-          <div class="provider-desc">Trusted by 20M+ users. Buy KAIROS with your card or bank transfer. Fast, secure, and delivered to your wallet.</div>
+          <div class="provider-desc">Trusted by 20M+ users. Card and bank transfer support worldwide.</div>
           <div class="provider-features">
             <div class="pf-item"><span class="check">✓</span> Credit/Debit Card</div>
             <div class="pf-item"><span class="check">✓</span> Apple Pay, Google Pay</div>
             <div class="pf-item"><span class="check">✓</span> 100+ countries</div>
-            <div class="pf-item"><span class="check">✓</span> Instant delivery</div>
           </div>
-          <button class="provider-btn moonpay-btn">
-            Buy KAIROS via MoonPay →
+          <button class="provider-btn moonpay-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
+            Coming Soon
           </button>
         </div>
 
         <!-- Changelly -->
-        <div class="provider-card" onclick="openChangelly()">
+        <div class="provider-card">
+          <div class="provider-recommended" style="background: rgba(255,255,255,0.1); color: var(--gray);">Coming Soon</div>
           <div class="provider-icon" style="background: linear-gradient(135deg, rgba(37, 214, 149, 0.15), rgba(27, 170, 117, 0.1));">
             🔄
           </div>
           <h3>Changelly</h3>
-          <div class="provider-desc">Best rates guaranteed. Buy KAIROS with 50+ fiat currencies. Lowest fees in the market.</div>
+          <div class="provider-desc">Best rates. 50+ fiat currencies. Lowest fees in the market.</div>
           <div class="provider-features">
             <div class="pf-item"><span class="check">✓</span> Best exchange rates</div>
             <div class="pf-item"><span class="check">✓</span> 50+ fiat currencies</div>
             <div class="pf-item"><span class="check">✓</span> No hidden fees</div>
-            <div class="pf-item"><span class="check">✓</span> 24/7 support</div>
           </div>
-          <button class="provider-btn changelly-btn">
-            Buy KAIROS via Changelly →
+          <button class="provider-btn changelly-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
+            Coming Soon
           </button>
+        </div>
+      </div>
+
+      <!-- Stripe Quick Checkout Form -->
+      <div class="stripe-form-container visible" id="stripeContainer">
+        <h3>💳 Pay with Card — Stripe Checkout</h3>
+        <p>Enter the amount and your BSC wallet address. You'll be redirected to Stripe's secure payment page.</p>
+        <div class="stripe-form">
+          <div>
+            <label for="stripeAmount">Amount (USD)</label>
+            <input type="number" id="stripeAmount" placeholder="100" min="10" max="50000" step="1" />
+          </div>
+          <div>
+            <label for="stripeWallet">Your BSC Wallet Address</label>
+            <input type="text" id="stripeWallet" placeholder="0x..." />
+          </div>
+          <button class="stripe-pay-btn" id="stripePayBtn" onclick="submitStripeCheckout()">
+            Proceed to Payment →
+          </button>
+          <p class="stripe-note">🔒 Secured by Stripe. 1 KAIROS = 1 USD. Tokens auto-minted after payment.</p>
         </div>
       </div>
 
@@ -1667,6 +1771,70 @@
         `?from=usd&to=usdt` +
         (walletAddr ? `&address=${walletAddr}` : '');
       window.open(url, '_blank', 'width=500,height=700,scrollbars=yes');
+    }
+
+    // ── Stripe Checkout ────────────────────────────────────────
+    function openStripeCheckout() {
+      const container = document.getElementById('stripeContainer');
+      container.classList.add('visible');
+      container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Pre-fill wallet if connected
+      if (userAddress) {
+        document.getElementById('stripeWallet').value = userAddress;
+      }
+      document.getElementById('stripeAmount').focus();
+    }
+
+    async function submitStripeCheckout() {
+      const amount = document.getElementById('stripeAmount').value;
+      const wallet = document.getElementById('stripeWallet').value.trim();
+      const btn = document.getElementById('stripePayBtn');
+
+      // Validation
+      if (!amount || Number(amount) < 10) {
+        alert('Minimum purchase is $10 USD');
+        return;
+      }
+      if (Number(amount) > 50000) {
+        alert('Maximum purchase is $50,000 USD');
+        return;
+      }
+      if (!wallet || !wallet.startsWith('0x') || wallet.length !== 42) {
+        alert('Please enter a valid BSC wallet address (0x...)');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Creating checkout session...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/stripe/create-checkout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            walletAddress: wallet,
+            amount: Number(amount),
+            currency: 'usd'
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || data.message || 'Failed to create checkout');
+        }
+
+        // Redirect to Stripe Checkout
+        if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
+        } else {
+          throw new Error('No checkout URL received');
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Proceed to Payment →';
+      }
     }
 
     // ── Engine Status ──────────────────────────────────────────

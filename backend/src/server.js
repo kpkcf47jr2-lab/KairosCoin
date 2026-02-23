@@ -51,6 +51,7 @@ const fiatRoutes = require("./routes/fiat");
 const webhookRoutes = require("./routes/webhook");
 const stripeRoutes = require("./routes/stripe");
 const stripeWebhookRoutes = require("./routes/stripeWebhook");
+const redeemRoutes = require("./routes/redeem");
 
 // ── Express App ──────────────────────────────────────────────────────────────
 const app = express();
@@ -170,6 +171,7 @@ app.use("/api/health", healthRoutes);
 app.use("/api/fiat", fiatRoutes);
 app.use("/api/webhook", webhookRoutes);
 app.use("/api/stripe", stripeRoutes);
+app.use("/api/redeem", redeemRoutes);
 // Note: Stripe webhook is mounted earlier (before express.json) for raw body
 
 // Fee endpoint (defined as /fees in supply router, so mount at /api)
