@@ -26,12 +26,18 @@
 
 ## 2. DEPLOYED INFRASTRUCTURE
 
-### Smart Contract (BSC Mainnet)
-- **Contract Address:** `0x14D41707269c7D8b8DFa5095b38824a46dA05da3`
-- **Chain:** BNB Smart Chain (Chain ID: 56)
+### Smart Contracts (Multi-Chain)
 - **Solidity:** 0.8.24, OpenZeppelin v5.4
-- **BscScan:** https://bscscan.com/token/0x14D41707269c7D8b8DFa5095b38824a46dA05da3
 - **Owner/Deployer Wallet:** `0xCee44904A6aA94dEa28754373887E07D4B6f4968`
+
+| Chain | Address | Explorer |
+|-------|---------|----------|
+| **BSC** (56) | `0x14D41707269c7D8b8DFa5095b38824a46dA05da3` | [BscScan](https://bscscan.com/token/0x14D41707269c7D8b8DFa5095b38824a46dA05da3) |
+| **Base** (8453) | `0x14D41707269c7D8b8DFa5095b38824a46dA05da3` | [BaseScan](https://basescan.org/address/0x14D41707269c7D8b8DFa5095b38824a46dA05da3) |
+| **Arbitrum** (42161) | `0x14D41707269c7D8b8DFa5095b38824a46dA05da3` | [Arbiscan](https://arbiscan.io/address/0x14D41707269c7D8b8DFa5095b38824a46dA05da3) |
+| **Polygon** (137) | `0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9` | [PolygonScan](https://polygonscan.com/address/0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9) |
+
+> Note: BSC, Base, and Arbitrum share the same address due to identical deployer nonce. Polygon uses a different address because a nonce was consumed by a cancel tx.
 
 ### Website (Netlify)
 - **URL:** https://kairos-777.com
@@ -315,6 +321,16 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 - **Backend v1.1.0** — Fiat on-ramp endpoints, CORS updated, auto-mint pipeline
 - All deployed to Netlify (website) and GitHub (backend auto-deploys to Render)
 
+### Session 3 — Feb 22, 2026 (Multi-Chain)
+- **Deployed KairosCoin to Base** — Same address `0x14D41707269c7D8b8DFa5095b38824a46dA05da3`, verified on BaseScan
+- **Deployed KairosCoin to Arbitrum** — Same address `0x14D41707269c7D8b8DFa5095b38824a46dA05da3`, verified on Arbiscan
+- **Deployed KairosCoin to Polygon** — Address `0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9`, verified on PolygonScan
+- **Created bridge scripts** — `bridge-to-base.js` (LI.FI), `bridge-and-deploy-all.js`
+- **Created deploy script** — `deploy-multichain.js` with deployment logging
+- **Bridged BNB→ETH** via Across Protocol for gas on Base/Arbitrum
+- **Updated hardhat.config.js** — Etherscan V2 API, auto gas for Polygon
+- KAIROS now live on **4 blockchains**: BSC, Base, Arbitrum, Polygon
+
 ### Prior (Session 1 — before this chat)
 - Smart contract written, compiled, deployed to BSC Mainnet
 - Backend API built and deployed to Render
@@ -334,7 +350,8 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 - [ ] Replace placeholder API key in buy.html
 
 ### Short-term
-- [ ] Multi-chain deployment (Ethereum, Polygon, Base, Arbitrum)
+- [x] Multi-chain deployment (Base, Arbitrum, Polygon) ✅ DONE Feb 22, 2026
+- [ ] Ethereum mainnet deployment (waiting — gas expensive ~$30+)
 - [ ] Cross-chain bridge integration
 - [ ] CoinGecko / CoinMarketCap listing
 - [ ] Token logo submission to Trust Wallet / MetaMask token lists

@@ -16,7 +16,8 @@ Before starting any work, read `PROJECT_BIBLE.md` in the project root. It contai
 
 ## Key Addresses
 - Owner wallet: `0xCee44904A6aA94dEa28754373887E07D4B6f4968`
-- Contract: `0x14D41707269c7D8b8DFa5095b38824a46dA05da3`
+- Contract (BSC/Base/Arbitrum): `0x14D41707269c7D8b8DFa5095b38824a46dA05da3`
+- Contract (Polygon): `0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9`
 - USDT (BSC): `0x55d398326f99059fF775485246999027B3197955`
 - BUSD (BSC): `0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56`
 - USDC (BSC): `0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d`
@@ -37,7 +38,8 @@ Before starting any work, read `PROJECT_BIBLE.md` in the project root. It contai
 - Transak KYB submitted Feb 22, 2026 — waiting approval
 - Backend v1.1.0 with fiat webhook system built and deployed
 - All infrastructure live and operational
-- Next focus: Multi-chain deployment when ready
+- KAIROS deployed on 4 chains: BSC, Base, Arbitrum, Polygon (Feb 22, 2026)
+- Next focus: Wallet app full features
 
 ## Important Rules
 1. Always update `PROJECT_BIBLE.md` after significant changes

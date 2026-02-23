@@ -1,0 +1,33 @@
+{
+  "base": {
+    "address": "0x14D41707269c7D8b8DFa5095b38824a46dA05da3",
+    "chainId": 8453,
+    "chainName": "Base",
+    "explorer": "https://basescan.org/address/0x14D41707269c7D8b8DFa5095b38824a46dA05da3",
+    "deployer": "0xCee44904A6aA94dEa28754373887E07D4B6f4968",
+    "deployedAt": "2026-02-23T04:06:25.457Z",
+    "adminWallet": "0xCee44904A6aA94dEa28754373887E07D4B6f4968",
+    "reserveWallet": "0xCee44904A6aA94dEa28754373887E07D4B6f4968"
+  },
+  "arbitrum": {
+    "address": "0x14D41707269c7D8b8DFa5095b38824a46dA05da3",
+    "chainId": 42161,
+    "chainName": "Arbitrum One",
+    "explorer": "https://arbiscan.io/address/0x14D41707269c7D8b8DFa5095b38824a46dA05da3",
+    "txHash": "0xf00c9eaed381911065712c94b7add8b5b80934d9d3a07a82307c430060f2e95c",
+    "deployer": "0xCee44904A6aA94dEa28754373887E07D4B6f4968",
+    "deployedAt": "2026-02-23T04:16:15.447Z",
+    "adminWallet": "0xCee44904A6aA94dEa28754373887E07D4B6f4968",
+    "reserveWallet": "0xCee44904A6aA94dEa28754373887E07D4B6f4968"
+  },
+  "polygon": {
+    "address": "0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9",
+    "chainId": 137,
+    "chainName": "Polygon",
+    "explorer": "https://polygonscan.com/address/0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9",
+    "deployer": "0xCee44904A6aA94dEa28754373887E07D4B6f4968",
+    "deployedAt": "2026-02-23T04:20:00.000Z",
+    "adminWallet": "0xCee44904A6aA94dEa28754373887E07D4B6f4968",
+    "reserveWallet": "0xCee44904A6aA94dEa28754373887E07D4B6f4968"
+  }
+}

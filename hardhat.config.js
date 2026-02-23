@@ -50,30 +50,34 @@ module.exports = {
       accounts: isValidKey ? [DEPLOYER_PRIVATE_KEY] : [],
       chainId: 11155111,
     },
-    // ── Mainnet ───────────────────────────────────────────
-    // ethereum: {
-    //   url: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-    //   accounts: isValidKey ? [DEPLOYER_PRIVATE_KEY] : [],
-    //   chainId: 1,
-    // },
-    // polygon: {
-    //   url: `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-    //   accounts: isValidKey ? [DEPLOYER_PRIVATE_KEY] : [],
-    //   chainId: 137,
-    // },
-    // base: {
-    //   url: `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-    //   accounts: isValidKey ? [DEPLOYER_PRIVATE_KEY] : [],
-    //   chainId: 8453,
-    // },
-    // arbitrum: {
-    //   url: `https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-    //   accounts: isValidKey ? [DEPLOYER_PRIVATE_KEY] : [],
-    //   chainId: 42161,
-    // },
+    // ── Mainnets ──────────────────────────────────────────
+    ethereum: {
+      url: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+      accounts: isValidKey ? [DEPLOYER_PRIVATE_KEY] : [],
+      chainId: 1,
+      gasPrice: "auto",
+    },
+    polygon: {
+      url: `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+      accounts: isValidKey ? [DEPLOYER_PRIVATE_KEY] : [],
+      chainId: 137,
+      gasPrice: "auto",
+    },
+    base: {
+      url: `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+      accounts: isValidKey ? [DEPLOYER_PRIVATE_KEY] : [],
+      chainId: 8453,
+      gasPrice: "auto",
+    },
+    arbitrum: {
+      url: `https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+      accounts: isValidKey ? [DEPLOYER_PRIVATE_KEY] : [],
+      chainId: 42161,
+      gasPrice: "auto",
+    },
   },
   etherscan: {
-    apiKey: ETHERSCAN_API_KEY,
+    apiKey: ETHERSCAN_API_KEY,  // Etherscan V2: single key works for all chains
   },
   gasReporter: {
     enabled: true,
