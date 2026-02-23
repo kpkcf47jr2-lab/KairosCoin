@@ -30,6 +30,7 @@ function initialize() {
   db.pragma("busy_timeout = 5000");
 
   createTables();
+  runMigrations();
   logger.info(`Database initialized at ${config.dbPath}`);
 }
 
@@ -112,15 +113,15 @@ function createTables() {
     );
 
     -- ═══════════════════════════════════════════════════════════════════════
-    --  FIAT ORDERS — Track fiat-to-KAIROS purchases via Transak
+    --  FIAT ORDERS — Track fiat-to-KAIROS purchases via Stripe, Transak, etc.
     -- ═══════════════════════════════════════════════════════════════════════
     CREATE TABLE IF NOT EXISTS fiat_orders (
       id TEXT PRIMARY KEY,
-      provider TEXT NOT NULL DEFAULT 'transak' CHECK(provider IN ('transak', 'moonpay', 'changelly')),
+      provider TEXT NOT NULL DEFAULT 'stripe' CHECK(provider IN ('stripe', 'transak', 'moonpay', 'changelly')),
       provider_order_id TEXT,
       status TEXT NOT NULL DEFAULT 'CREATED' CHECK(status IN (
         'CREATED', 'PAYMENT_PENDING', 'PAYMENT_RECEIVED', 'PROCESSING',
-        'CRYPTO_SENT', 'MINTING', 'COMPLETED', 'FAILED', 'REFUNDED', 'EXPIRED'
+        'CRYPTO_SENT', 'MINTING', 'COMPLETED', 'FAILED', 'REFUNDED', 'EXPIRED', 'MINT_FAILED'
       )),
       wallet_address TEXT NOT NULL,
       fiat_amount TEXT NOT NULL,
@@ -149,6 +150,69 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_fiat_status ON fiat_orders(status);
     CREATE INDEX IF NOT EXISTS idx_fiat_created ON fiat_orders(created_at);
   `);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//                           MIGRATIONS
+// ═════════════════════════════════════════════════════════════════════════════
+
+function runMigrations() {
+  // Migration: Add 'stripe' to fiat_orders provider CHECK and 'MINT_FAILED' to status CHECK
+  // SQLite doesn't support ALTER CHECK, so we recreate the table preserving data
+  try {
+    const tableInfo = db.pragma("table_info(fiat_orders)");
+    const providerCol = tableInfo.find(c => c.name === 'provider');
+    
+    // Check if migration is needed by trying a test insert
+    const testNeeded = (() => {
+      try {
+        const stmt = db.prepare("INSERT INTO fiat_orders (id, provider, wallet_address, fiat_amount) VALUES (?, ?, ?, ?)");
+        stmt.run('__migration_test__', 'stripe', '0x0', '0');
+        db.prepare("DELETE FROM fiat_orders WHERE id = '__migration_test__'").run();
+        return false; // Migration not needed, stripe already works
+      } catch (e) {
+        return true; // CHECK constraint failed, migration needed
+      }
+    })();
+
+    if (testNeeded) {
+      logger.info("Running migration: adding 'stripe' provider to fiat_orders...");
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS fiat_orders_new (
+          id TEXT PRIMARY KEY,
+          provider TEXT NOT NULL DEFAULT 'stripe' CHECK(provider IN ('stripe', 'transak', 'moonpay', 'changelly')),
+          provider_order_id TEXT,
+          status TEXT NOT NULL DEFAULT 'CREATED' CHECK(status IN (
+            'CREATED', 'PAYMENT_PENDING', 'PAYMENT_RECEIVED', 'PROCESSING',
+            'CRYPTO_SENT', 'MINTING', 'COMPLETED', 'FAILED', 'REFUNDED', 'EXPIRED', 'MINT_FAILED'
+          )),
+          wallet_address TEXT NOT NULL,
+          fiat_amount TEXT NOT NULL,
+          fiat_currency TEXT NOT NULL DEFAULT 'USD',
+          crypto_amount TEXT,
+          payment_method TEXT,
+          transak_status TEXT,
+          mint_tx_id TEXT,
+          mint_tx_hash TEXT,
+          webhook_data TEXT,
+          error TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          completed_at TEXT
+        );
+        INSERT OR IGNORE INTO fiat_orders_new SELECT * FROM fiat_orders;
+        DROP TABLE fiat_orders;
+        ALTER TABLE fiat_orders_new RENAME TO fiat_orders;
+        CREATE INDEX IF NOT EXISTS idx_fiat_provider_order ON fiat_orders(provider_order_id);
+        CREATE INDEX IF NOT EXISTS idx_fiat_wallet ON fiat_orders(wallet_address);
+        CREATE INDEX IF NOT EXISTS idx_fiat_status ON fiat_orders(status);
+        CREATE INDEX IF NOT EXISTS idx_fiat_created ON fiat_orders(created_at);
+      `);
+      logger.info("Migration complete: fiat_orders now supports 'stripe' provider");
+    }
+  } catch (e) {
+    logger.warn("Migration check skipped or failed (non-critical):", e.message);
+  }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
