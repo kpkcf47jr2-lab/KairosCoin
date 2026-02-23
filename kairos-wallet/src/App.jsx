@@ -32,6 +32,10 @@ import StakingScreen from './components/Staking/StakingScreen';
 import GasTrackerScreen from './components/Gas/GasTrackerScreen';
 import TxDetailScreen from './components/History/TxDetailScreen';
 import TokenSecurityScreen from './components/Security/TokenSecurityScreen';
+import AlertsScreen from './components/Alerts/AlertsScreen';
+import MultiSendScreen from './components/Send/MultiSendScreen';
+import PortfolioAllocation from './components/Dashboard/PortfolioAllocation';
+import NotificationCenter from './components/Common/NotificationCenter';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import Toast from './components/Common/Toast';
 
@@ -121,6 +125,14 @@ export default function App() {
         return <TxDetailScreen key="txdetail" />;
       case 'tokenaudit':
         return <TokenSecurityScreen key="tokenaudit" />;
+      case 'alerts':
+        return <AlertsScreen key="alerts" />;
+      case 'multisend':
+        return <MultiSendScreen key="multisend" />;
+      case 'portfolio':
+        return <PortfolioAllocation key="portfolio" />;
+      case 'notifications':
+        return <NotificationCenter key="notifications" />;
       default:
         return <LoadingScreen key="loading" />;
     }

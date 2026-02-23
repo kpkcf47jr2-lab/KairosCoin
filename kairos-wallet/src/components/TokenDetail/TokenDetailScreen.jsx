@@ -7,12 +7,13 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Send, Download, ArrowLeftRight, ExternalLink,
-  TrendingUp, TrendingDown, Clock,
+  TrendingUp, TrendingDown, Clock, Shield, Bell, BarChart2,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CHAINS, KAIROS_TOKEN } from '../../constants/chains';
 import { formatUSD, formatBalance } from '../../services/prices';
 import { getNativePriceHistory, getTokenPriceHistory, normalizeSparkline } from '../../services/charts';
+import { addAlert } from '../../services/alerts';
 import TokenIcon from '../Common/TokenIcon';
 
 // Larger chart component (full-width)
@@ -64,6 +65,7 @@ const TIME_RANGES = [
 export default function TokenDetailScreen() {
   const {
     activeChainId, navigate, goBack, nativePrice, tokenPrices, tokenDetailData,
+    showToast,
   } = useStore();
 
   const chain = CHAINS[activeChainId];
@@ -249,6 +251,39 @@ export default function TokenDetailScreen() {
             </div>
           </div>
         )}
+
+        {/* Extra actions: Alert + Audit */}
+        <div className="px-5 mb-4">
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                try {
+                  addAlert({
+                    symbol: token.symbol,
+                    targetPrice: price,
+                    condition: 'above',
+                    tokenAddress: token.address || null,
+                    chainId: activeChainId,
+                  });
+                  showToast(`🔔 Alerta creada para ${token.symbol}`, 'success');
+                } catch (e) {
+                  showToast(e.message || 'Error creando alerta', 'error');
+                }
+              }}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-kairos-500/10 text-kairos-400 text-xs font-medium border border-kairos-500/20"
+            >
+              <Bell size={14} /> Crear Alerta
+            </button>
+            {!token.isNative && (
+              <button
+                onClick={() => navigate('tokenaudit')}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 text-red-400 text-xs font-medium border border-red-500/20"
+              >
+                <Shield size={14} /> Auditar Token
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Quick Actions */}
         <div className="px-5 mb-8">

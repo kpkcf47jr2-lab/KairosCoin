@@ -9,7 +9,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, Download, ArrowLeftRight, Clock, Settings, ChevronDown,
   Copy, Check, RefreshCw, Plus, Eye, EyeOff, Shield, ExternalLink,
-  Wallet, TrendingUp, TrendingDown, Lock, BookOpen, Image, Globe, CreditCard, Layers
+  Wallet, TrendingUp, TrendingDown, Lock, BookOpen, Image, Globe, CreditCard, Layers,
+  Bell, Users, PieChart,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getAllBalances } from '../../services/blockchain';
@@ -22,6 +23,7 @@ import PortfolioChart, { recordPortfolioValue } from './PortfolioChart';
 import { discoverTokens } from '../../services/tokenDiscovery';
 import { useTranslation } from '../../services/i18n';
 import { checkAlerts, getActiveAlertCount } from '../../services/alerts';
+import { getUnreadCount } from '../Common/NotificationCenter';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -170,6 +172,14 @@ export default function Dashboard() {
             <button onClick={loadBalances} className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center">
               <RefreshCw size={16} className={`text-dark-300 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
+            <button onClick={() => navigate('notifications')} className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center relative">
+              <Bell size={16} className="text-dark-300" />
+              {getUnreadCount() > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-kairos-500 text-dark-950 text-[8px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center">
+                  {getUnreadCount()}
+                </span>
+              )}
+            </button>
             <button onClick={() => navigate('settings')} className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center">
               <Settings size={16} className="text-dark-300" />
             </button>
@@ -224,16 +234,17 @@ export default function Dashboard() {
       </div>
 
       {/* ── Portfolio Value ── */}
-      <div className="px-5 text-center mb-5">
+      <div className="px-5 text-center mb-5 cursor-pointer" onClick={() => navigate('portfolio')}>
         <div className="flex items-center justify-center gap-2 mb-1">
           <span className="text-dark-400 text-xs">{t('dashboard.portfolio')}</span>
-          <button onClick={() => setHideBalance(!hideBalance)}>
+          <button onClick={(e) => { e.stopPropagation(); setHideBalance(!hideBalance); }}>
             {hideBalance ? <EyeOff size={12} className="text-dark-500" /> : <Eye size={12} className="text-dark-500" />}
           </button>
         </div>
         <h2 className="balance-text text-white">
           {hideBalance ? '••••••' : formatUSD(portfolioValue)}
         </h2>
+        <p className="text-dark-600 text-[10px] mt-0.5">Toca para ver asignación</p>
       </div>
 
       {/* ── Portfolio Chart ── */}
@@ -251,22 +262,31 @@ export default function Dashboard() {
             { icon: CreditCard, label: t('action.buy', 'Comprar'), screen: 'buy', color: 'bg-emerald-500/10 text-emerald-400' },
             { icon: ArrowLeftRight, label: t('action.swap'), screen: 'swap', color: 'bg-purple-500/10 text-purple-400' },
             { icon: Layers, label: 'Bridge', screen: 'bridge', color: 'bg-indigo-500/10 text-indigo-400' },
+            { icon: Users, label: 'Multi-Send', screen: 'multisend', color: 'bg-cyan-500/10 text-cyan-400' },
             { icon: Globe, label: t('action.dapps'), screen: 'dapps', color: 'bg-orange-500/10 text-orange-400' },
             { icon: Image, label: t('action.nfts'), screen: 'nft', color: 'bg-pink-500/10 text-pink-400' },
             { icon: Lock, label: 'Staking', screen: 'staking', color: 'bg-teal-500/10 text-teal-400' },
+            { icon: PieChart, label: 'Portfolio', screen: 'portfolio', color: 'bg-violet-500/10 text-violet-400' },
+            { icon: Bell, label: 'Alertas', screen: 'alerts', color: 'bg-kairos-500/10 text-kairos-400', badge: alertCount },
             { icon: Shield, label: 'Auditoría', screen: 'tokenaudit', color: 'bg-red-500/10 text-red-400' },
             { icon: TrendingUp, label: 'Gas', screen: 'gas', color: 'bg-amber-500/10 text-amber-400' },
             { icon: Clock, label: t('action.history'), screen: 'history', color: 'bg-kairos-500/10 text-kairos-400' },
+            { icon: BookOpen, label: 'Contactos', screen: 'contacts', color: 'bg-sky-500/10 text-sky-400' },
             { icon: Settings, label: t('action.settings'), screen: 'settings', color: 'bg-white/5 text-dark-300' },
           ].map(action => (
             <button
               key={action.label}
               onClick={() => navigate(action.screen)}
-              className="flex flex-col items-center gap-2 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] transition-all active:scale-95"
+              className="flex flex-col items-center gap-2 py-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] transition-all active:scale-95 relative"
             >
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${action.color}`}>
                 <action.icon size={16} />
               </div>
+              {action.badge > 0 && (
+                <span className="absolute top-1 right-1 bg-kairos-500 text-dark-950 text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  {action.badge}
+                </span>
+              )}
               <span className="text-[10px] text-dark-300">{action.label}</span>
             </button>
           ))}

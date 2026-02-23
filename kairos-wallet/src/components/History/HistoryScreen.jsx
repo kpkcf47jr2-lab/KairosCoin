@@ -4,14 +4,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowUpRight, ArrowDownLeft, ExternalLink, RefreshCw, FileText } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ArrowDownLeft, ExternalLink, RefreshCw, FileText, Download } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getTransactionHistory, getTokenTransferHistory } from '../../services/blockchain';
 import { formatAddress } from '../../services/wallet';
 import { CHAINS } from '../../constants/chains';
+import { exportTransactionsCSV } from '../../services/export';
 
 export default function HistoryScreen() {
-  const { activeAddress, activeChainId, goBack, navigate } = useStore();
+  const { activeAddress, activeChainId, goBack, navigate, showToast } = useStore();
   const setTxDetailData = useStore(s => s.setTxDetailData);
   const [transactions, setTransactions] = useState([]);
   const [tokenTxs, setTokenTxs] = useState([]);
@@ -61,6 +62,19 @@ export default function HistoryScreen() {
           <ArrowLeft size={20} />
         </button>
         <h2 className="text-lg font-bold flex-1">Historial</h2>
+        {transactions.length > 0 && (
+          <button
+            onClick={() => {
+              const all = [...transactions, ...tokenTxs];
+              const count = exportTransactionsCSV(all, activeChainId, activeAddress);
+              showToast(`${count} transacciones exportadas`, 'success');
+            }}
+            className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center mr-2"
+            title="Exportar CSV"
+          >
+            <Download size={16} className="text-dark-300" />
+          </button>
+        )}
         <button onClick={loadHistory} className="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center">
           <RefreshCw size={16} className={`text-dark-300 ${isLoading ? 'animate-spin' : ''}`} />
         </button>

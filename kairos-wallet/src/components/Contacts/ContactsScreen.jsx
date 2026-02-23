@@ -7,13 +7,14 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Plus, Search, Edit2, Trash2, Copy, Check,
-  X, User, Send, BookOpen, Star,
+  X, User, Send, BookOpen, Star, Download, Upload,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { isValidAddress, formatAddress } from '../../services/wallet';
 import {
   getContacts, addContact, updateContact, deleteContact, searchContacts,
 } from '../../services/contacts';
+import { exportContactsJSON, parseContactsJSON } from '../../services/export';
 
 export default function ContactsScreen() {
   const { goBack, navigate, showToast } = useStore();
@@ -112,6 +113,39 @@ export default function ContactsScreen() {
     }, 300);
   };
 
+  // ── Export contacts ──
+  const handleExport = () => {
+    const count = exportContactsJSON(contacts);
+    showToast(`${count} contactos exportados`, 'success');
+  };
+
+  // ── Import contacts ──
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const imported = parseContactsJSON(text);
+        let added = 0;
+        for (const c of imported) {
+          try {
+            addContact(c);
+            added++;
+          } catch {} // skip duplicates
+        }
+        refresh();
+        showToast(`${added} contactos importados`, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    };
+    input.click();
+  };
+
   return (
     <div className="screen-container">
       {/* ── Header ── */}
@@ -120,9 +154,21 @@ export default function ContactsScreen() {
           <ArrowLeft size={20} className="text-dark-300" />
         </button>
         <h1 className="font-bold text-white">Contactos</h1>
-        <button onClick={openAdd} className="p-2 -mr-2 rounded-xl hover:bg-white/5">
-          <Plus size={20} className="text-kairos-400" />
-        </button>
+        <div className="flex items-center gap-1">
+          {contacts.length > 0 && (
+            <>
+              <button onClick={handleExport} className="p-2 rounded-xl hover:bg-white/5" title="Exportar">
+                <Download size={16} className="text-dark-400" />
+              </button>
+              <button onClick={handleImport} className="p-2 rounded-xl hover:bg-white/5" title="Importar">
+                <Upload size={16} className="text-dark-400" />
+              </button>
+            </>
+          )}
+          <button onClick={openAdd} className="p-2 -mr-2 rounded-xl hover:bg-white/5">
+            <Plus size={20} className="text-kairos-400" />
+          </button>
+        </div>
       </div>
 
       {/* ── Search ── */}
