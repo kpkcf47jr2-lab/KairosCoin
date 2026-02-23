@@ -13,6 +13,7 @@ import AuthScreen from './components/Auth/AuthScreen';
 // Pages
 import Dashboard from './components/Dashboard/Dashboard';
 import TradingChart from './components/Chart/TradingChart';
+import DepthChart from './components/Chart/DepthChart';
 import TradingPanel from './components/Trading/TradingPanel';
 import BotManager from './components/Bots/BotManager';
 import BrokerManager from './components/Broker/BrokerManager';
@@ -22,6 +23,30 @@ import TradeHistory from './components/Trading/TradeHistory';
 import SimulatorScreen from './components/Trading/SimulatorScreen';
 import SettingsPanel from './components/Settings/SettingsPanel';
 import AlertPanel from './components/Alerts/AlertPanel';
+
+// Sub-component: Trading view with chart/depth toggle
+import { useState as useStateTrade } from 'react';
+function TradingView() {
+  const [chartTab, setChartTab] = useStateTrade('chart');
+  const { selectedPair } = useStore();
+  return (
+    <div className="flex flex-1 overflow-hidden h-full">
+      <div className="flex-1 h-full overflow-hidden flex flex-col">
+        <div className="flex gap-1 px-3 pt-2" style={{ background: 'var(--surface)' }}>
+          {[['chart', 'Chart'], ['depth', 'Depth']].map(([id, label]) => (
+            <button key={id} onClick={() => setChartTab(id)}
+              className={`px-3 py-1.5 text-xs font-bold rounded-t-lg transition-colors ${chartTab === id ? 'text-[var(--gold)]' : 'text-[var(--text-dim)] hover:text-[var(--text-secondary)]'}`}
+              style={chartTab === id ? { background: 'var(--dark)', borderTop: '2px solid var(--gold)' } : {}}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {chartTab === 'chart' ? <TradingChart /> : <DepthChart pair={selectedPair || 'BTCUSDT'} height={500} />}
+      </div>
+      <TradingPanel />
+    </div>
+  );
+}
 
 function App() {
   const { isAuthenticated, currentPage, aiPanelOpen } = useStore();
@@ -33,14 +58,7 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard': return <Dashboard />;
-      case 'chart': return (
-        <div className="flex flex-1 overflow-hidden h-full">
-          <div className="flex-1 h-full overflow-hidden">
-            <TradingChart />
-          </div>
-          <TradingPanel />
-        </div>
-      );
+      case 'chart': return <TradingView />;
       case 'bots': return <BotManager />;
       case 'simulator': return <SimulatorScreen />;
       case 'brokers': return <BrokerManager />;

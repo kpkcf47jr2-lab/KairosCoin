@@ -146,13 +146,22 @@ export default function TradingPanel() {
               className="w-full text-sm"
             />
             <div className="flex gap-1 mt-1.5">
-              {['25%', '50%', '75%', '100%'].map(pct => (
+              {[25, 50, 75, 100].map(pct => (
                 <button
                   key={pct}
-                  className="flex-1 py-1.5 text-[10px] font-semibold rounded-md text-[var(--text-dim)] hover:text-[var(--text)] transition-all"
-                  style={{ background: 'rgba(24,26,32,0.6)', border: '1px solid rgba(30,34,45,0.4)' }}
+                  onClick={() => {
+                    // Calculate quantity based on an assumed balance of $10,000 for demo
+                    const price = orderType === 'market' ? currentPrice : parseFloat(form.price) || currentPrice;
+                    if (price) {
+                      const balance = 10000; // Demo balance
+                      const qty = (balance * (pct / 100)) / price;
+                      setForm({ ...form, quantity: qty.toFixed(6) });
+                    }
+                  }}
+                  className="flex-1 py-1.5 text-[10px] font-semibold rounded-md text-[var(--text-dim)] hover:text-[var(--gold)] hover:border-[var(--gold)]/30 transition-all"
+                  style={{ background: 'rgba(14,16,21,0.6)', border: '1px solid var(--border)' }}
                 >
-                  {pct}
+                  {pct}%
                 </button>
               ))}
             </div>
@@ -218,7 +227,7 @@ export default function TradingPanel() {
                 </div>
               ))}
               <div className="text-center py-1.5 text-[15px] font-bold text-[var(--gold)] my-1"
-                style={{ background: 'rgba(59,130,246,0.04)', borderRadius: '6px' }}>
+                style={{ background: 'rgba(212,175,55,0.04)', borderRadius: '6px' }}>
                 ${currentPrice?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '---'}
               </div>
               {orderBook.bids.slice(0, 5).map((b, i) => (

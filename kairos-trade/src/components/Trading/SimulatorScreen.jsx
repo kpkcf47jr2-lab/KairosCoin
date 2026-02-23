@@ -1,5 +1,5 @@
 // Kairos Trade — Paper Trading Simulator Screen
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Play, Pause, RotateCcw, TrendingUp, TrendingDown,
@@ -8,6 +8,106 @@ import {
 import useStore from '../../store/useStore';
 import simulator from '../../services/simulator';
 import { POPULAR_PAIRS } from '../../constants';
+
+// Mini equity curve component
+function EquityCurve({ data, height = 140 }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !data || data.length < 2) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, w, h);
+
+    const values = data.map(d => d.value);
+    const minV = Math.min(...values) * 0.998;
+    const maxV = Math.max(...values) * 1.002;
+    const range = maxV - minV || 1;
+    const pad = { top: 8, bottom: 20, left: 0, right: 0 };
+    const cw = w - pad.left - pad.right;
+    const ch = h - pad.top - pad.bottom;
+
+    const px = (i) => pad.left + (i / (data.length - 1)) * cw;
+    const py = (v) => pad.top + ch - ((v - minV) / range) * ch;
+
+    const startVal = values[0];
+    const endVal = values[values.length - 1];
+    const isPositive = endVal >= startVal;
+    const lineColor = isPositive ? '#00DC82' : '#FF3B30';
+
+    // Fill area
+    ctx.beginPath();
+    ctx.moveTo(px(0), py(values[0]));
+    for (let i = 1; i < values.length; i++) ctx.lineTo(px(i), py(values[i]));
+    ctx.lineTo(px(values.length - 1), h - pad.bottom);
+    ctx.lineTo(px(0), h - pad.bottom);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, isPositive ? 'rgba(0,220,130,0.2)' : 'rgba(255,59,48,0.2)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    ctx.moveTo(px(0), py(values[0]));
+    for (let i = 1; i < values.length; i++) ctx.lineTo(px(i), py(values[i]));
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Start dotted line (initial balance)
+    ctx.beginPath();
+    ctx.setLineDash([3, 3]);
+    const baseY = py(startVal);
+    ctx.moveTo(0, baseY);
+    ctx.lineTo(w, baseY);
+    ctx.strokeStyle = '#D4AF3740';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Labels
+    ctx.fillStyle = '#666';
+    ctx.font = '9px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`$${minV.toFixed(0)}`, 4, h - pad.bottom + 12);
+    ctx.textAlign = 'right';
+    ctx.fillText(`$${maxV.toFixed(0)}`, w - 4, h - pad.bottom + 12);
+
+    // Current value dot
+    const lastX = px(values.length - 1);
+    const lastY = py(endVal);
+    ctx.beginPath();
+    ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+    ctx.fillStyle = lineColor;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(lastX, lastY, 6, 0, Math.PI * 2);
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.4;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }, [data, height]);
+
+  if (!data || data.length < 2) {
+    return (
+      <div className="flex items-center justify-center text-xs text-[var(--text-dim)]" style={{ height }}>
+        Ejecuta trades para ver la curva de equity
+      </div>
+    );
+  }
+
+  return <canvas ref={canvasRef} style={{ width: '100%', height }} />;
+}
 
 export default function SimulatorScreen() {
   const { selectedPair, currentPrice, setPage } = useStore();
@@ -148,6 +248,19 @@ export default function SimulatorScreen() {
             <p className="text-sm font-bold font-mono" style={{ color: s.color }}>{s.value}</p>
           </div>
         ))}
+      </div>
+
+      {/* Equity Curve */}
+      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: '1px solid var(--border)' }}>
+          <h3 className="text-xs font-bold flex items-center gap-2 text-[var(--text-secondary)]">
+            <TrendingUp size={14} className="text-[var(--gold)]" /> Curva de Equity
+          </h3>
+          <span className="text-[10px] text-[var(--text-dim)]">{state.equityHistory?.length || 0} puntos</span>
+        </div>
+        <div className="p-2">
+          <EquityCurve data={state.equityHistory} height={160} />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-6">

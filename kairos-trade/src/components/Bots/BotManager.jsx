@@ -1,85 +1,136 @@
-// Kairos Trade — Bot Management Panel
+// Kairos Trade — Bot Management Panel (Elite v3)
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Plus, Play, Pause, Square, Trash2, Settings, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
+import { Bot, Plus, Play, Pause, Square, Trash2, Settings, TrendingUp, TrendingDown, AlertCircle, Grid3x3, DollarSign, Zap } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { tradingEngine } from '../../services/tradingEngine';
+import gridBotEngine from '../../services/gridBot';
+import dcaBotEngine from '../../services/dcaBot';
 import { POPULAR_PAIRS, TIMEFRAMES } from '../../constants';
+
+const BOT_TYPES = [
+  { id: 'signal', label: 'Signal Bot', icon: Zap, desc: 'Ejecuta trades basado en indicadores técnicos', color: '#D4AF37' },
+  { id: 'grid', label: 'Grid Bot', icon: Grid3x3, desc: 'Compra y vende en niveles de precio predefinidos', color: '#00DC82' },
+  { id: 'dca', label: 'DCA Bot', icon: DollarSign, desc: 'Invierte cantidades fijas a intervalos regulares', color: '#A855F7' },
+];
 
 export default function BotManager() {
   const { bots, addBot, updateBot, removeBot, strategies, brokers } = useStore();
   const [showCreate, setShowCreate] = useState(false);
+  const [botType, setBotType] = useState('signal');
   const [logs, setLogs] = useState([]);
   const [form, setForm] = useState({
-    name: '',
-    pair: 'BTCUSDT',
-    timeframe: '1h',
-    strategyId: '',
-    brokerId: '',
-    balance: '1000',
-    riskPercent: '2',
-    maxTrades: '10',
+    name: '', pair: 'BTCUSDT', timeframe: '1h', strategyId: '', brokerId: '',
+    balance: '1000', riskPercent: '2', maxTrades: '10',
+    // Grid bot fields
+    upperPrice: '', lowerPrice: '', gridLines: '10',
+    // DCA bot fields
+    investmentPerOrder: '100', intervalMinutes: '60', maxOrders: '50',
+    useRsiFilter: false, rsiThreshold: '40', usePriceDipFilter: false, dipPercent: '3',
   });
 
   const handleCreate = () => {
     if (!form.name || !form.pair) return;
 
-    const strategy = strategies.find(s => s.id === form.strategyId) || {
-      name: 'EMA Cross + RSI',
-      entry: {
-        condition: 'EMA 20 cruza EMA 50 + RSI < 30',
-        indicator: 'ema_cross_rsi',
-        params: { fastEma: 20, slowEma: 50, rsiPeriod: 14, rsiOversold: 30 },
-      },
-      exit: {
-        condition: 'RSI > 70',
-        indicator: 'rsi',
-        params: { rsiOverbought: 70 },
-      },
-      stopLoss: '2',
-      takeProfit: '4',
-    };
-
-    addBot({
+    const botData = {
       name: form.name,
       pair: form.pair,
-      timeframe: form.timeframe,
-      strategy,
+      botType,
       brokerId: form.brokerId,
-      balance: parseFloat(form.balance),
-      riskPercent: parseFloat(form.riskPercent),
-      maxTrades: parseInt(form.maxTrades),
-    });
+    };
 
-    setForm({ name: '', pair: 'BTCUSDT', timeframe: '1h', strategyId: '', brokerId: '', balance: '1000', riskPercent: '2', maxTrades: '10' });
+    if (botType === 'signal') {
+      const strategy = strategies.find(s => s.id === form.strategyId) || {
+        name: 'EMA Cross + RSI',
+        entry: { condition: 'EMA 20 cruza EMA 50 + RSI < 30', indicator: 'ema_cross_rsi', params: { fastEma: 20, slowEma: 50, rsiPeriod: 14, rsiOversold: 30 } },
+        exit: { condition: 'RSI > 70', indicator: 'rsi', params: { rsiOverbought: 70 } },
+        stopLoss: '2', takeProfit: '4',
+      };
+      Object.assign(botData, {
+        timeframe: form.timeframe, strategy,
+        balance: parseFloat(form.balance), riskPercent: parseFloat(form.riskPercent),
+        maxTrades: parseInt(form.maxTrades),
+      });
+    } else if (botType === 'grid') {
+      Object.assign(botData, {
+        upperPrice: parseFloat(form.upperPrice), lowerPrice: parseFloat(form.lowerPrice),
+        gridLines: parseInt(form.gridLines), balance: parseFloat(form.balance),
+      });
+    } else if (botType === 'dca') {
+      Object.assign(botData, {
+        investmentPerOrder: parseFloat(form.investmentPerOrder),
+        intervalMinutes: parseInt(form.intervalMinutes), maxOrders: parseInt(form.maxOrders),
+        useRsiFilter: form.useRsiFilter, rsiThreshold: parseInt(form.rsiThreshold),
+        usePriceDipFilter: form.usePriceDipFilter, dipPercent: parseFloat(form.dipPercent),
+        balance: parseFloat(form.investmentPerOrder) * parseInt(form.maxOrders),
+      });
+    }
+
+    addBot(botData);
     setShowCreate(false);
+  };
+
+  const addLog = (bot, msg) => {
+    setLogs(prev => [...prev.slice(-100), { type: 'log', bot: bot.name, message: msg, time: new Date().toLocaleTimeString() }]);
+  };
+
+  const addTrade = (bot, trade) => {
+    setLogs(prev => [...prev.slice(-100), { type: 'trade', bot: bot.name, ...trade, time: new Date().toLocaleTimeString() }]);
+    // Update bot stats
+    const current = useStore.getState().bots.find(b => b.id === bot.id);
+    if (current) {
+      const trades = (current.trades || 0) + 1;
+      const pnl = (current.pnl || 0) + (trade.profit || 0);
+      updateBot(bot.id, { trades, pnl });
+    }
   };
 
   const handleStart = async (bot) => {
     updateBot(bot.id, { status: 'active' });
-    tradingEngine.startBot(
-      { ...bot, status: 'active' },
-      (trade) => {
-        setLogs(prev => [...prev, { type: 'trade', bot: bot.name, ...trade, time: new Date().toLocaleTimeString() }]);
-      },
-      (msg) => {
-        setLogs(prev => [...prev, { type: 'log', bot: bot.name, message: msg, time: new Date().toLocaleTimeString() }]);
-      }
-    );
-  };
+    const type = bot.botType || 'signal';
 
-  const handlePause = (bot) => {
-    tradingEngine.stopBot(bot.id);
-    updateBot(bot.id, { status: 'paused' });
+    if (type === 'signal') {
+      tradingEngine.startBot(
+        { ...bot, status: 'active' },
+        (trade) => addTrade(bot, trade),
+        (msg) => addLog(bot, msg),
+      );
+    } else if (type === 'grid') {
+      gridBotEngine.start({
+        id: bot.id, pair: bot.pair,
+        upperPrice: bot.upperPrice, lowerPrice: bot.lowerPrice,
+        gridLines: bot.gridLines, investment: bot.balance,
+        onLog: (msg) => addLog(bot, msg),
+        onTrade: (trade) => addTrade(bot, trade),
+      });
+    } else if (type === 'dca') {
+      dcaBotEngine.start({
+        id: bot.id, pair: bot.pair,
+        investmentPerOrder: bot.investmentPerOrder,
+        intervalMinutes: bot.intervalMinutes, maxOrders: bot.maxOrders,
+        useRsiFilter: bot.useRsiFilter, rsiThreshold: bot.rsiThreshold,
+        usePriceDipFilter: bot.usePriceDipFilter, dipPercent: bot.dipPercent,
+        onLog: (msg) => addLog(bot, msg),
+        onTrade: (trade) => addTrade(bot, trade),
+      });
+    }
   };
 
   const handleStop = (bot) => {
-    tradingEngine.stopBot(bot.id);
+    const type = bot.botType || 'signal';
+    if (type === 'signal') tradingEngine.stopBot(bot.id);
+    else if (type === 'grid') gridBotEngine.stop(bot.id);
+    else if (type === 'dca') dcaBotEngine.stop(bot.id);
     updateBot(bot.id, { status: 'stopped' });
   };
 
+  const handlePause = (bot) => {
+    handleStop(bot);
+    updateBot(bot.id, { status: 'paused' });
+  };
+
   const handleDelete = (bot) => {
-    tradingEngine.stopBot(bot.id);
+    handleStop(bot);
     removeBot(bot.id);
   };
 
@@ -92,15 +143,7 @@ export default function BotManager() {
     }
   };
 
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'active': return 'Activo';
-      case 'paused': return 'Pausado';
-      case 'stopped': return 'Detenido';
-      case 'error': return 'Error';
-      default: return status;
-    }
-  };
+  const getTypeInfo = (type) => BOT_TYPES.find(t => t.id === type) || BOT_TYPES[0];
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -111,10 +154,7 @@ export default function BotManager() {
             {bots.filter(b => b.status === 'active').length} activos de {bots.length} total
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--gold)] text-white font-bold rounded-xl hover:bg-[var(--gold-light)] transition-colors text-sm"
-        >
+        <button onClick={() => setShowCreate(!showCreate)} className="flex items-center gap-2 px-4 py-2 btn-gold rounded-xl text-sm">
           <Plus size={16} /> Crear Bot
         </button>
       </div>
@@ -122,103 +162,122 @@ export default function BotManager() {
       {/* Create bot form */}
       <AnimatePresence>
         {showCreate && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl overflow-hidden"
-          >
-            <div className="p-4 space-y-4">
-              <h3 className="text-sm font-bold">Nuevo Bot de Trading</h3>
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+            className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+            <div className="p-5 space-y-5">
+              <h3 className="text-sm font-bold text-[var(--text)]">Nuevo Bot de Trading</h3>
 
+              {/* Bot type selector */}
+              <div className="grid grid-cols-3 gap-3">
+                {BOT_TYPES.map(t => {
+                  const Icon = t.icon;
+                  return (
+                    <button key={t.id} onClick={() => setBotType(t.id)}
+                      className={`p-3 rounded-xl text-left transition-all ${botType === t.id ? 'ring-1' : 'hover:bg-[var(--surface-2)]'}`}
+                      style={{
+                        background: botType === t.id ? `${t.color}10` : 'var(--surface-2)',
+                        borderColor: botType === t.id ? `${t.color}40` : 'var(--border)',
+                        border: `1px solid ${botType === t.id ? t.color + '30' : 'var(--border)'}`,
+                      }}>
+                      <Icon size={20} style={{ color: t.color }} className="mb-1.5" />
+                      <p className="text-xs font-bold" style={{ color: botType === t.id ? t.color : 'var(--text)' }}>{t.label}</p>
+                      <p className="text-[10px] text-[var(--text-dim)] mt-0.5">{t.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Common fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs text-[var(--text-dim)] mb-1 block">Nombre del Bot</label>
-                  <input
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Mi Bot BTC"
-                    className="w-full"
-                  />
+                  <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Nombre</label>
+                  <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Mi Bot" className="w-full" />
                 </div>
                 <div>
-                  <label className="text-xs text-[var(--text-dim)] mb-1 block">Par</label>
-                  <select
-                    value={form.pair}
-                    onChange={(e) => setForm({ ...form, pair: e.target.value })}
-                    className="w-full"
-                  >
-                    {POPULAR_PAIRS.map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
+                  <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Par</label>
+                  <select value={form.pair} onChange={(e) => setForm({ ...form, pair: e.target.value })} className="w-full">
+                    {POPULAR_PAIRS.map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--text-dim)] mb-1 block">Timeframe</label>
-                  <select
-                    value={form.timeframe}
-                    onChange={(e) => setForm({ ...form, timeframe: e.target.value })}
-                    className="w-full"
-                  >
-                    {TIMEFRAMES.map(tf => (
-                      <option key={tf.value} value={tf.value}>{tf.label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--text-dim)] mb-1 block">Balance Asignado ($)</label>
-                  <input
-                    type="number"
-                    value={form.balance}
-                    onChange={(e) => setForm({ ...form, balance: e.target.value })}
-                    placeholder="1000"
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--text-dim)] mb-1 block">Riesgo por Trade (%)</label>
-                  <input
-                    type="number"
-                    value={form.riskPercent}
-                    onChange={(e) => setForm({ ...form, riskPercent: e.target.value })}
-                    placeholder="2"
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--text-dim)] mb-1 block">Máx. Trades por Día</label>
-                  <input
-                    type="number"
-                    value={form.maxTrades}
-                    onChange={(e) => setForm({ ...form, maxTrades: e.target.value })}
-                    placeholder="10"
-                    className="w-full"
-                  />
                 </div>
               </div>
 
-              {/* Strategy info */}
-              <div className="bg-[var(--dark-3)] rounded-xl p-3">
-                <p className="text-xs text-[var(--text-dim)] mb-1">Estrategia Predeterminada</p>
-                <p className="text-sm font-bold text-[var(--gold)]">EMA Cross + RSI</p>
-                <p className="text-xs text-[var(--text-dim)] mt-1">
-                  Compra: EMA 20 cruza EMA 50 + RSI &lt; 30 | Venta: RSI &gt; 70 | SL: 2% | TP: 4%
-                </p>
-              </div>
+              {/* Signal bot fields */}
+              {botType === 'signal' && (
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Timeframe</label>
+                    <select value={form.timeframe} onChange={(e) => setForm({ ...form, timeframe: e.target.value })} className="w-full">
+                      {TIMEFRAMES.map(tf => <option key={tf.value} value={tf.value}>{tf.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Balance ($)</label>
+                    <input type="number" value={form.balance} onChange={(e) => setForm({ ...form, balance: e.target.value })} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Riesgo (%)</label>
+                    <input type="number" value={form.riskPercent} onChange={(e) => setForm({ ...form, riskPercent: e.target.value })} className="w-full" />
+                  </div>
+                </div>
+              )}
+
+              {/* Grid bot fields */}
+              {botType === 'grid' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Precio Superior ($)</label>
+                    <input type="number" value={form.upperPrice} onChange={(e) => setForm({ ...form, upperPrice: e.target.value })} placeholder="100000" className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Precio Inferior ($)</label>
+                    <input type="number" value={form.lowerPrice} onChange={(e) => setForm({ ...form, lowerPrice: e.target.value })} placeholder="90000" className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Niveles de Grid</label>
+                    <input type="number" value={form.gridLines} onChange={(e) => setForm({ ...form, gridLines: e.target.value })} className="w-full" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Inversión Total ($)</label>
+                    <input type="number" value={form.balance} onChange={(e) => setForm({ ...form, balance: e.target.value })} className="w-full" />
+                  </div>
+                </div>
+              )}
+
+              {/* DCA bot fields */}
+              {botType === 'dca' && (
+                <>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">$ por Compra</label>
+                      <input type="number" value={form.investmentPerOrder} onChange={(e) => setForm({ ...form, investmentPerOrder: e.target.value })} className="w-full" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Intervalo (min)</label>
+                      <input type="number" value={form.intervalMinutes} onChange={(e) => setForm({ ...form, intervalMinutes: e.target.value })} className="w-full" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Máx. Compras</label>
+                      <input type="number" value={form.maxOrders} onChange={(e) => setForm({ ...form, maxOrders: e.target.value })} className="w-full" />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-4">
+                    <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer">
+                      <input type="checkbox" checked={form.useRsiFilter} onChange={(e) => setForm({ ...form, useRsiFilter: e.target.checked })}
+                        className="w-4 h-4 rounded accent-[var(--gold)]" />
+                      Filtro RSI (comprar solo si RSI &lt; {form.rsiThreshold})
+                    </label>
+                    <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer">
+                      <input type="checkbox" checked={form.usePriceDipFilter} onChange={(e) => setForm({ ...form, usePriceDipFilter: e.target.checked })}
+                        className="w-4 h-4 rounded accent-[var(--gold)]" />
+                      Filtro de Caída (comprar cuando baje {form.dipPercent}%)
+                    </label>
+                  </div>
+                </>
+              )}
 
               <div className="flex gap-2">
-                <button
-                  onClick={handleCreate}
-                  className="flex-1 py-2.5 bg-[var(--gold)] text-white font-bold rounded-xl text-sm hover:bg-[var(--gold-light)] transition-colors"
-                >
-                  Crear Bot
-                </button>
-                <button
-                  onClick={() => setShowCreate(false)}
-                  className="px-4 py-2.5 bg-[var(--dark-3)] text-[var(--text-dim)] rounded-xl text-sm"
-                >
-                  Cancelar
-                </button>
+                <button onClick={handleCreate} className="flex-1 py-2.5 btn-gold rounded-xl text-sm">Crear Bot</button>
+                <button onClick={() => setShowCreate(false)} className="px-4 py-2.5 bg-[var(--surface-2)] text-[var(--text-dim)] rounded-xl text-sm border border-[var(--border)]">Cancelar</button>
               </div>
             </div>
           </motion.div>
@@ -227,109 +286,101 @@ export default function BotManager() {
 
       {/* Bot list */}
       {bots.length === 0 ? (
-        <div className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl p-12 text-center">
-          <Bot size={48} className="text-[var(--text-dim)] mx-auto mb-4" />
+        <div className="rounded-xl p-12 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <Bot size={48} className="text-[var(--text-dim)]/20 mx-auto mb-4" />
           <p className="text-[var(--text-dim)]">No hay bots creados</p>
           <p className="text-xs text-[var(--text-dim)] mt-1">Crea tu primer bot para automatizar tu trading</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {bots.map(bot => (
-            <motion.div
-              key={bot.id}
-              layout
-              className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl p-4"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[var(--dark-3)] flex items-center justify-center">
-                    <Bot size={20} style={{ color: getStatusColor(bot.status) }} />
+          {bots.map(bot => {
+            const typeInfo = getTypeInfo(bot.botType || 'signal');
+            const TypeIcon = typeInfo.icon;
+            return (
+              <motion.div key={bot.id} layout className="rounded-xl p-4" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                      style={{ background: `${typeInfo.color}12`, border: `1px solid ${typeInfo.color}20` }}>
+                      <TypeIcon size={20} style={{ color: typeInfo.color }} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold">{bot.name}</p>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider"
+                          style={{ background: `${typeInfo.color}15`, color: typeInfo.color }}>
+                          {typeInfo.label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--text-dim)]">{bot.pair}{bot.timeframe ? ` • ${bot.timeframe}` : ''}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold">{bot.name}</p>
-                    <p className="text-xs text-[var(--text-dim)]">{bot.pair} • {bot.timeframe}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="px-2 py-0.5 rounded-full text-[10px] font-bold"
-                    style={{ color: getStatusColor(bot.status), background: `${getStatusColor(bot.status)}20` }}
-                  >
-                    {getStatusLabel(bot.status)}
+                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold"
+                    style={{ color: getStatusColor(bot.status), background: `${getStatusColor(bot.status)}15` }}>
+                    {bot.status === 'active' ? '● Activo' : bot.status === 'paused' ? '❚❚ Pausado' : '■ Detenido'}
                   </span>
                 </div>
-              </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-4 gap-3 mb-3">
-                <div className="bg-[var(--dark-3)] rounded-lg p-2 text-center">
-                  <p className="text-xs text-[var(--text-dim)]">Trades</p>
-                  <p className="text-sm font-bold">{bot.trades || 0}</p>
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  <div className="rounded-lg p-2 text-center" style={{ background: 'var(--surface-2)' }}>
+                    <p className="text-[10px] text-[var(--text-dim)]">Trades</p>
+                    <p className="text-sm font-bold">{bot.trades || 0}</p>
+                  </div>
+                  <div className="rounded-lg p-2 text-center" style={{ background: 'var(--surface-2)' }}>
+                    <p className="text-[10px] text-[var(--text-dim)]">P&L</p>
+                    <p className={`text-sm font-bold ${(bot.pnl || 0) >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
+                      {(bot.pnl || 0) >= 0 ? '+' : ''}${(bot.pnl || 0).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg p-2 text-center" style={{ background: 'var(--surface-2)' }}>
+                    <p className="text-[10px] text-[var(--text-dim)]">Win Rate</p>
+                    <p className="text-sm font-bold text-[var(--gold)]">{(bot.winRate || 0).toFixed(0)}%</p>
+                  </div>
+                  <div className="rounded-lg p-2 text-center" style={{ background: 'var(--surface-2)' }}>
+                    <p className="text-[10px] text-[var(--text-dim)]">Balance</p>
+                    <p className="text-sm font-bold">${bot.balance?.toLocaleString() || '0'}</p>
+                  </div>
                 </div>
-                <div className="bg-[var(--dark-3)] rounded-lg p-2 text-center">
-                  <p className="text-xs text-[var(--text-dim)]">P&L</p>
-                  <p className={`text-sm font-bold ${(bot.pnl || 0) >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
-                    {(bot.pnl || 0) >= 0 ? '+' : ''}${(bot.pnl || 0).toFixed(2)}
-                  </p>
-                </div>
-                <div className="bg-[var(--dark-3)] rounded-lg p-2 text-center">
-                  <p className="text-xs text-[var(--text-dim)]">Win Rate</p>
-                  <p className="text-sm font-bold">{(bot.winRate || 0).toFixed(0)}%</p>
-                </div>
-                <div className="bg-[var(--dark-3)] rounded-lg p-2 text-center">
-                  <p className="text-xs text-[var(--text-dim)]">Balance</p>
-                  <p className="text-sm font-bold">${bot.balance?.toLocaleString()}</p>
-                </div>
-              </div>
 
-              {/* Actions */}
-              <div className="flex gap-2">
-                {bot.status !== 'active' ? (
-                  <button
-                    onClick={() => handleStart(bot)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-[var(--green)]/20 text-[var(--green)] rounded-lg text-xs font-bold hover:bg-[var(--green)]/30 transition-colors"
-                  >
-                    <Play size={12} /> Iniciar
+                <div className="flex gap-2">
+                  {bot.status !== 'active' ? (
+                    <button onClick={() => handleStart(bot)} className="flex items-center gap-1 px-3 py-1.5 bg-[var(--green)]/10 text-[var(--green)] rounded-lg text-xs font-bold hover:bg-[var(--green)]/20 transition-colors border border-[var(--green)]/20">
+                      <Play size={12} /> Iniciar
+                    </button>
+                  ) : (
+                    <button onClick={() => handlePause(bot)} className="flex items-center gap-1 px-3 py-1.5 bg-[var(--gold)]/10 text-[var(--gold)] rounded-lg text-xs font-bold hover:bg-[var(--gold)]/20 transition-colors border border-[var(--gold)]/20">
+                      <Pause size={12} /> Pausar
+                    </button>
+                  )}
+                  <button onClick={() => handleStop(bot)} className="flex items-center gap-1 px-3 py-1.5 text-[var(--text-dim)] rounded-lg text-xs hover:text-[var(--text)] transition-colors" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                    <Square size={12} /> Detener
                   </button>
-                ) : (
-                  <button
-                    onClick={() => handlePause(bot)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-[var(--gold)]/20 text-[var(--gold)] rounded-lg text-xs font-bold hover:bg-[var(--gold)]/30 transition-colors"
-                  >
-                    <Pause size={12} /> Pausar
+                  <button onClick={() => handleDelete(bot)} className="ml-auto flex items-center gap-1 px-3 py-1.5 text-[var(--text-dim)] hover:text-[var(--red)] rounded-lg text-xs transition-colors">
+                    <Trash2 size={12} />
                   </button>
-                )}
-                <button
-                  onClick={() => handleStop(bot)}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-[var(--dark-3)] text-[var(--text-dim)] rounded-lg text-xs hover:bg-[var(--dark-4)] transition-colors"
-                >
-                  <Square size={12} /> Detener
-                </button>
-                <button
-                  onClick={() => handleDelete(bot)}
-                  className="ml-auto flex items-center gap-1 px-3 py-1.5 text-[var(--text-dim)] hover:text-[var(--red)] rounded-lg text-xs transition-colors"
-                >
-                  <Trash2 size={12} /> Eliminar
-                </button>
-              </div>
-            </motion.div>
-          ))}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
       {/* Live logs */}
       {logs.length > 0 && (
-        <div className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between p-3 border-b border-[var(--border)]">
-            <h3 className="text-sm font-bold">Actividad en Vivo</h3>
-            <button onClick={() => setLogs([])} className="text-xs text-[var(--text-dim)]">Limpiar</button>
+        <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between p-3" style={{ borderBottom: '1px solid var(--border)' }}>
+            <h3 className="text-sm font-bold flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[var(--green)] animate-pulse" />
+              Actividad en Vivo
+            </h3>
+            <button onClick={() => setLogs([])} className="text-xs text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors">Limpiar</button>
           </div>
-          <div className="max-h-48 overflow-y-auto p-3 space-y-1 font-mono text-xs">
+          <div className="max-h-48 overflow-y-auto p-3 space-y-1 font-mono text-[11px]">
             {logs.slice(-50).reverse().map((log, i) => (
-              <div key={i} className="flex items-start gap-2">
+              <div key={i} className="flex items-start gap-2 py-0.5">
                 <span className="text-[var(--text-dim)] shrink-0">{log.time}</span>
-                <span className="text-[var(--gold)] shrink-0">[{log.bot}]</span>
-                <span className="text-[var(--text)]">{log.message || `${log.side?.toUpperCase()} ${log.quantity} @ $${log.price}`}</span>
+                <span className="text-[var(--gold)] shrink-0 font-semibold">[{log.bot}]</span>
+                <span className="text-[var(--text-secondary)]">{log.message || `${log.side?.toUpperCase()} ${log.quantity} @ $${log.price}`}</span>
               </div>
             ))}
           </div>

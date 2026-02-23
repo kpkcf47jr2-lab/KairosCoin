@@ -12,9 +12,9 @@ export default function Header() {
     <header
       className="h-[56px] shrink-0 flex items-center justify-between px-5"
       style={{
-        borderBottom: '1px solid rgba(30,34,45,0.6)',
-        background: 'linear-gradient(180deg, rgba(17,19,24,0.95) 0%, rgba(11,14,17,0.95) 100%)',
-        backdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(26,29,38,0.6)',
+        background: 'linear-gradient(180deg, rgba(14,16,21,0.95) 0%, rgba(8,9,12,0.95) 100%)',
+        backdropFilter: 'blur(16px)',
       }}
     >
       {/* Left: Pair info */}
@@ -23,7 +23,7 @@ export default function Header() {
           {/* Pair badge */}
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold"
-              style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05))', border: '1px solid rgba(59,130,246,0.15)' }}>
+              style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(212,175,55,0.04))', border: '1px solid rgba(212,175,55,0.1)' }}>
               <span className="text-[var(--gold)]">{selectedPair?.replace('USDT', '').slice(0, 3)}</span>
             </div>
             <div>
@@ -93,7 +93,7 @@ export default function Header() {
         {/* Notifications */}
         <button className="p-2 rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] bg-white/[0.02] border border-[var(--border)]/50 hover:border-[var(--border)] transition-all relative">
           <Bell size={15} />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--gold)] rounded-full shadow-[0_0_6px_rgba(59,130,246,0.4)]" />
+          <span className="absolute top-1 right-1 w-2 h-2 bg-[var(--gold)] rounded-full shadow-[0_0_6px_rgba(212,175,55,0.4)]" />
         </button>
       </div>
     </header>

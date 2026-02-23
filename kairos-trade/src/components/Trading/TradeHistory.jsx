@@ -21,7 +21,27 @@ export default function TradeHistory() {
             {tradeHistory.length} trades cerrados • {positions.length} posiciones abiertas
           </p>
         </div>
-        <button className="flex items-center gap-2 px-3 py-1.5 bg-[var(--dark-3)] text-[var(--text-dim)] rounded-lg text-xs hover:text-[var(--text)] transition-colors">
+        <button
+          onClick={() => {
+            const rows = [['Par', 'Lado', 'Entrada', 'Salida', 'Cantidad', 'P&L', 'Fecha Apertura', 'Fecha Cierre']];
+            tradeHistory.forEach(t => {
+              rows.push([
+                t.symbol, t.side, t.entryPrice?.toFixed(2), t.exitPrice?.toFixed(2) || '',
+                t.quantity, (t.pnl || 0).toFixed(2),
+                t.openedAt || '', t.closedAt || '',
+              ]);
+            });
+            const csv = rows.map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `kairos-trades-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="flex items-center gap-2 px-3 py-1.5 bg-[var(--dark-3)] text-[var(--text-dim)] rounded-lg text-xs hover:text-[var(--gold)] hover:border-[var(--gold)]/30 transition-all border border-[var(--border)]"
+        >
           <Download size={14} /> Exportar CSV
         </button>
       </div>
@@ -52,13 +72,13 @@ export default function TradeHistory() {
       <div className="flex gap-1 bg-[var(--dark-3)] rounded-lg p-1 w-fit">
         <button
           onClick={() => setTab('open')}
-          className={`px-4 py-1.5 text-sm rounded-md ${tab === 'open' ? 'bg-[var(--gold)] text-white font-bold' : 'text-[var(--text-dim)]'}`}
+          className={`px-4 py-1.5 text-sm rounded-md ${tab === 'open' ? 'bg-[var(--gold)] text-[#08090C] font-bold' : 'text-[var(--text-dim)]'}`}
         >
           Abiertas ({positions.length})
         </button>
         <button
           onClick={() => setTab('closed')}
-          className={`px-4 py-1.5 text-sm rounded-md ${tab === 'closed' ? 'bg-[var(--gold)] text-white font-bold' : 'text-[var(--text-dim)]'}`}
+          className={`px-4 py-1.5 text-sm rounded-md ${tab === 'closed' ? 'bg-[var(--gold)] text-[#08090C] font-bold' : 'text-[var(--text-dim)]'}`}
         >
           Cerradas ({tradeHistory.length})
         </button>

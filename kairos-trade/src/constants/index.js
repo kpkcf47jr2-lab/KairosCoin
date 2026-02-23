@@ -130,10 +130,16 @@ export const CONDITIONS = {
 
 // Brand
 export const BRAND = {
-  primary: '#3B82F6',
-  dark: '#0B0E11',
+  primary: '#D4AF37',
+  primaryLight: '#E8C84A',
+  primaryDark: '#B8960C',
+  dark: '#08090C',
+  surface: '#0E1015',
+  green: '#00DC82',
+  red: '#FF4757',
   name: 'Kairos Trade',
   company: 'Kairos 777 Inc',
+  tagline: 'Professional AI-Powered Trading',
 };
 
 // Kairos Coin info
@@ -155,4 +161,7 @@ export const STORAGE_KEYS = {
   BOTS: 'kairos_trade_bots',
   SETTINGS: 'kairos_trade_settings',
   STRATEGIES: 'kairos_trade_strategies',
+  POSITIONS: 'kairos_trade_positions',
+  ORDERS: 'kairos_trade_orders',
+  TRADE_HISTORY: 'kairos_trade_history',
 };

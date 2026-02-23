@@ -98,9 +98,9 @@ const useStore = create((set, get) => ({
   currentPrice: null,
   priceChange24h: null,
   orderBook: { bids: [], asks: [] },
-  positions: [],
-  orders: [],
-  tradeHistory: [],
+  positions: loadJSON(STORAGE_KEYS.POSITIONS, []),
+  orders: loadJSON(STORAGE_KEYS.ORDERS, []),
+  tradeHistory: loadJSON(STORAGE_KEYS.TRADE_HISTORY, []),
 
   setSelectedPair: (pair) => set({ selectedPair: pair }),
   setSelectedTimeframe: (tf) => set({ selectedTimeframe: tf }),
@@ -108,19 +108,37 @@ const useStore = create((set, get) => ({
   setPriceChange24h: (change) => set({ priceChange24h: change }),
   setOrderBook: (ob) => set({ orderBook: ob }),
 
-  addPosition: (pos) => set({ positions: [...get().positions, { ...pos, id: Date.now().toString(36) }] }),
+  addPosition: (pos) => {
+    const updated = [...get().positions, { ...pos, id: Date.now().toString(36) }];
+    saveJSON(STORAGE_KEYS.POSITIONS, updated);
+    set({ positions: updated });
+  },
   closePosition: (id) => {
     const pos = get().positions.find(p => p.id === id);
     if (pos) {
-      set({
-        positions: get().positions.filter(p => p.id !== id),
-        tradeHistory: [...get().tradeHistory, { ...pos, closedAt: new Date().toISOString() }],
-      });
+      const price = get().currentPrice || pos.entryPrice;
+      const pnl = pos.side === 'buy'
+        ? (price - pos.entryPrice) * pos.quantity
+        : (pos.entryPrice - price) * pos.quantity;
+      const closedTrade = { ...pos, closedAt: new Date().toISOString(), exitPrice: price, pnl };
+      const updatedPositions = get().positions.filter(p => p.id !== id);
+      const updatedHistory = [...get().tradeHistory, closedTrade];
+      saveJSON(STORAGE_KEYS.POSITIONS, updatedPositions);
+      saveJSON(STORAGE_KEYS.TRADE_HISTORY, updatedHistory);
+      set({ positions: updatedPositions, tradeHistory: updatedHistory });
     }
   },
 
-  addOrder: (order) => set({ orders: [...get().orders, { ...order, id: Date.now().toString(36) }] }),
-  cancelOrder: (id) => set({ orders: get().orders.filter(o => o.id !== id) }),
+  addOrder: (order) => {
+    const updated = [...get().orders, { ...order, id: Date.now().toString(36) }];
+    saveJSON(STORAGE_KEYS.ORDERS, updated);
+    set({ orders: updated });
+  },
+  cancelOrder: (id) => {
+    const updated = get().orders.filter(o => o.id !== id);
+    saveJSON(STORAGE_KEYS.ORDERS, updated);
+    set({ orders: updated });
+  },
 
   // ─── Strategies ───
   strategies: loadJSON(STORAGE_KEYS.STRATEGIES, []),

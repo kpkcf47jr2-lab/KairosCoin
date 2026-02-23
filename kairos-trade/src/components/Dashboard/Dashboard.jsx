@@ -41,19 +41,19 @@ export default function Dashboard() {
   const connectedBrokers = brokers.filter(b => b.connected);
 
   const stats = [
-    { label: 'Bots Activos', value: activeBots.length, icon: Bot, color: '#3B82F6', gradient: 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.03))', border: 'rgba(59,130,246,0.12)', action: 'bots' },
-    { label: 'Brokers', value: `${connectedBrokers.length}/${brokers.length}`, icon: Link2, color: '#8B5CF6', gradient: 'linear-gradient(135deg, rgba(139,92,246,0.12), rgba(139,92,246,0.03))', border: 'rgba(139,92,246,0.12)', action: 'brokers' },
-    { label: 'Posiciones', value: positions.length, icon: Activity, color: '#0ECB81', gradient: 'linear-gradient(135deg, rgba(14,203,129,0.12), rgba(14,203,129,0.03))', border: 'rgba(14,203,129,0.12)', action: 'history' },
-    { label: 'P&L Total', value: `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`, icon: DollarSign, color: totalPnl >= 0 ? '#0ECB81' : '#F6465D', gradient: totalPnl >= 0 ? 'linear-gradient(135deg, rgba(14,203,129,0.12), rgba(14,203,129,0.03))' : 'linear-gradient(135deg, rgba(246,70,93,0.12), rgba(246,70,93,0.03))', border: totalPnl >= 0 ? 'rgba(14,203,129,0.12)' : 'rgba(246,70,93,0.12)', action: 'history' },
+    { label: 'Bots Activos', value: activeBots.length, icon: Bot, color: '#D4AF37', gradient: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.02))', border: 'rgba(212,175,55,0.1)', action: 'bots' },
+    { label: 'Brokers', value: `${connectedBrokers.length}/${brokers.length}`, icon: Link2, color: '#A855F7', gradient: 'linear-gradient(135deg, rgba(168,85,247,0.1), rgba(168,85,247,0.02))', border: 'rgba(168,85,247,0.1)', action: 'brokers' },
+    { label: 'Posiciones', value: positions.length, icon: Activity, color: '#00DC82', gradient: 'linear-gradient(135deg, rgba(0,220,130,0.1), rgba(0,220,130,0.02))', border: 'rgba(0,220,130,0.1)', action: 'history' },
+    { label: 'P&L Total', value: `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`, icon: DollarSign, color: totalPnl >= 0 ? '#00DC82' : '#FF4757', gradient: totalPnl >= 0 ? 'linear-gradient(135deg, rgba(0,220,130,0.1), rgba(0,220,130,0.02))' : 'linear-gradient(135deg, rgba(255,71,87,0.1), rgba(255,71,87,0.02))', border: totalPnl >= 0 ? 'rgba(0,220,130,0.1)' : 'rgba(255,71,87,0.1)', action: 'history' },
   ];
 
   const quickActions = [
-    { label: 'Trading', icon: BarChart3, page: 'chart', desc: 'Gráficos profesionales', color: '#3B82F6' },
-    { label: 'Simulador', icon: Play, page: 'simulator', desc: 'Paper trading sin riesgo', color: '#0ECB81' },
-    { label: 'Kairos AI', icon: Sparkles, page: 'ai', desc: 'Asistente inteligente', color: '#8B5CF6' },
-    { label: 'Crear Bot', icon: Bot, page: 'bots', desc: 'Automatiza tu trading', color: '#F59E0B' },
+    { label: 'Trading', icon: BarChart3, page: 'chart', desc: 'Gráficos profesionales', color: '#D4AF37' },
+    { label: 'Simulador', icon: Play, page: 'simulator', desc: 'Paper trading sin riesgo', color: '#00DC82' },
+    { label: 'Kairos AI', icon: Sparkles, page: 'ai', desc: 'Asistente inteligente', color: '#A855F7' },
+    { label: 'Crear Bot', icon: Bot, page: 'bots', desc: 'Automatiza tu trading', color: '#E8C84A' },
     { label: 'Estrategias', icon: Zap, page: 'strategies', desc: 'Crea y gestiona', color: '#EC4899' },
-    { label: 'Brokers', icon: Shield, page: 'brokers', desc: 'Conecta tu cuenta', color: '#06B6D4' },
+    { label: 'Brokers', icon: Shield, page: 'brokers', desc: 'Conecta tu cuenta', color: '#22D3EE' },
   ];
 
   return (
@@ -72,8 +72,7 @@ export default function Dashboard() {
         </div>
         <button
           onClick={() => setPage('chart')}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-          style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 15px rgba(59,130,246,0.25)' }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 btn-gold"
         >
           <BarChart3 size={16} />
           Abrir Trading
@@ -181,7 +180,7 @@ export default function Dashboard() {
               animate={{ opacity: 1 }}
               transition={{ delay: i * 0.05 }}
               onClick={() => { useStore.getState().setSelectedPair(ticker.symbol); setPage('chart'); }}
-              className="w-full grid grid-cols-4 gap-4 items-center px-4 py-3 hover:bg-white/[0.02] transition-colors"
+              className="group w-full grid grid-cols-4 gap-4 items-center px-4 py-3 hover:bg-white/[0.02] transition-colors"
             >
               {/* Pair */}
               <div className="flex items-center gap-3">

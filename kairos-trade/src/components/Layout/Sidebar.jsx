@@ -80,9 +80,9 @@ export default function Sidebar() {
               className="absolute inset-0 rounded-xl"
               style={{
                 background: item.accent
-                  ? 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(96,165,250,0.08))'
-                  : 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.04))',
-                border: '1px solid rgba(59,130,246,0.15)',
+                  ? 'linear-gradient(135deg, rgba(212,175,55,0.12), rgba(232,200,74,0.06))'
+                  : 'linear-gradient(135deg, rgba(212,175,55,0.08), rgba(212,175,55,0.02))',
+                border: '1px solid rgba(212,175,55,0.1)',
               }}
               transition={{ type: 'spring', stiffness: 350, damping: 30 }}
             />
@@ -93,7 +93,7 @@ export default function Sidebar() {
             <motion.div
               layoutId="activeBar"
               className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full"
-              style={{ background: 'linear-gradient(180deg, #60A5FA, #3B82F6)' }}
+              style={{ background: 'linear-gradient(180deg, #E8C84A, #D4AF37)' }}
               transition={{ type: 'spring', stiffness: 350, damping: 30 }}
             />
           )}
@@ -187,7 +187,7 @@ export default function Sidebar() {
       className="h-full flex flex-col relative shrink-0"
       style={{
         borderRight: '1px solid var(--border)',
-        background: 'linear-gradient(180deg, #111318 0%, #0D1017 100%)',
+        background: 'linear-gradient(180deg, #0E1015 0%, #08090C 100%)',
       }}
     >
       {/* Logo area */}
@@ -196,9 +196,9 @@ export default function Sidebar() {
         style={{ borderBottom: '1px solid rgba(30,34,45,0.6)' }}
       >
         <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 relative"
-          style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
-          <span className="text-white font-bold text-sm">K</span>
-          <div className="absolute inset-0 rounded-xl" style={{ boxShadow: '0 0 20px rgba(59,130,246,0.25)' }} />
+          style={{ background: 'linear-gradient(135deg, #D4AF37, #B8960C)' }}>
+          <span className="text-[#08090C] font-extrabold text-sm">K</span>
+          <div className="absolute inset-0 rounded-xl" style={{ boxShadow: '0 0 20px rgba(212,175,55,0.2)' }} />
         </div>
         {sidebarOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1, duration: 0.2 }}>
@@ -220,8 +220,8 @@ export default function Sidebar() {
           animate={{ opacity: 1 }}
           className="mx-3 mt-4 mb-2 p-3 rounded-xl"
           style={{
-            background: 'linear-gradient(135deg, rgba(59,130,246,0.06), rgba(30,34,45,0.5))',
-            border: '1px solid rgba(59,130,246,0.08)',
+            background: 'linear-gradient(135deg, rgba(212,175,55,0.04), rgba(26,29,38,0.5))',
+            border: '1px solid rgba(212,175,55,0.06)',
           }}
         >
           <div className="flex items-center gap-2.5">
