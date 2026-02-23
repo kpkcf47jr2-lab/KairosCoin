@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 22, 2026
+#  Last Updated: February 23, 2026
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -54,12 +54,25 @@
 
 ### Kairos Wallet (Netlify)
 - **URL:** https://kairos-wallet.netlify.app
-- **Tech:** React + Vite + Tailwind CSS
+- **Netlify Site ID:** `e448f1a8-f480-4811-84ae-8a15df30477e`
+- **Tech:** React 18 + Vite 6 + Tailwind 3.4 + Zustand 5 + ethers.js 6
 - **Purpose:** Multi-chain crypto wallet with DApp browser, NFT support, WalletConnect
+- **Status:** Complete (6 sprints, commit `60e2b49`)
+- **Deploy:** `npx netlify deploy --prod --dir=kairos-wallet/dist --site=e448f1a8-f480-4811-84ae-8a15df30477e --auth=nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93`
+
+### Kairos Trade (Netlify)
+- **URL:** https://kairos-trade.netlify.app
+- **Netlify Site ID:** `b7b3fd54-863a-4e6f-a334-460b1092045b`
+- **Tech:** React 18 + Vite 6 + Tailwind 4 + Zustand + lightweight-charts v4.1 + Framer Motion + Lucide Icons
+- **Purpose:** AI-powered automated trading platform with real-time charts, bots, paper trading, technical alerts
+- **Data Source:** Binance public WebSocket + REST API (no key needed)
+- **Status:** v2.0 Premium UI (commit `abf4b27`)
+- **Deploy:** `npx netlify deploy --prod --dir=kairos-trade/dist --site=b7b3fd54-863a-4e6f-a334-460b1092045b --auth=nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93`
 
 ### GitHub Repository
 - **Repo:** `kpkcf47jr2-lab/KairosCoin`
 - **Branch:** main
+- **Latest Commit:** `abf4b27` (Feb 23, 2026)
 
 ### PancakeSwap Liquidity
 - **Pair Address:** `0xfCb17119D559E47803105581A28584813FAffb49`
@@ -163,12 +176,22 @@ Tables in `backend/data/kairos.db`:
 
 ## 8. BRAND & DESIGN
 
+### Website / Main Brand
 - **Primary Color:** Gold `#D4AF37`
 - **Dark Background:** `#0D0D0D`
 - **Card Background:** `#1A1A1A`
 - **Fonts:** Playfair Display (headings), Inter (body)
 - **Logo:** Gold coin with interconnected nodes around a globe
 - **Motto:** "In God We Trust"
+
+### Kairos Trade Color System (Blue Theme)
+CSS variable names kept as `--gold` to avoid breaking 100+ references, but values are blue:
+- **Primary:** `--gold: #3B82F6` / `--gold-light: #60A5FA` / `--gold-dark: #2563EB`
+- **Backgrounds:** `--dark: #0B0E11` / `--dark-2: #111318` / `--dark-3: #181A20` / `--dark-4: #1E222D`
+- **Accents:** `--green: #0ECB81` / `--red: #F6465D`
+- **Text:** `--text: #EAECEF` / `--text-dim: #848E9C`
+- **Borders:** `--border: #1E222D` / `--border-light: #2B3139`
+- **Font:** Inter only (no Playfair Display)
 
 ### Social Links
 - **X (Twitter):** @777_inc13680
@@ -246,6 +269,39 @@ KairosCoin/
 │   └── script.js                     ← Global JS
 ├── kairos-wallet/                    ← React wallet app (Netlify)
 │   └── src/                          ← Components, services, store
+├── kairos-trade/                     ← React trading platform (Netlify)
+│   ├── vite.config.js                ← Vite + React + Tailwind, manual chunks
+│   ├── index.html                    ← Blue SVG favicon, Inter font
+│   ├── public/_redirects             ← SPA routing for Netlify
+│   └── src/
+│       ├── App.jsx                   ← Route switch: dashboard/chart/bots/etc
+│       ├── index.css                 ← Blue theme CSS variables
+│       ├── main.jsx                  ← React root
+│       ├── store/useStore.js         ← Zustand (auth, market, bots, broker, AI, trading)
+│       ├── components/
+│       │   ├── Layout/Sidebar.jsx    ← Premium v2 sidebar (260px, user card, 3 sections)
+│       │   ├── Layout/Header.jsx     ← Premium v2 header (56px, glassmorphism)
+│       │   ├── Auth/AuthScreen.jsx   ← Split-screen login/register
+│       │   ├── Dashboard/Dashboard.jsx ← Gradient stats, quick actions, market table
+│       │   ├── Chart/TradingChart.jsx  ← lightweight-charts with autoSize, WebSocket
+│       │   ├── Trading/TradingPanel.jsx ← Order entry, positions, order book
+│       │   ├── Trading/TradeHistory.jsx ← Trade log
+│       │   ├── Trading/SimulatorScreen.jsx ← Paper trading ($10k virtual)
+│       │   ├── Bots/BotManager.jsx   ← Bot CRUD + start/stop/pause
+│       │   ├── Broker/BrokerManager.jsx ← API key management
+│       │   ├── Strategy/StrategyBuilder.jsx ← 5 templates + custom
+│       │   ├── AI/AIChat.jsx         ← Local analysis + OpenAI GPT-4
+│       │   ├── Alerts/AlertPanel.jsx  ← Price + signal alerts (NEW)
+│       │   └── Settings/SettingsPanel.jsx ← OpenAI key, preferences
+│       ├── services/
+│       │   ├── marketData.js         ← Binance WebSocket + REST
+│       │   ├── indicators.js         ← EMA, SMA, RSI, MACD, BB, VWAP
+│       │   ├── ai.js                 ← Local + OpenAI analysis
+│       │   ├── broker.js             ← Broker connection service
+│       │   ├── tradingEngine.js      ← Trade execution engine
+│       │   ├── simulator.js          ← Paper trading simulator
+│       │   └── alerts.js             ← Smart alert system (price + signals)
+│       └── constants/index.js        ← BRAND, BROKERS, TIMEFRAMES, INDICATORS
 ├── docs/WHITEPAPER.md                ← Whitepaper source
 └── assets/branding/                  ← Brand guidelines + token metadata
 ```
@@ -311,6 +367,43 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 
 ## 14. HISTORY / CHANGELOG
 
+### Feb 23, 2026 — Session 7 (Kairos Trade Premium UI v2)
+- **Sidebar v2**: 260px width, gradient background, user profile card with plan badge, 3 sections (Principal/Automatización/Gestión), animated tooltips in collapsed mode, spring-animated active states with gradient backgrounds and left bar
+- **Header v2**: 56px, glassmorphism with backdrop blur, pair badge with icon, gradient connection status (Live/Demo), pulsing AI indicator
+- **Dashboard v2**: Personalized welcome, gradient stat cards with unique colors (blue/purple/green/red), colored quick action cards with 6 options, table-style market overview with columns
+- **Auth v2**: Split-screen (features left, form right), password visibility toggle, animated loading spinner, feature showcase with icons, responsive mobile fallback
+- **AlertPanel (NEW)**: Complete alert system UI — price alerts (above/below) and technical signal alerts (EMA cross, RSI oversold/overbought, MACD cross, volume spike), 3 tabs (Active/Triggered/Create), repeat toggle
+- **TradingPanel v2**: Gradient buy/sell buttons with shadows, uppercase tracking-wider labels, refined order book with hover states, premium position cards with P&L borders
+- **CSS v2**: 4px scrollbar, hover/focus input refinements, hidden number arrows, blue selection color
+- **Commit:** `abf4b27` → Deployed to https://kairos-trade.netlify.app
+
+### Feb 22, 2026 — Session 6 (Kairos Trade Chart Fix + BingX Redesign)
+- **Fixed chart rendering** — Charts weren't visible: added `autoSize: true`, explicit getBoundingClientRect dimensions, null/NaN indicator data filtering, h-full layout chain fix
+- **Gold→Blue redesign** — Changed entire color scheme from gold #D4AF37 to blue #3B82F6 across all components, BingX-style dark backgrounds
+- **Commits:** `fa155ac` (BingX redesign), `0f949c5` (chart fix)
+
+### Feb 22, 2026 — Session 5 (Kairos Trade v1.0 Built)
+- **Built entire Kairos Trade platform from scratch** — 20+ files, 5000+ lines
+- Real-time charts with lightweight-charts v4.1 + Binance WebSocket
+- 7 technical indicators (EMA, SMA, RSI, MACD, Bollinger Bands, VWAP)
+- AI analysis engine (local + OpenAI GPT-4 optional)
+- Bot management system (create, start, stop, pause, delete)
+- Broker API key management with encryption
+- Strategy builder with 5 templates
+- Paper trading simulator with $10k virtual balance
+- Trade history and order management
+- Smart alert service (price + technical signals)
+- Auth system with localStorage persistence
+- **Commit:** `b8f0547` → Deployed to https://kairos-trade.netlify.app
+
+### Feb 22, 2026 — Session 4 (Kairos Wallet Sprint 6)
+- **Fixed critical gaps from MetaMask audit** — Sprint 6 complete
+- **Commit:** `60e2b49`
+
+### Feb 22, 2026 — Sessions 2-3 (Wallet Sprints 1-5, Multi-Chain)
+- Built Kairos Wallet with 26+ features across 5 sprints
+- Deployed KAIROS to 4 chains: BSC, Base, Arbitrum, Polygon
+
 ### Feb 22, 2026 — Session 2
 - **Built Buy/Redeem page** (`website/buy.html`) with 3 tabs and MetaMask integration
 - **Added fiat on-ramp tab** — Transak widget, MoonPay, Changelly, step-by-step guides
@@ -349,8 +442,21 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 - [ ] Add Transak production API key + webhook secret to Render env vars
 - [ ] Replace placeholder API key in buy.html
 
+### Kairos Trade — Next Features
+- [ ] Strategy marketplace (share/import strategies)
+- [ ] Wallet integration (connect Kairos Wallet with trading platform)
+- [ ] Advanced order types (OCO, trailing stop, iceberg)
+- [ ] Portfolio analytics dashboard with P&L charts
+- [ ] Social trading / copy trading features
+- [ ] Multi-exchange support (Binance, Bybit, OKX live trading)
+- [ ] Mobile responsive optimization
+- [ ] Real backend auth (replace localStorage simulation)
+
 ### Short-term
 - [x] Multi-chain deployment (Base, Arbitrum, Polygon) ✅ DONE Feb 22, 2026
+- [x] Kairos Wallet complete (6 sprints) ✅ DONE Feb 22, 2026
+- [x] Kairos Trade v1.0 built and deployed ✅ DONE Feb 22, 2026
+- [x] Kairos Trade Premium UI v2 ✅ DONE Feb 23, 2026
 - [ ] Ethereum mainnet deployment (waiting — gas expensive ~$30+)
 - [ ] Cross-chain bridge integration
 - [ ] CoinGecko / CoinMarketCap listing
@@ -364,11 +470,50 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 
 ---
 
-## 16. KNOWN ISSUES / PARTIAL FIXES
+## 16. KAIROS TRADE — TECHNICAL DETAILS
+
+### Architecture
+- **Frontend:** React 18.3 + Vite 6.4 + Tailwind CSS 4 + Zustand state management
+- **Charts:** lightweight-charts v4.1 with `autoSize: true`, WebSocket real-time updates
+- **Data:** Binance public API (no auth needed) — WebSocket for live prices, REST for candles/orderbook/tickers
+- **AI:** Local analysis engine (pattern detection, indicator analysis) + optional OpenAI GPT-4 via user-provided API key
+- **Storage:** All data in localStorage (auth, bots, strategies, settings, alerts)
+- **Build:** Vite with manual chunks: vendor (react), ui (framer-motion, lucide), charts (lightweight-charts)
+
+### Key Components & Routes
+| Route | Component | Description |
+|-------|-----------|-------------|
+| `dashboard` | Dashboard.jsx | Stats, quick actions, market overview |
+| `chart` | TradingChart.jsx + TradingPanel.jsx | Live chart + order entry side panel |
+| `simulator` | SimulatorScreen.jsx | Paper trading with $10k virtual |
+| `bots` | BotManager.jsx | Create/manage trading bots |
+| `strategies` | StrategyBuilder.jsx | 5 templates + custom strategy builder |
+| `ai` | AIChat.jsx | Chat with Kairos AI assistant |
+| `brokers` | BrokerManager.jsx | Connect exchange API keys |
+| `history` | TradeHistory.jsx | Trade log and reports |
+| `alerts` | AlertPanel.jsx | Price + technical signal alerts |
+| `wallet` | (inline) | Link to Kairos Wallet app |
+| `settings` | SettingsPanel.jsx | OpenAI key, preferences |
+
+### Services
+- **marketData.js** — Binance WebSocket (`wss://stream.binance.com:9443/ws`) for live prices, REST for candles/orderbook/24hr tickers, symbol search
+- **indicators.js** — EMA, SMA, RSI, MACD, Bollinger Bands, VWAP, crossover/divergence detection
+- **ai.js** — Local market analysis + OpenAI GPT-4 chat integration
+- **broker.js** — Broker API key management with base64 encryption
+- **tradingEngine.js** — Order execution, position management, P&L calculation
+- **simulator.js** — Paper trading engine with virtual balance tracking
+- **alerts.js** — Price alerts (above/below) + technical signals (EMA cross, RSI, MACD, volume spike), 15s monitoring interval, browser notifications
+
+---
+
+## 17. KNOWN ISSUES / PARTIAL FIXES
 
 - Some guide steps in `buy.html` (Alternative Methods section) still reference "USDT" where they should say "stablecoins" or be reworded (~lines 1191, 1223, 1227, 1259, 1291, 1305)
 - Transak widget uses placeholder API key until production key is received
 - Render free tier may sleep after 15 min inactivity (first request after sleep takes ~30s)
+- Kairos Trade auth is simulated (localStorage only, no real backend auth)
+- Kairos Trade broker connections are UI-only (API keys stored but not used for live trading yet)
+- CSS variable names in kairos-trade say `--gold` but values are blue — intentional to avoid refactoring 100+ references
 
 ---
 
