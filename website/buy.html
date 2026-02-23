@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buy & Redeem KAIROS — Instant 1:1 USD Stablecoin</title>
+  <meta name="description" content="Buy KAIROS instantly by sending USDT, BUSD, or USDC. Redeem anytime 1:1. Fully automated, on-chain, transparent." />
+  <meta property="og:title" content="Buy & Redeem KAIROS — 1:1 USD Peg" />
+  <meta property="og:description" content="Send stablecoins, receive KAIROS instantly. Fully automated on BNB Smart Chain." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Variables ─────────────────────────────────────────────── */
+    :root {
+      --gold: #D4AF37;
+      --gold-deep: #B8860B;
+      --gold-light: #F0D060;
+      --dark: #0D0D0D;
+      --dark-card: #151108;
+      --dark-surface: #1E1710;
+      --cream: #FFF8DC;
+      --white: #FFFFFF;
+      --gray: #A0A0A0;
+      --gray-light: #CCCCCC;
+      --green: #22C55E;
+      --green-dim: rgba(34, 197, 94, 0.15);
+      --red: #EF4444;
+      --red-dim: rgba(239, 68, 68, 0.15);
+      --yellow: #F59E0B;
+      --yellow-dim: rgba(245, 158, 11, 0.15);
+      --blue: #3B82F6;
+      --blue-dim: rgba(59, 130, 246, 0.15);
+      --font-display: 'Playfair Display', Georgia, serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+      --max-width: 1200px;
+      --radius: 12px;
+      --radius-lg: 20px;
+    }
+
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-body);
+      background: var(--dark);
+      color: var(--white);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    a { color: var(--gold); text-decoration: none; transition: color 0.3s; }
+    a:hover { color: var(--gold-light); }
+
+    /* ── Navbar ─────────────────────────────────────────────────── */
+    .navbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(13, 13, 13, 0.92);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+      padding: 0 24px;
+    }
+    .navbar-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; }
+    .nav-brand img { width: 32px; height: 32px; border-radius: 50%; }
+    .nav-brand span { font-family: var(--font-display); font-size: 1.2rem; color: var(--gold); font-weight: 700; }
+    .nav-links { display: flex; gap: 24px; align-items: center; }
+    .nav-links a { color: var(--gray); font-size: 0.9rem; font-weight: 500; }
+    .nav-links a:hover, .nav-links a.active { color: var(--gold); }
+    .nav-badge {
+      background: linear-gradient(135deg, var(--gold-deep), var(--gold));
+      color: #000; font-size: 0.7rem; font-weight: 700;
+      padding: 2px 8px; border-radius: 12px; text-transform: uppercase;
+    }
+
+    /* ── Hero ──────────────────────────────────────────────────── */
+    .buy-hero {
+      background: linear-gradient(180deg, rgba(212, 175, 55, 0.1) 0%, rgba(34, 197, 94, 0.03) 50%, transparent 100%);
+      border-bottom: 1px solid rgba(212, 175, 55, 0.08);
+      padding: 48px 24px 40px;
+      text-align: center;
+    }
+    .buy-hero h1 {
+      font-family: var(--font-display);
+      font-size: 2.6rem; font-weight: 900;
+      background: linear-gradient(135deg, var(--gold), var(--gold-light));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    .buy-hero p { color: var(--gray); font-size: 1.1rem; max-width: 650px; margin: 0 auto; }
+    .live-dot {
+      display: inline-block; width: 8px; height: 8px;
+      background: var(--green); border-radius: 50%;
+      margin-right: 6px; animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+      50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+    }
+    .hero-peg {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--green-dim); color: var(--green);
+      padding: 8px 20px; border-radius: 30px;
+      font-weight: 600; font-size: 1rem;
+      margin-top: 16px; border: 1px solid rgba(34, 197, 94, 0.25);
+    }
+
+    /* ── Container ────────────────────────────────────────────── */
+    .container { max-width: var(--max-width); margin: 0 auto; padding: 0 24px; }
+    .section-pad { padding: 60px 0; }
+
+    /* ── Engine Status Bar ─────────────────────────────────────── */
+    .engine-bar {
+      background: var(--dark-surface);
+      border: 1px solid rgba(212, 175, 55, 0.1);
+      border-radius: var(--radius);
+      padding: 16px 24px;
+      display: flex; align-items: center; justify-content: center;
+      gap: 32px; flex-wrap: wrap;
+      margin: -20px auto 0; max-width: var(--max-width);
+      position: relative; z-index: 10;
+    }
+    .engine-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.85rem; color: var(--gray);
+    }
+    .engine-item .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .dot-green { background: var(--green); box-shadow: 0 0 8px rgba(34, 197, 94, 0.5); }
+    .dot-red { background: var(--red); }
+    .dot-yellow { background: var(--yellow); }
+    .engine-item strong { color: var(--white); font-weight: 600; }
+
+    /* ── Tabs ──────────────────────────────────────────────────── */
+    .tabs {
+      display: flex; gap: 0; justify-content: center;
+      margin-bottom: 40px;
+    }
+    .tab-btn {
+      padding: 14px 40px;
+      font-size: 1rem; font-weight: 600;
+      background: var(--dark-surface);
+      color: var(--gray);
+      border: 1px solid rgba(212, 175, 55, 0.1);
+      cursor: pointer;
+      transition: all 0.3s;
+      font-family: var(--font-body);
+    }
+    .tab-btn:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+    .tab-btn:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+      color: #000;
+      border-color: var(--gold);
+    }
+    .tab-btn:hover:not(.active) { color: var(--gold-light); border-color: rgba(212, 175, 55, 0.3); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Buy Card / Redeem Card ────────────────────────────────── */
+    .action-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+    .action-card {
+      background: var(--dark-card);
+      border: 1px solid rgba(212, 175, 55, 0.12);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+    }
+    .action-card h2 {
+      font-family: var(--font-display);
+      font-size: 1.6rem; font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--gold);
+    }
+    .action-card p.subtitle {
+      color: var(--gray); font-size: 0.92rem;
+      margin-bottom: 24px;
+    }
+
+    /* ── Steps ─────────────────────────────────────────────────── */
+    .steps { display: flex; flex-direction: column; gap: 20px; }
+    .step {
+      display: flex; gap: 16px;
+      padding: 16px;
+      background: var(--dark-surface);
+      border-radius: var(--radius);
+      border: 1px solid rgba(212, 175, 55, 0.06);
+    }
+    .step-num {
+      width: 36px; height: 36px; min-width: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+      color: #000; font-weight: 700; font-size: 0.95rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-content h4 { font-size: 0.95rem; margin-bottom: 4px; }
+    .step-content p { font-size: 0.85rem; color: var(--gray); }
+
+    /* ── Stablecoin Pills ─────────────────────────────────────── */
+    .coins {
+      display: flex; gap: 10px; flex-wrap: wrap;
+      margin: 16px 0;
+    }
+    .coin-pill {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--dark-surface);
+      border: 1px solid rgba(212, 175, 55, 0.1);
+      border-radius: 30px;
+      padding: 8px 16px;
+      font-size: 0.85rem; font-weight: 600;
+      color: var(--white);
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    .coin-pill:hover, .coin-pill.selected {
+      border-color: var(--gold);
+      background: rgba(212, 175, 55, 0.08);
+    }
+    .coin-pill img {
+      width: 22px; height: 22px; border-radius: 50%;
+    }
+
+    /* ── Address Box ──────────────────────────────────────────── */
+    .address-box {
+      background: var(--dark);
+      border: 1px solid rgba(212, 175, 55, 0.15);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin: 16px 0;
+      text-align: center;
+    }
+    .address-box label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--gray);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .address-value {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--gold);
+      word-break: break-all;
+      user-select: all;
+    }
+    .copy-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 10px;
+      background: rgba(212, 175, 55, 0.1);
+      color: var(--gold);
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.82rem; font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-family: var(--font-body);
+    }
+    .copy-btn:hover {
+      background: rgba(212, 175, 55, 0.2);
+      border-color: var(--gold);
+    }
+
+    /* ── MetaMask Action Panel ────────────────────────────────── */
+    .metamask-panel {
+      background: var(--dark-card);
+      border: 1px solid rgba(212, 175, 55, 0.12);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+    }
+    .metamask-panel h2 {
+      font-family: var(--font-display);
+      font-size: 1.6rem; font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--white);
+    }
+    .metamask-panel h2 span { color: var(--gold); }
+    .metamask-panel p.subtitle {
+      color: var(--gray); font-size: 0.92rem;
+      margin-bottom: 24px;
+    }
+
+    .connect-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%;
+      padding: 14px;
+      border-radius: var(--radius);
+      font-size: 1rem; font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      border: none;
+      font-family: var(--font-body);
+    }
+    .connect-btn.metamask {
+      background: linear-gradient(135deg, #F6851B, #E2761B);
+      color: #fff;
+    }
+    .connect-btn.metamask:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 24px rgba(246, 133, 27, 0.3);
+    }
+    .connect-btn.trust {
+      background: linear-gradient(135deg, #3375BB, #0500FF);
+      color: #fff;
+      margin-top: 10px;
+    }
+    .connect-btn.trust:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 24px rgba(51, 117, 187, 0.3);
+    }
+
+    .wallet-connected {
+      background: var(--green-dim);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 20px;
+    }
+    .wallet-connected .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+    .wallet-connected .addr {
+      font-family: var(--font-mono); font-size: 0.82rem; color: var(--green);
+    }
+    .wallet-connected .disconnect {
+      margin-left: auto; font-size: 0.78rem; color: var(--red);
+      cursor: pointer; font-weight: 600;
+    }
+
+    /* ── Input Form ───────────────────────────────────────────── */
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--gray);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(212, 175, 55, 0.15);
+      background: var(--dark);
+      color: var(--white);
+      font-family: var(--font-mono);
+      font-size: 1.1rem;
+      font-weight: 600;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    .form-input:focus {
+      border-color: var(--gold);
+    }
+    .form-input::placeholder {
+      color: rgba(160, 160, 160, 0.5);
+    }
+    .input-hint {
+      display: flex; justify-content: space-between;
+      margin-top: 6px; font-size: 0.78rem; color: var(--gray);
+    }
+    .input-hint .max-btn {
+      color: var(--gold); cursor: pointer; font-weight: 600;
+    }
+    .rate-display {
+      background: var(--dark-surface);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin: 16px 0;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .rate-display .label { font-size: 0.82rem; color: var(--gray); }
+    .rate-display .value { font-size: 0.95rem; font-weight: 600; color: var(--green); }
+
+    .send-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%;
+      padding: 16px;
+      border-radius: var(--radius);
+      font-size: 1.05rem; font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+      border: none;
+      font-family: var(--font-body);
+      background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+      color: #000;
+    }
+    .send-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 24px rgba(212, 175, 55, 0.3);
+    }
+    .send-btn:disabled {
+      opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none;
+    }
+    .send-btn.redeem-btn {
+      background: linear-gradient(135deg, #EF4444, #B91C1C);
+      color: #fff;
+    }
+
+    /* ── Info Cards ────────────────────────────────────────────── */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin: 40px 0;
+    }
+    .info-card {
+      background: var(--dark-card);
+      border: 1px solid rgba(212, 175, 55, 0.1);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+    }
+    .info-card .icon { font-size: 1.5rem; margin-bottom: 8px; }
+    .info-card .label { font-size: 0.75rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .info-card .val {
+      font-size: 1.3rem; font-weight: 700;
+      font-family: var(--font-mono);
+    }
+    .val-green { color: var(--green); }
+    .val-gold { color: var(--gold); }
+    .val-blue { color: var(--blue); }
+
+    /* ── FAQ/How It Works ─────────────────────────────────────── */
+    .how-section { margin-top: 60px; }
+    .how-section h2 {
+      font-family: var(--font-display);
+      font-size: 1.8rem; font-weight: 700;
+      text-align: center; margin-bottom: 32px;
+      color: var(--gold);
+    }
+    .how-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .how-card {
+      background: var(--dark-card);
+      border: 1px solid rgba(212, 175, 55, 0.1);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      text-align: center;
+      transition: transform 0.3s, border-color 0.3s;
+    }
+    .how-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(212, 175, 55, 0.3);
+    }
+    .how-card .icon { font-size: 2rem; margin-bottom: 12px; }
+    .how-card h3 { font-size: 1.05rem; margin-bottom: 8px; color: var(--white); }
+    .how-card p { font-size: 0.85rem; color: var(--gray); line-height: 1.5; }
+
+    /* ── Supported Stablecoins Section ────────────────────────── */
+    .supported-section {
+      margin-top: 60px;
+      text-align: center;
+    }
+    .supported-section h2 {
+      font-family: var(--font-display);
+      font-size: 1.8rem; font-weight: 700;
+      color: var(--gold); margin-bottom: 12px;
+    }
+    .supported-section p { color: var(--gray); margin-bottom: 32px; }
+    .supported-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .supported-card {
+      background: var(--dark-card);
+      border: 1px solid rgba(212, 175, 55, 0.1);
+      border-radius: var(--radius);
+      padding: 24px;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+    .supported-card img { width: 48px; height: 48px; border-radius: 50%; }
+    .supported-card h4 { font-size: 1rem; }
+    .supported-card .contract {
+      font-family: var(--font-mono); font-size: 0.7rem;
+      color: var(--gray); word-break: break-all;
+    }
+    .supported-card .badge {
+      font-size: 0.72rem; font-weight: 600;
+      padding: 4px 10px; border-radius: 12px;
+    }
+    .badge-green { background: var(--green-dim); color: var(--green); }
+
+    /* ── Security Notice ──────────────────────────────────────── */
+    .security-notice {
+      background: var(--dark-surface);
+      border: 1px solid rgba(212, 175, 55, 0.08);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      margin: 60px 0;
+      text-align: center;
+    }
+    .security-notice h3 {
+      color: var(--gold); margin-bottom: 16px;
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+    }
+    .security-features {
+      display: flex; gap: 24px; justify-content: center;
+      flex-wrap: wrap; margin-top: 16px;
+    }
+    .sec-item {
+      font-size: 0.85rem; color: var(--gray);
+      display: flex; align-items: center; gap: 6px;
+    }
+    .sec-item span { color: var(--green); }
+
+    /* ── TX Status Modal ──────────────────────────────────────── */
+    .tx-overlay {
+      display: none;
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      align-items: center; justify-content: center;
+    }
+    .tx-overlay.active { display: flex; }
+    .tx-modal {
+      background: var(--dark-card);
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      border-radius: var(--radius-lg);
+      padding: 40px;
+      max-width: 460px; width: 90%;
+      text-align: center;
+    }
+    .tx-modal .icon { font-size: 3rem; margin-bottom: 16px; }
+    .tx-modal h3 { font-size: 1.3rem; margin-bottom: 8px; }
+    .tx-modal p { color: var(--gray); font-size: 0.9rem; margin-bottom: 16px; }
+    .tx-modal .tx-hash {
+      font-family: var(--font-mono); font-size: 0.75rem;
+      color: var(--gold); word-break: break-all;
+    }
+    .tx-modal .close-modal {
+      margin-top: 20px;
+      padding: 10px 32px;
+      background: var(--dark-surface);
+      border: 1px solid rgba(212, 175, 55, 0.2);
+      border-radius: var(--radius);
+      color: var(--white);
+      font-weight: 600; font-size: 0.9rem;
+      cursor: pointer;
+      font-family: var(--font-body);
+    }
+    .spinner {
+      width: 48px; height: 48px;
+      border: 3px solid var(--dark-surface);
+      border-top: 3px solid var(--gold);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Footer ────────────────────────────────────────────────── */
+    .footer {
+      border-top: 1px solid rgba(212, 175, 55, 0.08);
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .footer p { color: var(--gray); font-size: 0.82rem; }
+    .footer a { color: var(--gold); }
+    .footer-links { display: flex; gap: 20px; justify-content: center; margin-bottom: 12px; }
+
+    /* ── Notice ────────────────────────────────────────────────── */
+    .notice-banner {
+      background: var(--yellow-dim);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      margin: 20px 0;
+      display: flex; align-items: center; gap: 12px;
+      font-size: 0.85rem; color: var(--yellow);
+    }
+    .notice-banner .icon { font-size: 1.2rem; }
+
+    /* ── Responsive ────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .action-grid { grid-template-columns: 1fr; }
+      .info-grid { grid-template-columns: repeat(2, 1fr); }
+      .how-grid { grid-template-columns: 1fr; }
+      .supported-grid { grid-template-columns: 1fr; }
+      .engine-bar { flex-direction: column; gap: 10px; }
+    }
+    @media (max-width: 600px) {
+      .buy-hero h1 { font-size: 1.8rem; }
+      .tabs { flex-direction: column; }
+      .tab-btn { border-radius: var(--radius) !important; }
+      .info-grid { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════ NAVBAR ═══════════════ -->
+  <nav class="navbar">
+    <div class="navbar-inner">
+      <a href="index.html" class="nav-brand">
+        <img src="kairos-logo.png" alt="Kairos" />
+        <span>Kairos</span>
+      </a>
+      <div class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="whitepaper.html">Whitepaper</a>
+        <a href="reserves.html">Reserves</a>
+        <a href="buy.html" class="active">Buy / Redeem</a>
+        <a href="https://bscscan.com/address/0x14D41707269c7D8b8DFa5095b38824a46dA05da3" target="_blank">BscScan</a>
+        <span class="nav-badge">LIVE</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══════════════ HERO ═══════════════ -->
+  <section class="buy-hero">
+    <h1>Buy & Redeem KAIROS</h1>
+    <p>Send stablecoins, receive KAIROS instantly. Automated 1:1 on BNB Smart Chain. No middlemen, no delays.</p>
+    <div class="hero-peg">
+      <span class="live-dot"></span>
+      1 KAIROS = 1 USD &nbsp;·&nbsp; Automated Engine Running
+    </div>
+  </section>
+
+  <!-- ═══════════════ ENGINE STATUS BAR ═══════════════ -->
+  <div class="container">
+    <div class="engine-bar" id="engineBar">
+      <div class="engine-item">
+        <div class="dot dot-yellow" id="dotDeposit"></div>
+        <span>Deposit Monitor: <strong id="statusDeposit">Loading…</strong></span>
+      </div>
+      <div class="engine-item">
+        <div class="dot dot-yellow" id="dotRedemption"></div>
+        <span>Redemption Monitor: <strong id="statusRedemption">Loading…</strong></span>
+      </div>
+      <div class="engine-item">
+        <span>Block: <strong id="currentBlock">—</strong></span>
+      </div>
+      <div class="engine-item">
+        <span>Confirmations: <strong>5 blocks</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ INFO CARDS ═══════════════ -->
+  <div class="container section-pad" style="padding-bottom: 0;">
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="icon">💰</div>
+        <div class="label">Exchange Rate</div>
+        <div class="val val-green">1 : 1</div>
+      </div>
+      <div class="info-card">
+        <div class="icon">⚡</div>
+        <div class="label">Confirmations</div>
+        <div class="val val-gold">5 Blocks</div>
+      </div>
+      <div class="info-card">
+        <div class="icon">📊</div>
+        <div class="label">Transfer Fee</div>
+        <div class="val val-blue">0.08%</div>
+      </div>
+      <div class="info-card">
+        <div class="icon">🔄</div>
+        <div class="label">Processing</div>
+        <div class="val val-green">~15s</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ MAIN TABS ═══════════════ -->
+  <div class="container section-pad">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('buy')">💵 Buy KAIROS</button>
+      <button class="tab-btn" onclick="switchTab('redeem')">🔄 Redeem KAIROS</button>
+    </div>
+
+    <!-- ─────────── BUY TAB ─────────── -->
+    <div class="tab-content active" id="tab-buy">
+      <div class="action-grid">
+        <!-- LEFT: Instructions -->
+        <div class="action-card">
+          <h2>Buy KAIROS</h2>
+          <p class="subtitle">Send any supported stablecoin and receive KAIROS 1:1 automatically</p>
+
+          <h4 style="margin-bottom: 12px; font-size: 0.9rem; color: var(--gray-light);">Accepted Stablecoins</h4>
+          <div class="coins">
+            <div class="coin-pill selected" data-coin="usdt">
+              <img src="https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0x55d398326f99059fF775485246999027B3197955/logo.png" alt="USDT" />
+              USDT
+            </div>
+            <div class="coin-pill" data-coin="busd">
+              <img src="https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56/logo.png" alt="BUSD" />
+              BUSD
+            </div>
+            <div class="coin-pill" data-coin="usdc">
+              <img src="https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d/logo.png" alt="USDC" />
+              USDC
+            </div>
+          </div>
+
+          <div class="address-box">
+            <label>Deposit Address (BSC Network)</label>
+            <div class="address-value" id="depositAddr">0xCee44904A6aA94dEa28754373887E07D4B6f4968</div>
+            <button class="copy-btn" onclick="copyAddress('depositAddr')">📋 Copy Address</button>
+          </div>
+
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-content">
+                <h4>Send Stablecoin</h4>
+                <p>Send USDT, BUSD, or USDC to the deposit address above via BSC (BEP-20).</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-content">
+                <h4>Wait for Confirmation</h4>
+                <p>Our engine detects your deposit within ~15 seconds. 5 block confirmations required.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-content">
+                <h4>Receive KAIROS</h4>
+                <p>KAIROS tokens are minted 1:1 and sent directly to your wallet. Fully automated.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="notice-banner" style="margin-top: 20px;">
+            <div class="icon">⚠️</div>
+            <div>
+              <strong>Important:</strong> Only send via <strong>BNB Smart Chain (BEP-20)</strong> network. 
+              Minimum: $1. Maximum: $1,000,000 per transaction.
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: MetaMask Quick Send -->
+        <div class="metamask-panel">
+          <h2>Quick <span>Buy</span></h2>
+          <p class="subtitle">Connect your wallet to send stablecoins directly from this page</p>
+
+          <!-- Not Connected State -->
+          <div id="connectState">
+            <button class="connect-btn metamask" onclick="connectWallet()">
+              🦊 Connect MetaMask
+            </button>
+            <button class="connect-btn trust" onclick="connectWallet()">
+              🛡️ Connect Trust Wallet / WalletConnect
+            </button>
+            <p style="text-align: center; margin-top: 16px; font-size: 0.82rem; color: var(--gray);">
+              Or send manually using the deposit address on the left
+            </p>
+          </div>
+
+          <!-- Connected State -->
+          <div id="connectedState" style="display: none;">
+            <div class="wallet-connected">
+              <div class="dot"></div>
+              <span class="addr" id="walletAddr">0x…</span>
+              <span class="disconnect" onclick="disconnectWallet()">Disconnect</span>
+            </div>
+
+            <div class="form-group">
+              <label>Stablecoin</label>
+              <select class="form-input" id="coinSelect" style="font-family: var(--font-body); cursor: pointer;" onchange="updateBalance()">
+                <option value="usdt">USDT (Tether)</option>
+                <option value="busd">BUSD (Binance USD)</option>
+                <option value="usdc">USDC (USD Coin)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label>Amount to Send</label>
+              <input type="number" class="form-input" id="buyAmount" placeholder="0.00" min="1" step="any" oninput="updatePreview()" />
+              <div class="input-hint">
+                <span>Balance: <span id="userBalance">—</span></span>
+                <span class="max-btn" onclick="setMax()">MAX</span>
+              </div>
+            </div>
+
+            <div class="rate-display">
+              <span class="label">You will receive</span>
+              <span class="value" id="receiveAmount">0.00 KAIROS</span>
+            </div>
+            <div class="rate-display" style="margin-top: 8px;">
+              <span class="label">Fee (0.08%)</span>
+              <span class="value" style="color: var(--gray);" id="feeAmount">0.00 KAIROS</span>
+            </div>
+
+            <button class="send-btn" id="sendBtn" onclick="sendStablecoin()" disabled>
+              Send & Mint KAIROS
+            </button>
+
+            <p style="text-align: center; margin-top: 12px; font-size: 0.78rem; color: var(--gray);">
+              Your KAIROS will be minted automatically after 5 block confirmations
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─────────── REDEEM TAB ─────────── -->
+    <div class="tab-content" id="tab-redeem">
+      <div class="action-grid">
+        <!-- LEFT: Instructions -->
+        <div class="action-card">
+          <h2 style="color: var(--red);">Redeem KAIROS</h2>
+          <p class="subtitle">Send KAIROS to the redemption address and receive USDT 1:1 automatically</p>
+
+          <div class="address-box">
+            <label>Redemption Address (BSC Network)</label>
+            <div class="address-value" id="redeemAddr">0xCee44904A6aA94dEa28754373887E07D4B6f4968</div>
+            <button class="copy-btn" onclick="copyAddress('redeemAddr')">📋 Copy Address</button>
+          </div>
+
+          <div class="steps">
+            <div class="step">
+              <div class="step-num" style="background: linear-gradient(135deg, #EF4444, #B91C1C);">1</div>
+              <div class="step-content">
+                <h4>Send KAIROS</h4>
+                <p>Send your KAIROS tokens to the redemption address above via BSC.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="background: linear-gradient(135deg, #EF4444, #B91C1C);">2</div>
+              <div class="step-content">
+                <h4>Automatic Burn</h4>
+                <p>The engine detects your KAIROS, burns them on-chain, and processes the redemption.</p>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="background: linear-gradient(135deg, #EF4444, #B91C1C);">3</div>
+              <div class="step-content">
+                <h4>Receive USDT</h4>
+                <p>USDT (BEP-20) is sent back to your wallet 1:1. Fully automated, on-chain.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="notice-banner" style="margin-top: 20px;">
+            <div class="icon">⚠️</div>
+            <div>
+              <strong>Important:</strong> Redemptions are paid in <strong>USDT (BEP-20)</strong>.
+              Make sure your wallet can receive BEP-20 tokens.
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: MetaMask Quick Redeem -->
+        <div class="metamask-panel">
+          <h2>Quick <span style="color: var(--red);">Redeem</span></h2>
+          <p class="subtitle">Connect your wallet to send KAIROS and receive USDT automatically</p>
+
+          <!-- Not Connected -->
+          <div id="redeemConnectState">
+            <button class="connect-btn metamask" onclick="connectWallet()">
+              🦊 Connect MetaMask
+            </button>
+            <button class="connect-btn trust" onclick="connectWallet()">
+              🛡️ Connect Trust Wallet / WalletConnect
+            </button>
+          </div>
+
+          <!-- Connected -->
+          <div id="redeemConnectedState" style="display: none;">
+            <div class="wallet-connected">
+              <div class="dot"></div>
+              <span class="addr" id="redeemWalletAddr">0x…</span>
+              <span class="disconnect" onclick="disconnectWallet()">Disconnect</span>
+            </div>
+
+            <div class="form-group">
+              <label>KAIROS Amount to Redeem</label>
+              <input type="number" class="form-input" id="redeemAmount" placeholder="0.00" min="1" step="any" oninput="updateRedeemPreview()" />
+              <div class="input-hint">
+                <span>KAIROS Balance: <span id="kairosBalance">—</span></span>
+                <span class="max-btn" onclick="setMaxKairos()">MAX</span>
+              </div>
+            </div>
+
+            <div class="rate-display">
+              <span class="label">You will receive</span>
+              <span class="value" style="color: var(--green);" id="redeemReceive">0.00 USDT</span>
+            </div>
+
+            <button class="send-btn redeem-btn" id="redeemBtn" onclick="sendKairosRedeem()" disabled>
+              🔥 Redeem & Burn KAIROS
+            </button>
+
+            <p style="text-align: center; margin-top: 12px; font-size: 0.78rem; color: var(--gray);">
+              KAIROS will be burned and USDT sent to your wallet after 5 confirmations
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ HOW IT WORKS ═══════════════ -->
+  <div class="container">
+    <div class="how-section">
+      <h2>How It Works</h2>
+      <div class="how-grid">
+        <div class="how-card">
+          <div class="icon">🏦</div>
+          <h3>1:1 USD Backing</h3>
+          <p>Every KAIROS token is backed 1:1 by real stablecoin reserves. When you deposit USDT, KAIROS is minted. When you redeem, KAIROS is burned.</p>
+        </div>
+        <div class="how-card">
+          <div class="icon">🤖</div>
+          <h3>Fully Automated</h3>
+          <p>Our on-chain engine monitors deposits and redemptions 24/7. No manual intervention needed — your tokens are processed in seconds.</p>
+        </div>
+        <div class="how-card">
+          <div class="icon">🔍</div>
+          <h3>100% Transparent</h3>
+          <p>Every mint, burn, and reserve balance is verifiable on-chain. Check our <a href="reserves.html">Proof of Reserves</a> page for real-time data.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SUPPORTED STABLECOINS ═══════════════ -->
+  <div class="container">
+    <div class="supported-section">
+      <h2>Supported Stablecoins</h2>
+      <p>Deposit any of these BEP-20 stablecoins to mint KAIROS 1:1</p>
+      <div class="supported-grid">
+        <div class="supported-card">
+          <img src="https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0x55d398326f99059fF775485246999027B3197955/logo.png" alt="USDT" />
+          <h4>Tether (USDT)</h4>
+          <div class="contract">0x55d398326f99059fF775485246999027B3197955</div>
+          <div class="badge badge-green">✓ Supported</div>
+        </div>
+        <div class="supported-card">
+          <img src="https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56/logo.png" alt="BUSD" />
+          <h4>Binance USD (BUSD)</h4>
+          <div class="contract">0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56</div>
+          <div class="badge badge-green">✓ Supported</div>
+        </div>
+        <div class="supported-card">
+          <img src="https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d/logo.png" alt="USDC" />
+          <h4>USD Coin (USDC)</h4>
+          <div class="contract">0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d</div>
+          <div class="badge badge-green">✓ Supported</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ SECURITY NOTICE ═══════════════ -->
+  <div class="container">
+    <div class="security-notice">
+      <h3>🛡️ Security & Trust</h3>
+      <p style="color: var(--gray); font-size: 0.92rem; max-width: 600px; margin: 0 auto;">
+        Kairos Coin operates with the highest security standards. All smart contracts are verified on BscScan. 
+        The automated engine runs on secure infrastructure with 24/7 monitoring.
+      </p>
+      <div class="security-features">
+        <div class="sec-item"><span>✓</span> Verified Smart Contract</div>
+        <div class="sec-item"><span>✓</span> On-chain Audit Trail</div>
+        <div class="sec-item"><span>✓</span> Automated 24/7</div>
+        <div class="sec-item"><span>✓</span> 1:1 USD Reserves</div>
+        <div class="sec-item"><span>✓</span> BSC Network</div>
+        <div class="sec-item"><span>✓</span> 5-Block Confirmations</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ FOOTER ═══════════════ -->
+  <footer class="footer">
+    <div class="footer-links">
+      <a href="index.html">Home</a>
+      <a href="reserves.html">Proof of Reserves</a>
+      <a href="whitepaper.html">Whitepaper</a>
+      <a href="https://bscscan.com/address/0x14D41707269c7D8b8DFa5095b38824a46dA05da3" target="_blank">BscScan</a>
+      <a href="https://t.me/KairosCoin_777" target="_blank">Telegram</a>
+      <a href="https://x.com/777_inc13680" target="_blank">X (Twitter)</a>
+    </div>
+    <p>"In God We Trust" · © 2026 Kairos 777 Inc. · Administered by Mario Isaac</p>
+  </footer>
+
+  <!-- ═══════════════ TX STATUS MODAL ═══════════════ -->
+  <div class="tx-overlay" id="txOverlay">
+    <div class="tx-modal" id="txModal">
+      <!-- Dynamic content -->
+    </div>
+  </div>
+
+  <!-- ethers.js v6 CDN — must load before inline script -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.4/ethers.umd.min.js"></script>
+
+  <script>
+    // ════════════════════════════════════════════════════════════════
+    //  KAIROS BUY & REDEEM — Frontend Logic
+    // ════════════════════════════════════════════════════════════════
+
+    const API_BASE = window.location.hostname === 'localhost'
+      ? 'http://localhost:3001'
+      : 'https://kairos-api-u6k5.onrender.com';
+
+    const DEPOSIT_ADDRESS  = '0xCee44904A6aA94dEa28754373887E07D4B6f4968';
+    const KAIROS_ADDRESS   = '0x14D41707269c7D8b8DFa5095b38824a46dA05da3';
+    const BSC_CHAIN_ID     = '0x38'; // 56
+
+    const STABLECOINS = {
+      usdt: { name: 'USDT', address: '0x55d398326f99059fF775485246999027B3197955', decimals: 18 },
+      busd: { name: 'BUSD', address: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', decimals: 18 },
+      usdc: { name: 'USDC', address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', decimals: 18 }
+    };
+
+    const ERC20_ABI = [
+      'function balanceOf(address) view returns (uint256)',
+      'function transfer(address to, uint256 amount) returns (bool)',
+      'function decimals() view returns (uint8)',
+      'function symbol() view returns (string)',
+      'function allowance(address owner, address spender) view returns (uint256)',
+      'function approve(address spender, uint256 amount) returns (bool)'
+    ];
+
+    let provider = null;
+    let signer = null;
+    let userAddress = null;
+    let userBalances = {};
+
+    // ── Tab Switching ──────────────────────────────────────────
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', (tab === 'buy' && i === 0) || (tab === 'redeem' && i === 1));
+      });
+      document.getElementById('tab-buy').classList.toggle('active', tab === 'buy');
+      document.getElementById('tab-redeem').classList.toggle('active', tab === 'redeem');
+    }
+
+    // ── Copy Address ───────────────────────────────────────────
+    function copyAddress(id) {
+      const text = document.getElementById(id).textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const btn = document.getElementById(id).parentNode.querySelector('.copy-btn');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✅ Copied!';
+        setTimeout(() => btn.innerHTML = orig, 2000);
+      });
+    }
+
+    // ── Engine Status ──────────────────────────────────────────
+    async function fetchEngineStatus() {
+      try {
+        const res = await fetch(`${API_BASE}/api/engine/status`);
+        const data = await res.json();
+        
+        const depRunning = data.depositMonitor?.running;
+        const redRunning = data.redemptionMonitor?.running;
+        
+        document.getElementById('statusDeposit').textContent = depRunning ? 'Running' : 'Stopped';
+        document.getElementById('statusRedemption').textContent = redRunning ? 'Running' : 'Stopped';
+        
+        document.getElementById('dotDeposit').className = `dot ${depRunning ? 'dot-green' : 'dot-red'}`;
+        document.getElementById('dotRedemption').className = `dot ${redRunning ? 'dot-green' : 'dot-red'}`;
+
+        const block = data.depositMonitor?.lastBlock || data.redemptionMonitor?.lastBlock;
+        if (block) {
+          document.getElementById('currentBlock').textContent = Number(block).toLocaleString();
+        }
+      } catch (e) {
+        document.getElementById('statusDeposit').textContent = 'Offline';
+        document.getElementById('statusRedemption').textContent = 'Offline';
+        document.getElementById('dotDeposit').className = 'dot dot-red';
+        document.getElementById('dotRedemption').className = 'dot dot-red';
+      }
+    }
+
+    // ── Wallet Connection ──────────────────────────────────────
+    async function connectWallet() {
+      if (!window.ethereum) {
+        alert('Please install MetaMask or Trust Wallet to continue.\n\nDownload: https://metamask.io');
+        return;
+      }
+
+      try {
+        // Request accounts
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        userAddress = accounts[0];
+
+        // Check chain
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (chainId !== BSC_CHAIN_ID) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: BSC_CHAIN_ID }]
+            });
+          } catch (switchError) {
+            if (switchError.code === 4902) {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: BSC_CHAIN_ID,
+                  chainName: 'BNB Smart Chain',
+                  nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+                  rpcUrls: ['https://bsc-dataseed1.binance.org'],
+                  blockExplorerUrls: ['https://bscscan.com']
+                }]
+              });
+            }
+          }
+        }
+
+        // Setup ethers provider
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+
+        // Show connected state
+        const shortAddr = userAddress.slice(0, 6) + '…' + userAddress.slice(-4);
+        
+        document.getElementById('connectState').style.display = 'none';
+        document.getElementById('connectedState').style.display = 'block';
+        document.getElementById('walletAddr').textContent = shortAddr;
+
+        document.getElementById('redeemConnectState').style.display = 'none';
+        document.getElementById('redeemConnectedState').style.display = 'block';
+        document.getElementById('redeemWalletAddr').textContent = shortAddr;
+
+        // Fetch balances
+        await updateBalance();
+        await updateKairosBalance();
+
+      } catch (err) {
+        console.error('Connection error:', err);
+        alert('Failed to connect wallet. Please try again.');
+      }
+    }
+
+    function disconnectWallet() {
+      provider = null;
+      signer = null;
+      userAddress = null;
+      userBalances = {};
+
+      document.getElementById('connectState').style.display = 'block';
+      document.getElementById('connectedState').style.display = 'none';
+      document.getElementById('redeemConnectState').style.display = 'block';
+      document.getElementById('redeemConnectedState').style.display = 'none';
+    }
+
+    // ── Balance Fetching ───────────────────────────────────────
+    async function updateBalance() {
+      if (!provider || !userAddress) return;
+      const coin = document.getElementById('coinSelect').value;
+      const stable = STABLECOINS[coin];
+      try {
+        const contract = new ethers.Contract(stable.address, ERC20_ABI, provider);
+        const bal = await contract.balanceOf(userAddress);
+        const formatted = ethers.formatUnits(bal, stable.decimals);
+        userBalances[coin] = formatted;
+        document.getElementById('userBalance').textContent = `${parseFloat(formatted).toLocaleString(undefined, {maximumFractionDigits: 2})} ${stable.name}`;
+        updateSendButton();
+      } catch (e) {
+        document.getElementById('userBalance').textContent = 'Error';
+      }
+    }
+
+    async function updateKairosBalance() {
+      if (!provider || !userAddress) return;
+      try {
+        const contract = new ethers.Contract(KAIROS_ADDRESS, ERC20_ABI, provider);
+        const bal = await contract.balanceOf(userAddress);
+        const formatted = ethers.formatUnits(bal, 18);
+        userBalances.kairos = formatted;
+        document.getElementById('kairosBalance').textContent = `${parseFloat(formatted).toLocaleString(undefined, {maximumFractionDigits: 2})} KAIROS`;
+      } catch (e) {
+        document.getElementById('kairosBalance').textContent = 'Error';
+      }
+    }
+
+    // ── Preview / Max ──────────────────────────────────────────
+    function updatePreview() {
+      const amount = parseFloat(document.getElementById('buyAmount').value) || 0;
+      const fee = amount * 0.0008;
+      const receive = amount - fee;
+      document.getElementById('receiveAmount').textContent = `${receive > 0 ? receive.toLocaleString(undefined, {maximumFractionDigits: 4}) : '0.00'} KAIROS`;
+      document.getElementById('feeAmount').textContent = `${fee > 0 ? fee.toLocaleString(undefined, {maximumFractionDigits: 4}) : '0.00'} KAIROS`;
+      updateSendButton();
+    }
+
+    function updateRedeemPreview() {
+      const amount = parseFloat(document.getElementById('redeemAmount').value) || 0;
+      document.getElementById('redeemReceive').textContent = `${amount > 0 ? amount.toLocaleString(undefined, {maximumFractionDigits: 4}) : '0.00'} USDT`;
+      
+      const btn = document.getElementById('redeemBtn');
+      btn.disabled = amount <= 0 || !userAddress;
+    }
+
+    function setMax() {
+      const coin = document.getElementById('coinSelect').value;
+      if (userBalances[coin]) {
+        document.getElementById('buyAmount').value = parseFloat(userBalances[coin]).toFixed(4);
+        updatePreview();
+      }
+    }
+
+    function setMaxKairos() {
+      if (userBalances.kairos) {
+        document.getElementById('redeemAmount').value = parseFloat(userBalances.kairos).toFixed(4);
+        updateRedeemPreview();
+      }
+    }
+
+    function updateSendButton() {
+      const amount = parseFloat(document.getElementById('buyAmount').value) || 0;
+      const btn = document.getElementById('sendBtn');
+      btn.disabled = amount <= 0 || !userAddress;
+    }
+
+    // ── Send Stablecoin (Buy KAIROS) ───────────────────────────
+    async function sendStablecoin() {
+      const coin = document.getElementById('coinSelect').value;
+      const stable = STABLECOINS[coin];
+      const amount = document.getElementById('buyAmount').value;
+
+      if (!amount || parseFloat(amount) <= 0) return;
+      if (!signer) return alert('Please connect your wallet first.');
+
+      showTxModal('pending', 'Sending ' + stable.name + '…', 'Please confirm the transaction in your wallet.');
+
+      try {
+        const contract = new ethers.Contract(stable.address, ERC20_ABI, signer);
+        const value = ethers.parseUnits(amount, stable.decimals);
+        
+        const tx = await contract.transfer(DEPOSIT_ADDRESS, value);
+        showTxModal('submitted', 'Transaction Submitted', 'Waiting for confirmation…', tx.hash);
+
+        const receipt = await tx.wait(1);
+        showTxModal('success', 
+          '🎉 ' + stable.name + ' Sent Successfully!',
+          `${amount} ${stable.name} sent. KAIROS will be minted to your wallet within ~15 seconds after 5 block confirmations.`,
+          tx.hash
+        );
+
+        // Refresh balances
+        setTimeout(() => { updateBalance(); updateKairosBalance(); }, 5000);
+        setTimeout(() => { updateBalance(); updateKairosBalance(); }, 20000);
+
+      } catch (err) {
+        console.error('TX error:', err);
+        if (err.code === 'ACTION_REJECTED' || err.code === 4001) {
+          showTxModal('error', 'Transaction Cancelled', 'You rejected the transaction in your wallet.');
+        } else {
+          showTxModal('error', 'Transaction Failed', err.message || 'Unknown error occurred.');
+        }
+      }
+    }
+
+    // ── Send KAIROS (Redeem) ───────────────────────────────────
+    async function sendKairosRedeem() {
+      const amount = document.getElementById('redeemAmount').value;
+      if (!amount || parseFloat(amount) <= 0) return;
+      if (!signer) return alert('Please connect your wallet first.');
+
+      showTxModal('pending', 'Sending KAIROS for redemption…', 'Please confirm the transaction in your wallet.');
+
+      try {
+        const contract = new ethers.Contract(KAIROS_ADDRESS, ERC20_ABI, signer);
+        const value = ethers.parseUnits(amount, 18);
+
+        const tx = await contract.transfer(DEPOSIT_ADDRESS, value);
+        showTxModal('submitted', 'Transaction Submitted', 'Waiting for confirmation…', tx.hash);
+
+        const receipt = await tx.wait(1);
+        showTxModal('success',
+          '🔥 KAIROS Sent for Redemption!',
+          `${amount} KAIROS will be burned and ${amount} USDT will be sent to your wallet within ~15 seconds after 5 confirmations.`,
+          tx.hash
+        );
+
+        setTimeout(() => { updateBalance(); updateKairosBalance(); }, 5000);
+        setTimeout(() => { updateBalance(); updateKairosBalance(); }, 20000);
+
+      } catch (err) {
+        console.error('Redeem TX error:', err);
+        if (err.code === 'ACTION_REJECTED' || err.code === 4001) {
+          showTxModal('error', 'Transaction Cancelled', 'You rejected the transaction in your wallet.');
+        } else {
+          showTxModal('error', 'Transaction Failed', err.message || 'Unknown error occurred.');
+        }
+      }
+    }
+
+    // ── TX Modal ───────────────────────────────────────────────
+    function showTxModal(state, title, message, hash) {
+      const overlay = document.getElementById('txOverlay');
+      const modal = document.getElementById('txModal');
+      overlay.classList.add('active');
+
+      let icon = '';
+      if (state === 'pending') icon = '<div class="spinner"></div>';
+      else if (state === 'submitted') icon = '<div class="spinner"></div>';
+      else if (state === 'success') icon = '<div class="icon">✅</div>';
+      else if (state === 'error') icon = '<div class="icon">❌</div>';
+
+      let hashHtml = '';
+      if (hash) {
+        hashHtml = `
+          <div class="tx-hash" style="margin-top: 12px;">
+            <a href="https://bscscan.com/tx/${hash}" target="_blank" style="color: var(--gold);">
+              View on BscScan →
+            </a>
+            <div style="margin-top: 6px; font-size: 0.72rem; color: var(--gray); word-break: break-all;">
+              ${hash}
+            </div>
+          </div>
+        `;
+      }
+
+      modal.innerHTML = `
+        ${icon}
+        <h3>${title}</h3>
+        <p>${message}</p>
+        ${hashHtml}
+        ${state !== 'pending' ? '<button class="close-modal" onclick="closeTxModal()">Close</button>' : ''}
+      `;
+    }
+
+    function closeTxModal() {
+      document.getElementById('txOverlay').classList.remove('active');
+    }
+
+    // ── Account Change Listeners ───────────────────────────────
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', (accounts) => {
+        if (accounts.length === 0) {
+          disconnectWallet();
+        } else {
+          userAddress = accounts[0];
+          const short = userAddress.slice(0, 6) + '…' + userAddress.slice(-4);
+          document.getElementById('walletAddr').textContent = short;
+          document.getElementById('redeemWalletAddr').textContent = short;
+          updateBalance();
+          updateKairosBalance();
+        }
+      });
+
+      window.ethereum.on('chainChanged', () => {
+        window.location.reload();
+      });
+    }
+
+    // ── Coin Pill Selection ────────────────────────────────────
+    document.querySelectorAll('.coin-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.coin-pill').forEach(p => p.classList.remove('selected'));
+        pill.classList.add('selected');
+        const coin = pill.dataset.coin;
+        document.getElementById('coinSelect').value = coin;
+        updateBalance();
+      });
+    });
+
+    // ── Init ───────────────────────────────────────────────────
+    fetchEngineStatus();
+    setInterval(fetchEngineStatus, 30000);
+
+    // ── Check if already connected ─────────────────────────────
+    (async () => {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          if (accounts.length > 0) {
+            userAddress = accounts[0];
+            provider = new ethers.BrowserProvider(window.ethereum);
+            signer = await provider.getSigner();
+            
+            const shortAddr = userAddress.slice(0, 6) + '…' + userAddress.slice(-4);
+            document.getElementById('connectState').style.display = 'none';
+            document.getElementById('connectedState').style.display = 'block';
+            document.getElementById('walletAddr').textContent = shortAddr;
+            document.getElementById('redeemConnectState').style.display = 'none';
+            document.getElementById('redeemConnectedState').style.display = 'block';
+            document.getElementById('redeemWalletAddr').textContent = shortAddr;
+            
+            updateBalance();
+            updateKairosBalance();
+          }
+        } catch (e) {}
+      }
+    })();
+  </script>
+
+</body>
+</html>
