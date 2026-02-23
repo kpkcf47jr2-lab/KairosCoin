@@ -31,6 +31,11 @@ const config = {
   redemptionPollInterval: parseInt(process.env.REDEMPTION_POLL_INTERVAL || "15000", 10),
   autoEngineEnabled: process.env.AUTO_ENGINE_ENABLED !== "false", // Enabled by default
 
+  // Stripe
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
+  stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || "",
+
   // Transak Fiat On-Ramp
   transakApiKey: process.env.TRANSAK_API_KEY || "",
   transakApiSecret: process.env.TRANSAK_API_SECRET || "",

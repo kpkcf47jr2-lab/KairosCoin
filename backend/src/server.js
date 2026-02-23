@@ -23,6 +23,9 @@
 //    POST /api/fiat/create-order — Create fiat purchase order (public)
 //    GET  /api/fiat/order/:id    — Get fiat order status (public)
 //    POST /api/webhook/transak   — Transak webhook handler (automated)
+//    POST /api/stripe/create-checkout — Create Stripe Checkout session
+//    GET  /api/stripe/config      — Stripe publishable key
+//    POST /api/webhook/stripe     — Stripe webhook handler (automated)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 require("dotenv").config();
@@ -46,6 +49,8 @@ const supplyRoutes = require("./routes/supply");
 const healthRoutes = require("./routes/health");
 const fiatRoutes = require("./routes/fiat");
 const webhookRoutes = require("./routes/webhook");
+const stripeRoutes = require("./routes/stripe");
+const stripeWebhookRoutes = require("./routes/stripeWebhook");
 
 // ── Express App ──────────────────────────────────────────────────────────────
 const app = express();
@@ -59,6 +64,7 @@ app.use(
     origin: [
       "https://kairos-777.com",
       "https://www.kairos-777.com",
+      "https://kairos-wallet.netlify.app",
       "https://global.transak.com",
       "https://staging.transak.com",
       "http://localhost:3000",
@@ -69,6 +75,9 @@ app.use(
     maxAge: 86400,
   })
 );
+
+// ── Stripe Webhook (must be before express.json() for raw body verification) ─
+app.use("/api/webhook/stripe", stripeWebhookRoutes);
 
 // ── Body Parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: "1mb" }));
@@ -160,6 +169,8 @@ app.use("/api/supply", supplyRoutes);
 app.use("/api/health", healthRoutes);
 app.use("/api/fiat", fiatRoutes);
 app.use("/api/webhook", webhookRoutes);
+app.use("/api/stripe", stripeRoutes);
+// Note: Stripe webhook is mounted earlier (before express.json) for raw body
 
 // Fee endpoint (defined as /fees in supply router, so mount at /api)
 const { feesRouter } = require("./routes/supply");
