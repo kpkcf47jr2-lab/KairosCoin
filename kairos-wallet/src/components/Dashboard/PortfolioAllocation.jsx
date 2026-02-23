@@ -8,11 +8,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, TrendingUp, TrendingDown, PieChart, DollarSign, BarChart2,
+  Globe, Loader2, RefreshCw,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { CHAINS, KAIROS_TOKEN } from '../../constants/chains';
+import { CHAINS, CHAIN_ORDER, KAIROS_TOKEN } from '../../constants/chains';
 import { formatUSD, formatBalance } from '../../services/prices';
-import TokenIcon from '../Common/TokenIcon';
+import { getCrossChainPortfolio } from '../../services/crossChainPortfolio';
+import TokenIcon, { ChainIcon } from '../Common/TokenIcon';
 
 const CHART_COLORS = [
   '#D4AF37', '#22d3ee', '#a78bfa', '#f472b6', '#34d399',
@@ -72,18 +74,31 @@ function DonutChart({ slices, size = 160, stroke = 28 }) {
 
 export default function PortfolioAllocation() {
   const {
-    activeChainId, balances, tokenPrices, nativePrice, goBack,
+    activeChainId, activeAddress, balances, tokenPrices, nativePrice, goBack,
     getTotalPortfolioValue,
   } = useStore();
 
   const chain = CHAINS[activeChainId];
   const portfolioValue = getTotalPortfolioValue();
-  const [tab, setTab] = useState('allocation'); // allocation | pnl
+  const [tab, setTab] = useState('allocation'); // allocation | crosschain | pnl
+  const [crossChain, setCrossChain] = useState(null);
+  const [loadingCross, setLoadingCross] = useState(false);
 
   // Record snapshot
   useEffect(() => {
     if (portfolioValue > 0) savePnlSnapshot(portfolioValue);
   }, [portfolioValue]);
+
+  // Load cross-chain when tab is selected
+  useEffect(() => {
+    if (tab === 'crosschain' && !crossChain && activeAddress) {
+      setLoadingCross(true);
+      getCrossChainPortfolio(activeAddress)
+        .then(data => setCrossChain(data))
+        .catch(() => {})
+        .finally(() => setLoadingCross(false));
+    }
+  }, [tab, activeAddress]);
 
   // Build allocation data
   const allocations = useMemo(() => {
@@ -169,17 +184,18 @@ export default function PortfolioAllocation() {
       {/* Tabs */}
       <div className="flex gap-1 p-1 mx-4 mt-4 rounded-xl bg-white/5">
         {[
-          { key: 'allocation', label: 'Asignación', icon: PieChart },
+          { key: 'allocation', label: 'Tokens', icon: PieChart },
+          { key: 'crosschain', label: 'Multi-Chain', icon: Globe },
           { key: 'pnl', label: 'P&L', icon: BarChart2 },
         ].map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 ${
               tab === t.key ? 'bg-kairos-500/15 text-kairos-400' : 'text-dark-400'
             }`}
           >
-            <t.icon size={14} /> {t.label}
+            <t.icon size={12} /> {t.label}
           </button>
         ))}
       </div>
@@ -235,6 +251,125 @@ export default function PortfolioAllocation() {
                 </motion.div>
               ))}
             </div>
+          </>
+        )}
+
+        {tab === 'crosschain' && (
+          <>
+            {loadingCross ? (
+              <div className="text-center py-12">
+                <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1.5, ease: 'linear' }}>
+                  <Loader2 className="mx-auto text-kairos-400" size={32} />
+                </motion.div>
+                <p className="text-dark-400 text-sm mt-3">Escaneando 6 blockchains...</p>
+              </div>
+            ) : crossChain ? (
+              <>
+                {/* Total across ALL chains */}
+                <div className="text-center py-4">
+                  <p className="text-dark-400 text-xs">Portfolio Total (6 Chains)</p>
+                  <p className="text-white font-bold text-2xl mt-1">{formatUSD(crossChain.totalUSD)}</p>
+                </div>
+
+                {/* Chain donut */}
+                {(() => {
+                  const chainSlices = CHAIN_ORDER
+                    .map(id => ({
+                      chainId: id,
+                      ...crossChain.chains[id],
+                      pct: crossChain.totalUSD > 0 ? (crossChain.chains[id]?.totalUSD || 0) / crossChain.totalUSD : 0,
+                      color: CHAINS[id]?.color || '#888',
+                    }))
+                    .filter(s => s.totalUSD > 0.01);
+                  return chainSlices.length > 0 ? (
+                    <div className="flex justify-center py-2 relative">
+                      <div className="relative">
+                        <DonutChart slices={chainSlices} size={140} stroke={24} />
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <Globe className="text-dark-500" size={16} />
+                          <p className="text-dark-400 text-[10px]">6 chains</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* Per-chain breakdown */}
+                <div className="space-y-2">
+                  {CHAIN_ORDER.map((chainId, i) => {
+                    const data = crossChain.chains[chainId];
+                    if (!data || data.totalUSD < 0.01) return (
+                      <div key={chainId} className="flex items-center gap-3 bg-dark-800/30 rounded-xl p-3 border border-dark-700/30 opacity-50">
+                        <ChainIcon chainId={chainId} size={24} />
+                        <div className="flex-1">
+                          <p className="text-dark-400 text-sm">{CHAINS[chainId].shortName}</p>
+                        </div>
+                        <p className="text-dark-600 text-xs">$0.00</p>
+                      </div>
+                    );
+                    return (
+                      <motion.div
+                        key={chainId}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="bg-dark-800/50 rounded-xl p-3 border border-dark-700/50"
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <ChainIcon chainId={chainId} size={24} />
+                          <div className="flex-1">
+                            <p className="text-white text-sm font-semibold">{data.chainName}</p>
+                            <p className="text-dark-500 text-xs">
+                              {data.tokens?.length || 0} token{(data.tokens?.length || 0) !== 1 ? 's' : ''} con balance
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-white text-sm font-bold">{formatUSD(data.totalUSD)}</p>
+                            <p className="text-dark-400 text-xs">
+                              {crossChain.totalUSD > 0 ? ((data.totalUSD / crossChain.totalUSD) * 100).toFixed(1) : 0}%
+                            </p>
+                          </div>
+                        </div>
+                        {/* Native + tokens breakdown */}
+                        <div className="ml-9 space-y-1">
+                          {data.native && parseFloat(data.native.balance) > 0.0001 && (
+                            <div className="flex justify-between text-xs">
+                              <span className="text-dark-400">{data.native.symbol}</span>
+                              <span className="text-dark-300">{parseFloat(data.native.balance).toFixed(4)} · {formatUSD(data.native.usd)}</span>
+                            </div>
+                          )}
+                          {(data.tokens || []).map(t => (
+                            <div key={t.address} className="flex justify-between text-xs">
+                              <span className="text-dark-400">{t.symbol}</span>
+                              <span className="text-dark-300">{parseFloat(t.balance).toFixed(4)} · {formatUSD(t.usd)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+
+                {/* Refresh button */}
+                <button
+                  onClick={() => {
+                    setCrossChain(null);
+                    setLoadingCross(true);
+                    getCrossChainPortfolio(activeAddress)
+                      .then(data => setCrossChain(data))
+                      .finally(() => setLoadingCross(false));
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-dark-800/50 text-dark-400 text-xs flex items-center justify-center gap-1.5 border border-dark-700/30"
+                >
+                  <RefreshCw size={12} /> Actualizar portfolio multi-chain
+                </button>
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <Globe className="mx-auto text-dark-600" size={40} />
+                <p className="text-dark-500 text-sm mt-2">Error cargando datos multi-chain</p>
+              </div>
+            )}
           </>
         )}
 

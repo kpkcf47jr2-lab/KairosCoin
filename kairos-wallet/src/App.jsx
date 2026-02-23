@@ -36,6 +36,7 @@ import AlertsScreen from './components/Alerts/AlertsScreen';
 import MultiSendScreen from './components/Send/MultiSendScreen';
 import PortfolioAllocation from './components/Dashboard/PortfolioAllocation';
 import NotificationCenter from './components/Common/NotificationCenter';
+import RPCHealthScreen from './components/Settings/RPCHealthScreen';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import Toast from './components/Common/Toast';
 
@@ -133,6 +134,8 @@ export default function App() {
         return <PortfolioAllocation key="portfolio" />;
       case 'notifications':
         return <NotificationCenter key="notifications" />;
+      case 'rpchealth':
+        return <RPCHealthScreen key="rpchealth" />;
       default:
         return <LoadingScreen key="loading" />;
     }

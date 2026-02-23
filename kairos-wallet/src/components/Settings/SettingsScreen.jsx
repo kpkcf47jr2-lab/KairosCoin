@@ -310,6 +310,13 @@ export default function SettingsScreen() {
           color: 'text-red-400',
         },
         {
+          icon: Fuel,
+          label: 'RPC Health',
+          desc: 'Estado de nodos RPC + latencia',
+          action: () => navigate('rpchealth'),
+          color: 'text-cyan-400',
+        },
+        {
           icon: Globe,
           label: t('settings.language'),
           desc: getAvailableLanguages().find(l => l.code === currentLang)?.flag + ' ' + getAvailableLanguages().find(l => l.code === currentLang)?.name,

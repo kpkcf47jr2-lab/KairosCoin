@@ -23,17 +23,17 @@ const ERC1155_ABI = [
   'function balanceOf(address account, uint256 id) view returns (uint256)',
 ];
 
-// Explorer API keys (free tier — register for better limits)
-const API_KEYS = {
-  56: 'YourApiKeyToken',   // BscScan — https://bscscan.com/myapikey
-  1: 'YourApiKeyToken',    // Etherscan — https://etherscan.io/myapikey
-  137: 'YourApiKeyToken',  // PolygonScan — https://polygonscan.com/myapikey
-  42161: 'YourApiKeyToken', // Arbiscan
-  8453: 'YourApiKeyToken',  // BaseScan
-};
+// Explorer API keys — using Etherscan V2 unified key from hardhat config
+// Free tier works without key on most explorers (limited to 1 req/5s)
+const ETHERSCAN_V2_KEY = 'CMXM58DR5E27T339UMDJAHPSZZA59S5Q1C';
 
-// NOTE: Replace 'YourApiKeyToken' with real keys for production.
-// Free tier without keys has ~1 req/5s limit which is very slow.
+const API_KEYS = {
+  56: ETHERSCAN_V2_KEY,   // BscScan
+  1: ETHERSCAN_V2_KEY,    // Etherscan
+  137: ETHERSCAN_V2_KEY,  // PolygonScan
+  42161: ETHERSCAN_V2_KEY, // Arbiscan
+  8453: ETHERSCAN_V2_KEY,  // BaseScan
+};
 
 // Cache NFTs per address+chain
 const nftCache = {};

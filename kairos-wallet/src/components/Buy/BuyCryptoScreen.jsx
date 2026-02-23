@@ -6,7 +6,7 @@
 
 import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CreditCard, ExternalLink, Shield, ChevronRight, X } from 'lucide-react';
+import { ArrowLeft, CreditCard, ExternalLink, Shield, ChevronRight, X, DollarSign } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CHAINS } from '../../constants/chains';
 import { useTranslation } from '../../services/i18n';
@@ -86,15 +86,60 @@ const PROVIDERS = [
   },
 ];
 
+// ── Off-ramp providers (SELL crypto → fiat) ──
+const SELL_PROVIDERS = [
+  {
+    id: 'transak-sell',
+    name: 'Transak (Sell)',
+    icon: '💫',
+    description: 'Vende crypto a tu cuenta bancaria',
+    fees: '~1-3%',
+    methods: ['🏦 Transferencia', '💳 Tarjeta'],
+    getUrl: (address, chainId) => {
+      const network = { 56: 'bsc', 1: 'ethereum', 137: 'polygon', 42161: 'arbitrum', 43114: 'avalanche', 8453: 'base' }[chainId] || 'ethereum';
+      const crypto = { 56: 'BNB', 1: 'ETH', 137: 'MATIC', 42161: 'ETH', 43114: 'AVAX', 8453: 'ETH' }[chainId] || 'ETH';
+      return `https://global.transak.com/?walletAddress=${address}&network=${network}&defaultCryptoCurrency=${crypto}&productsAvailed=SELL`;
+    },
+    chains: [56, 1, 137, 42161, 43114, 8453],
+  },
+  {
+    id: 'moonpay-sell',
+    name: 'MoonPay (Sell)',
+    icon: '🌙',
+    description: 'Convierte crypto a fiat instantáneamente',
+    fees: '~1.5-3.5%',
+    methods: ['🏦 Transferencia', '💳 Tarjeta'],
+    getUrl: (address, chainId) => {
+      const currency = { 56: 'bnb_bsc', 1: 'eth', 137: 'matic_polygon', 42161: 'eth_arbitrum', 43114: 'avax_cchain', 8453: 'eth_base' }[chainId] || 'eth';
+      return `https://www.moonpay.com/sell/${currency}?walletAddress=${address}`;
+    },
+    chains: [56, 1, 137, 42161, 43114, 8453],
+  },
+  {
+    id: 'ramp-sell',
+    name: 'Ramp (Sell)',
+    icon: '🚀',
+    description: 'Off-ramp a cuenta bancaria européa',
+    fees: '~2%',
+    methods: ['🏦 SEPA', '📱 Open Banking'],
+    getUrl: (address, chainId) => {
+      const asset = { 56: 'BSC_BNB', 1: 'ETH', 137: 'MATIC_MATIC', 42161: 'ARBITRUM_ETH', 43114: 'AVAX_AVAX', 8453: 'BASE_ETH' }[chainId] || 'ETH';
+      return `https://app.ramp.network/?userAddress=${address}&swapAsset=${asset}&mode=offramp`;
+    },
+    chains: [1, 137, 42161],
+  },
+];
+
 export default function BuyCryptoScreen() {
   const { activeAddress, activeChainId, goBack, showToast } = useStore();
   const { t } = useTranslation();
   const chain = CHAINS[activeChainId];
   const [showTransak, setShowTransak] = useState(false);
+  const [mode, setMode] = useState('buy'); // 'buy' | 'sell'
 
   const availableProviders = useMemo(
-    () => PROVIDERS.filter(p => p.chains.includes(activeChainId)),
-    [activeChainId]
+    () => (mode === 'buy' ? PROVIDERS : SELL_PROVIDERS).filter(p => p.chains.includes(activeChainId)),
+    [activeChainId, mode]
   );
 
   const openTransakWidget = useCallback(async () => {
@@ -154,18 +199,42 @@ export default function BuyCryptoScreen() {
         <button onClick={goBack} className="p-2 -ml-2 rounded-xl hover:bg-white/5">
           <ArrowLeft size={20} className="text-dark-300" />
         </button>
-        <h1 className="font-bold text-white">{t('buy.title', 'Comprar Crypto')}</h1>
+        <h1 className="font-bold text-white">{mode === 'buy' ? t('buy.title', 'Comprar Crypto') : 'Vender Crypto'}</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 pb-8">
+        {/* Buy/Sell Toggle */}
+        <div className="flex gap-1 p-1 rounded-xl bg-white/5 mb-4">
+          <button
+            onClick={() => setMode('buy')}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+              mode === 'buy' ? 'bg-green-500/15 text-green-400' : 'text-dark-400'
+            }`}
+          >
+            <CreditCard size={14} /> Comprar
+          </button>
+          <button
+            onClick={() => setMode('sell')}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${
+              mode === 'sell' ? 'bg-orange-500/15 text-orange-400' : 'text-dark-400'
+            }`}
+          >
+            <DollarSign size={14} /> Vender
+          </button>
+        </div>
+
         {/* Info card */}
         <div className="bg-gradient-to-r from-kairos-500/10 to-kairos-600/5 rounded-2xl p-4 mb-5 border border-kairos-500/10">
           <div className="flex items-start gap-3">
-            <CreditCard size={20} className="text-kairos-400 mt-0.5" />
+            {mode === 'buy' ? <CreditCard size={20} className="text-kairos-400 mt-0.5" /> : <DollarSign size={20} className="text-orange-400 mt-0.5" />}
             <div>
-              <p className="text-sm font-semibold text-white mb-1">{t('buy.subtitle', 'Compra crypto con tarjeta')}</p>
+              <p className="text-sm font-semibold text-white mb-1">
+                {mode === 'buy' ? t('buy.subtitle', 'Compra crypto con tarjeta') : 'Vende crypto por dinero fiat'}
+              </p>
               <p className="text-[11px] text-dark-400 leading-relaxed">
-                {t('buy.desc', 'Selecciona un proveedor para comprar crypto directo a tu wallet. Los fondos llegan en minutos.')}
+                {mode === 'buy'
+                  ? t('buy.desc', 'Selecciona un proveedor para comprar crypto directo a tu wallet. Los fondos llegan en minutos.')
+                  : 'Convierte tus tokens a USD/EUR y recibe el dinero en tu cuenta bancaria o tarjeta.'}
               </p>
             </div>
           </div>
