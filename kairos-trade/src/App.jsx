@@ -33,8 +33,8 @@ function App() {
     switch (currentPage) {
       case 'dashboard': return <Dashboard />;
       case 'chart': return (
-        <div className="flex flex-1 overflow-hidden">
-          <div className="flex-1">
+        <div className="flex flex-1 overflow-hidden h-full">
+          <div className="flex-1 h-full overflow-hidden">
             <TradingChart />
           </div>
           <TradingPanel />

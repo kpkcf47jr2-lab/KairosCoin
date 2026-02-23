@@ -5,7 +5,7 @@ import { TIMEFRAMES, POPULAR_PAIRS } from '../../constants';
 import { calculateEMA, calculateRSI, calculateBollingerBands, calculateSMA } from '../../services/indicators';
 import marketData from '../../services/marketData';
 import useStore from '../../store/useStore';
-import { Search, Plus, Minus, Maximize, TrendingUp } from 'lucide-react';
+import { Search, TrendingUp } from 'lucide-react';
 
 export default function TradingChart() {
   const chartContainerRef = useRef(null);
@@ -13,19 +13,29 @@ export default function TradingChart() {
   const candleSeriesRef = useRef(null);
   const volumeSeriesRef = useRef(null);
   const indicatorSeriesRef = useRef([]);
+  const wsCleanupRef = useRef(null);
 
   const { selectedPair, selectedTimeframe, setSelectedPair, setSelectedTimeframe, setCurrentPrice, setPriceChange24h } = useStore();
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndicators, setActiveIndicators] = useState(['ema20']);
 
-  // Initialize chart
+  // Initialize chart ONCE
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    const container = chartContainerRef.current;
+    if (!container) return;
 
-    const chart = createChart(chartContainerRef.current, {
+    // Ensure container has dimensions before creating chart
+    const rect = container.getBoundingClientRect();
+    const initWidth = rect.width || container.clientWidth || 800;
+    const initHeight = rect.height || container.clientHeight || 500;
+
+    const chart = createChart(container, {
+      width: initWidth,
+      height: initHeight,
       layout: {
         background: { type: ColorType.Solid, color: '#0B0E11' },
         textColor: '#848E9C',
@@ -45,16 +55,17 @@ export default function TradingChart() {
         borderColor: '#1E222D',
         timeVisible: true,
         secondsVisible: false,
+        rightOffset: 5,
+        barSpacing: 8,
       },
       rightPriceScale: {
         borderColor: '#1E222D',
-        scaleMargins: { top: 0.1, bottom: 0.25 },
+        scaleMargins: { top: 0.05, bottom: 0.2 },
       },
-      handleScroll: true,
-      handleScale: true,
+      handleScroll: { mouseWheel: true, pressedMouseMove: true },
+      handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
     });
 
-    // Candlestick series
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#0ECB81',
       downColor: '#F6465D',
@@ -64,14 +75,13 @@ export default function TradingChart() {
       wickDownColor: '#F6465D',
     });
 
-    // Volume series
     const volumeSeries = chart.addHistogramSeries({
       color: '#3B82F622',
       priceFormat: { type: 'volume' },
-      priceScaleId: '',
+      priceScaleId: 'volume',
     });
 
-    chart.priceScale('').applyOptions({
+    chart.priceScale('volume').applyOptions({
       scaleMargins: { top: 0.8, bottom: 0 },
     });
 
@@ -79,59 +89,92 @@ export default function TradingChart() {
     candleSeriesRef.current = candleSeries;
     volumeSeriesRef.current = volumeSeries;
 
-    // Handle resize
-    const resizeObserver = new ResizeObserver(entries => {
+    // Responsive resize
+    const ro = new ResizeObserver(entries => {
+      if (!entries || !entries[0]) return;
       const { width, height } = entries[0].contentRect;
-      chart.applyOptions({ width, height });
+      if (width > 0 && height > 0) {
+        chart.applyOptions({ width, height });
+      }
     });
-    resizeObserver.observe(chartContainerRef.current);
+    ro.observe(container);
 
     return () => {
-      resizeObserver.disconnect();
+      ro.disconnect();
       chart.remove();
+      chartRef.current = null;
+      candleSeriesRef.current = null;
+      volumeSeriesRef.current = null;
     };
   }, []);
 
-  // Load data when pair/timeframe changes
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [candles, ticker] = await Promise.all([
-        marketData.getCandles(selectedPair, selectedTimeframe, 500),
-        marketData.get24hrTicker(selectedPair),
-      ]);
-
-      if (candleSeriesRef.current) {
-        candleSeriesRef.current.setData(candles);
-      }
-
-      if (volumeSeriesRef.current) {
-        volumeSeriesRef.current.setData(candles.map(c => ({
-          time: c.time,
-          value: c.volume,
-          color: c.close >= c.open ? '#0ECB8133' : '#F6465D33',
-        })));
-      }
-
-      setCurrentPrice(ticker.price);
-      setPriceChange24h(ticker.changePercent);
-
-      // Apply indicators
-      applyIndicators(candles);
-
-      // Fit chart
-      chartRef.current?.timeScale().fitContent();
-    } catch (err) {
-      console.error('Load chart data error:', err);
-    }
-    setLoading(false);
-  }, [selectedPair, selectedTimeframe]);
-
+  // Load candle data when pair/timeframe changes
   useEffect(() => {
-    loadData();
+    let cancelled = false;
 
-    // Connect WebSocket for real-time updates
-    const cleanup = marketData.connectStream(selectedPair, {
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const [candles, ticker] = await Promise.all([
+          marketData.getCandles(selectedPair, selectedTimeframe, 500),
+          marketData.get24hrTicker(selectedPair),
+        ]);
+
+        if (cancelled) return;
+
+        if (!candles || candles.length === 0) {
+          setError('No se recibieron datos de Binance');
+          setLoading(false);
+          return;
+        }
+
+        // Set candle data
+        if (candleSeriesRef.current) {
+          candleSeriesRef.current.setData(candles);
+        }
+
+        // Set volume data
+        if (volumeSeriesRef.current) {
+          volumeSeriesRef.current.setData(candles.map(c => ({
+            time: c.time,
+            value: c.volume || 0,
+            color: c.close >= c.open ? 'rgba(14,203,129,0.2)' : 'rgba(246,70,93,0.2)',
+          })));
+        }
+
+        // Update store
+        setCurrentPrice(ticker.price);
+        setPriceChange24h(ticker.changePercent);
+
+        // Apply indicators (safely)
+        try {
+          applyIndicators(candles);
+        } catch (indErr) {
+          console.warn('Indicator error (non-fatal):', indErr);
+        }
+
+        // Fit content
+        if (chartRef.current) {
+          chartRef.current.timeScale().fitContent();
+        }
+      } catch (err) {
+        console.error('Chart data load error:', err);
+        if (!cancelled) setError(`Error cargando datos: ${err.message}`);
+      }
+
+      if (!cancelled) setLoading(false);
+    };
+
+    load();
+
+    // WebSocket real-time updates
+    if (wsCleanupRef.current) {
+      wsCleanupRef.current();
+    }
+
+    wsCleanupRef.current = marketData.connectStream(selectedPair, {
       onTicker: (data) => {
         setCurrentPrice(data.price);
         setPriceChange24h(data.changePercent);
@@ -143,18 +186,26 @@ export default function TradingChart() {
         if (volumeSeriesRef.current) {
           volumeSeriesRef.current.update({
             time: candle.time,
-            value: candle.volume,
-            color: candle.close >= candle.open ? '#0ECB8133' : '#F6465D33',
+            value: candle.volume || 0,
+            color: candle.close >= candle.open ? 'rgba(14,203,129,0.2)' : 'rgba(246,70,93,0.2)',
           });
         }
       },
     });
 
-    return cleanup;
-  }, [selectedPair, selectedTimeframe, loadData]);
+    return () => {
+      cancelled = true;
+      if (wsCleanupRef.current) {
+        wsCleanupRef.current();
+        wsCleanupRef.current = null;
+      }
+    };
+  }, [selectedPair, selectedTimeframe]);
 
-  // Apply technical indicators
+  // Apply technical indicators (safe)
   const applyIndicators = (candles) => {
+    if (!chartRef.current) return;
+
     // Remove old indicators
     indicatorSeriesRef.current.forEach(s => {
       try { chartRef.current?.removeSeries(s); } catch {}
@@ -165,34 +216,63 @@ export default function TradingChart() {
     const times = candles.map(c => c.time);
 
     activeIndicators.forEach(ind => {
-      if (ind === 'ema20') {
-        const ema = calculateEMA(closes, 20);
-        const series = chartRef.current.addLineSeries({ color: '#3B82F6', lineWidth: 1, title: 'EMA 20' });
-        series.setData(ema.map((v, i) => ({ time: times[i], value: v })));
-        indicatorSeriesRef.current.push(series);
-      }
-      if (ind === 'ema50') {
-        const ema = calculateEMA(closes, 50);
-        const series = chartRef.current.addLineSeries({ color: '#2196F3', lineWidth: 1, title: 'EMA 50' });
-        series.setData(ema.map((v, i) => ({ time: times[i], value: v })));
-        indicatorSeriesRef.current.push(series);
-      }
-      if (ind === 'sma200') {
-        const sma = calculateSMA(closes, 200);
-        const series = chartRef.current.addLineSeries({ color: '#FF6D00', lineWidth: 1, title: 'SMA 200' });
-        series.setData(sma.map((v, i) => v !== null ? { time: times[i], value: v } : null).filter(Boolean));
-        indicatorSeriesRef.current.push(series);
-      }
-      if (ind === 'bb') {
-        const bb = calculateBollingerBands(closes);
-        const upperS = chartRef.current.addLineSeries({ color: '#9C27B0', lineWidth: 1, lineStyle: 2, title: 'BB Upper' });
-        const lowerS = chartRef.current.addLineSeries({ color: '#9C27B0', lineWidth: 1, lineStyle: 2, title: 'BB Lower' });
-        upperS.setData(bb.upper.map((v, i) => v !== null ? { time: times[i], value: v } : null).filter(Boolean));
-        lowerS.setData(bb.lower.map((v, i) => v !== null ? { time: times[i], value: v } : null).filter(Boolean));
-        indicatorSeriesRef.current.push(upperS, lowerS);
+      try {
+        if (ind === 'ema20') {
+          const ema = calculateEMA(closes, 20);
+          const validData = ema.map((v, i) => (v != null && isFinite(v)) ? { time: times[i], value: v } : null).filter(Boolean);
+          if (validData.length > 0) {
+            const series = chartRef.current.addLineSeries({ color: '#3B82F6', lineWidth: 1.5, title: 'EMA 20', lastValueVisible: false, priceLineVisible: false });
+            series.setData(validData);
+            indicatorSeriesRef.current.push(series);
+          }
+        }
+        if (ind === 'ema50') {
+          const ema = calculateEMA(closes, 50);
+          const validData = ema.map((v, i) => (v != null && isFinite(v)) ? { time: times[i], value: v } : null).filter(Boolean);
+          if (validData.length > 0) {
+            const series = chartRef.current.addLineSeries({ color: '#8B5CF6', lineWidth: 1.5, title: 'EMA 50', lastValueVisible: false, priceLineVisible: false });
+            series.setData(validData);
+            indicatorSeriesRef.current.push(series);
+          }
+        }
+        if (ind === 'sma200') {
+          const sma = calculateSMA(closes, 200);
+          const validData = sma.map((v, i) => (v != null && isFinite(v)) ? { time: times[i], value: v } : null).filter(Boolean);
+          if (validData.length > 0) {
+            const series = chartRef.current.addLineSeries({ color: '#FF6D00', lineWidth: 1, title: 'SMA 200', lastValueVisible: false, priceLineVisible: false });
+            series.setData(validData);
+            indicatorSeriesRef.current.push(series);
+          }
+        }
+        if (ind === 'bb') {
+          const bb = calculateBollingerBands(closes);
+          const upperData = bb.upper.map((v, i) => (v != null && isFinite(v)) ? { time: times[i], value: v } : null).filter(Boolean);
+          const lowerData = bb.lower.map((v, i) => (v != null && isFinite(v)) ? { time: times[i], value: v } : null).filter(Boolean);
+          if (upperData.length > 0) {
+            const upperS = chartRef.current.addLineSeries({ color: '#9C27B0', lineWidth: 1, lineStyle: 2, title: 'BB Upper', lastValueVisible: false, priceLineVisible: false });
+            const lowerS = chartRef.current.addLineSeries({ color: '#9C27B0', lineWidth: 1, lineStyle: 2, title: 'BB Lower', lastValueVisible: false, priceLineVisible: false });
+            upperS.setData(upperData);
+            lowerS.setData(lowerData);
+            indicatorSeriesRef.current.push(upperS, lowerS);
+          }
+        }
+      } catch (e) {
+        console.warn(`Indicator ${ind} error:`, e);
       }
     });
   };
+
+  // Re-apply indicators when toggled
+  useEffect(() => {
+    if (!candleSeriesRef.current) return;
+    const load = async () => {
+      try {
+        const candles = await marketData.getCandles(selectedPair, selectedTimeframe, 500);
+        applyIndicators(candles);
+      } catch {}
+    };
+    load();
+  }, [activeIndicators]);
 
   const toggleIndicator = (ind) => {
     setActiveIndicators(prev =>
@@ -201,16 +281,16 @@ export default function TradingChart() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col w-full h-full" style={{ minHeight: 0 }}>
       {/* Chart toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 shrink-0 flex-wrap" style={{ borderBottom: '1px solid var(--border)' }}>
         {/* Pair selector */}
         <div className="relative">
           <button
             onClick={() => setSearchOpen(!searchOpen)}
-            className="flex items-center gap-1 px-3 py-1.5 bg-[var(--dark-3)] rounded-lg text-sm font-bold hover:bg-[var(--dark-4)] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--dark-3)] rounded-lg text-sm font-bold hover:bg-[var(--dark-4)] transition-colors"
           >
-            <Search size={14} />
+            <Search size={13} className="text-[var(--text-dim)]" />
             {selectedPair}
           </button>
           {searchOpen && (
@@ -231,7 +311,7 @@ export default function TradingChart() {
                       key={pair}
                       onClick={() => { setSelectedPair(pair); setSearchOpen(false); setSearchQuery(''); }}
                       className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors
-                        ${pair === selectedPair ? 'bg-[var(--gold)]/20 text-[var(--gold)]' : 'text-[var(--text-dim)] hover:bg-[var(--dark-4)] hover:text-[var(--text)]'}`}
+                        ${pair === selectedPair ? 'bg-[var(--gold)]/15 text-[var(--gold)]' : 'text-[var(--text-dim)] hover:bg-[var(--dark-4)] hover:text-[var(--text)]'}`}
                     >
                       {pair}
                     </button>
@@ -257,24 +337,22 @@ export default function TradingChart() {
 
         {/* Indicators */}
         <div className="flex items-center gap-1 ml-auto">
-          <span className="text-xs text-[var(--text-dim)] mr-1">
-            <TrendingUp size={14} className="inline" /> Indicadores:
-          </span>
+          <TrendingUp size={13} className="text-[var(--text-dim)]" />
           {[
             { id: 'ema20', label: 'EMA 20', color: '#3B82F6' },
-            { id: 'ema50', label: 'EMA 50', color: '#2196F3' },
+            { id: 'ema50', label: 'EMA 50', color: '#8B5CF6' },
             { id: 'sma200', label: 'SMA 200', color: '#FF6D00' },
             { id: 'bb', label: 'BB', color: '#9C27B0' },
           ].map(ind => (
             <button
               key={ind.id}
               onClick={() => toggleIndicator(ind.id)}
-              className={`px-2 py-0.5 text-xs rounded-md border transition-colors
+              className={`px-2 py-0.5 text-[11px] rounded transition-all
                 ${activeIndicators.includes(ind.id)
-                  ? 'border-current text-current'
-                  : 'border-[var(--border)] text-[var(--text-dim)] hover:text-[var(--text)]'
+                  ? 'font-semibold'
+                  : 'text-[var(--text-dim)] hover:text-[var(--text)]'
                 }`}
-              style={activeIndicators.includes(ind.id) ? { color: ind.color } : {}}
+              style={activeIndicators.includes(ind.id) ? { color: ind.color, background: `${ind.color}15` } : {}}
             >
               {ind.label}
             </button>
@@ -282,11 +360,34 @@ export default function TradingChart() {
         </div>
       </div>
 
-      {/* Chart container */}
-      <div ref={chartContainerRef} className="flex-1 relative min-h-0" style={{ minHeight: '300px' }}>
+      {/* Chart container — MUST have explicit height */}
+      <div
+        ref={chartContainerRef}
+        className="relative"
+        style={{ flex: '1 1 0%', minHeight: 0, overflow: 'hidden' }}
+      >
+        {/* Loading overlay */}
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0B0E11]/90 z-10">
-            <div className="text-sm text-[var(--gold)] animate-pulse font-medium">Cargando gráfico...</div>
+          <div className="absolute inset-0 flex items-center justify-center z-20" style={{ background: 'rgba(11,14,17,0.85)' }}>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-8 h-8 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs text-[var(--text-dim)]">Cargando {selectedPair}...</span>
+            </div>
+          </div>
+        )}
+
+        {/* Error message */}
+        {error && !loading && (
+          <div className="absolute inset-0 flex items-center justify-center z-20" style={{ background: 'rgba(11,14,17,0.9)' }}>
+            <div className="text-center">
+              <p className="text-sm text-[var(--red)] mb-2">{error}</p>
+              <button
+                onClick={() => { setError(null); setLoading(true); }}
+                className="px-4 py-2 text-xs bg-[var(--gold)] text-white rounded-lg font-semibold"
+              >
+                Reintentar
+              </button>
+            </div>
           </div>
         )}
       </div>
