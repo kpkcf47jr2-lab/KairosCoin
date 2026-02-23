@@ -25,6 +25,8 @@ import NFTScreen from './components/NFT/NFTScreen';
 import DAppBrowserScreen from './components/DAppBrowser/DAppBrowserScreen';
 import BuyCryptoScreen from './components/Buy/BuyCryptoScreen';
 import BridgeScreen from './components/Bridge/BridgeScreen';
+import NetworksScreen from './components/Settings/NetworksScreen';
+import ApprovalsScreen from './components/Security/ApprovalsScreen';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import Toast from './components/Common/Toast';
 
@@ -100,6 +102,10 @@ export default function App() {
         return <BuyCryptoScreen key="buy" />;
       case 'bridge':
         return <BridgeScreen key="bridge" />;
+      case 'networks':
+        return <NetworksScreen key="networks" />;
+      case 'approvals':
+        return <ApprovalsScreen key="approvals" />;
       default:
         return <LoadingScreen key="loading" />;
     }

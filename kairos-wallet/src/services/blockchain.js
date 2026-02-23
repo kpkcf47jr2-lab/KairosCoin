@@ -12,23 +12,51 @@ import { getDiscoveredTokens } from './tokenDiscovery';
 const providerCache = new Map();
 
 /**
- * Get or create a provider for a chain
+ * Get or create a provider for a chain.
+ * Uses FallbackProvider when multiple RPCs are available for automatic failover.
  */
 export function getProvider(chainId) {
+  // Support custom chains from localStorage
+  const customChains = JSON.parse(localStorage.getItem('kairos_custom_chains') || '{}');
+  const chain = CHAINS[chainId] || customChains[chainId];
+  if (!chain) throw new Error(`Chain ${chainId} not supported`);
+
   const key = `provider_${chainId}`;
   if (providerCache.has(key)) return providerCache.get(key);
 
-  const chain = CHAINS[chainId];
-  if (!chain) throw new Error(`Chain ${chainId} not supported`);
+  let provider;
+  const rpcUrls = chain.rpcUrls || [chain.rpcUrl];
 
-  // Create FallbackProvider with multiple RPCs for reliability
-  const provider = new ethers.JsonRpcProvider(chain.rpcUrls[0], chainId, {
-    staticNetwork: true,
-    batchMaxCount: 10,
-  });
+  if (rpcUrls.length > 1) {
+    // Real FallbackProvider — tries each RPC in order
+    const providers = rpcUrls.map((url, i) => {
+      const p = new ethers.JsonRpcProvider(url, chainId, {
+        staticNetwork: true,
+        batchMaxCount: 10,
+      });
+      return { provider: p, priority: i + 1, stallTimeout: 2000, weight: 1 };
+    });
+    provider = new ethers.FallbackProvider(providers, chainId);
+  } else {
+    provider = new ethers.JsonRpcProvider(rpcUrls[0], chainId, {
+      staticNetwork: true,
+      batchMaxCount: 10,
+    });
+  }
 
   providerCache.set(key, provider);
   return provider;
+}
+
+/**
+ * Clear provider cache (used when custom networks change)
+ */
+export function clearProviderCache(chainId) {
+  if (chainId) {
+    providerCache.delete(`provider_${chainId}`);
+  } else {
+    providerCache.clear();
+  }
 }
 
 /**
@@ -353,4 +381,214 @@ export async function getGasPrice(chainId) {
     fast: parseFloat(gwei) * 1.3,
     instant: parseFloat(gwei) * 1.8,
   };
+}
+
+// ═══════════════════════════════════════════════════════
+//  Speed-Up / Cancel Pending Transactions
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Speed up a pending transaction by re-submitting with same nonce + higher gas
+ */
+export async function speedUpTransaction(chainId, privateKey, originalTx) {
+  const provider = getProvider(chainId);
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const feeData = await provider.getFeeData();
+  
+  const txParams = {
+    to: originalTx.to,
+    value: ethers.parseEther(originalTx.value?.toString() || '0'),
+    data: originalTx.data || '0x',
+    nonce: originalTx.nonce,
+  };
+
+  // 30% gas bump (EIP-1559 requires at least 10% bump to replace)
+  if (feeData.maxFeePerGas) {
+    txParams.maxFeePerGas = feeData.maxFeePerGas * 150n / 100n;
+    txParams.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas * 150n / 100n;
+  } else {
+    txParams.gasPrice = feeData.gasPrice * 150n / 100n;
+  }
+
+  const tx = await wallet.sendTransaction(txParams);
+  return { hash: tx.hash, nonce: tx.nonce, status: 'pending' };
+}
+
+/**
+ * Cancel a pending transaction by sending 0 value to self with same nonce
+ */
+export async function cancelTransaction(chainId, privateKey, nonce) {
+  const provider = getProvider(chainId);
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const feeData = await provider.getFeeData();
+  
+  const txParams = {
+    to: wallet.address,
+    value: 0n,
+    nonce: nonce,
+  };
+
+  // Use 50% higher gas to ensure replacement
+  if (feeData.maxFeePerGas) {
+    txParams.maxFeePerGas = feeData.maxFeePerGas * 200n / 100n;
+    txParams.maxPriorityFeePerGas = feeData.maxPriorityFeePerGas * 200n / 100n;
+  } else {
+    txParams.gasPrice = feeData.gasPrice * 200n / 100n;
+  }
+
+  const tx = await wallet.sendTransaction(txParams);
+  return { hash: tx.hash, nonce: tx.nonce, status: 'cancelling' };
+}
+
+/**
+ * Send native with custom gas parameters
+ */
+export async function sendNativeCustomGas(chainId, privateKey, to, amount, gasParams) {
+  const provider = getProvider(chainId);
+  const wallet = new ethers.Wallet(privateKey, provider);
+
+  const txParams = {
+    to,
+    value: ethers.parseEther(amount.toString()),
+  };
+
+  if (gasParams.maxFeePerGas) {
+    txParams.maxFeePerGas = ethers.parseUnits(gasParams.maxFeePerGas.toString(), 'gwei');
+    txParams.maxPriorityFeePerGas = ethers.parseUnits(
+      (gasParams.maxPriorityFeePerGas || gasParams.maxFeePerGas * 0.1).toString(), 'gwei'
+    );
+  } else if (gasParams.gasPrice) {
+    txParams.gasPrice = ethers.parseUnits(gasParams.gasPrice.toString(), 'gwei');
+  }
+
+  if (gasParams.gasLimit) {
+    txParams.gasLimit = BigInt(gasParams.gasLimit);
+  }
+
+  const tx = await wallet.sendTransaction(txParams);
+  return {
+    hash: tx.hash,
+    from: tx.from,
+    to: tx.to,
+    value: amount,
+    chainId,
+    nonce: tx.nonce,
+    timestamp: Date.now(),
+    status: 'pending',
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+//  Token Approvals Management
+// ═══════════════════════════════════════════════════════
+
+const APPROVAL_ABI = [
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function approve(address spender, uint256 amount) returns (bool)',
+  'event Approval(address indexed owner, address indexed spender, uint256 value)',
+];
+
+/**
+ * Get all token approvals for known DEX routers
+ */
+export async function getTokenApprovals(chainId, walletAddress, tokenAddresses) {
+  const provider = getProvider(chainId);
+  const chain = CHAINS[chainId];
+  if (!chain) return [];
+
+  // Common spenders to check: DEX routers, bridge contracts
+  const KNOWN_SPENDERS = {
+    [chain.dexRouter]: chain.dexName || 'DEX Router',
+    ...(chain.wrappedNative ? {} : {}),
+  };
+
+  const approvals = [];
+
+  for (const tokenAddr of tokenAddresses) {
+    const contract = new ethers.Contract(tokenAddr, [...ERC20_ABI, ...APPROVAL_ABI], provider);
+    
+    for (const [spender, label] of Object.entries(KNOWN_SPENDERS)) {
+      if (!spender) continue;
+      try {
+        const allowance = await contract.allowance(walletAddress, spender);
+        if (allowance > 0n) {
+          const decimals = await contract.decimals().catch(() => 18);
+          const symbol = await contract.symbol().catch(() => '???');
+          const isUnlimited = allowance >= ethers.MaxUint256 / 2n;
+
+          approvals.push({
+            tokenAddress: tokenAddr,
+            tokenSymbol: symbol,
+            spender,
+            spenderLabel: label,
+            allowance: isUnlimited ? 'Unlimited' : ethers.formatUnits(allowance, decimals),
+            allowanceRaw: allowance.toString(),
+            isUnlimited,
+          });
+        }
+      } catch { /* skip errors */ }
+    }
+  }
+
+  return approvals;
+}
+
+/**
+ * Revoke a token approval (set allowance to 0)
+ */
+export async function revokeApproval(chainId, privateKey, tokenAddress, spenderAddress) {
+  const provider = getProvider(chainId);
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const contract = new ethers.Contract(tokenAddress, APPROVAL_ABI, wallet);
+
+  const tx = await contract.approve(spenderAddress, 0n);
+  await tx.wait();
+
+  return { hash: tx.hash, status: 'revoked' };
+}
+
+/**
+ * Approve with a specific spending cap (not unlimited)
+ */
+export async function approveWithCap(chainId, privateKey, tokenAddress, spenderAddress, amount, decimals = 18) {
+  const provider = getProvider(chainId);
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const contract = new ethers.Contract(tokenAddress, APPROVAL_ABI, wallet);
+
+  const parsedAmount = ethers.parseUnits(amount.toString(), decimals);
+  const tx = await contract.approve(spenderAddress, parsedAmount);
+  await tx.wait();
+
+  return { hash: tx.hash, status: 'approved', amount };
+}
+
+// ═══════════════════════════════════════════════════════
+//  ENS Resolution
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Resolve ENS name to address (works on Ethereum mainnet)
+ */
+export async function resolveENS(name) {
+  try {
+    // ENS resolution requires Ethereum mainnet provider
+    const ethProvider = getProvider(1);
+    const address = await ethProvider.resolveName(name);
+    return address;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reverse resolve address to ENS name
+ */
+export async function lookupENS(address) {
+  try {
+    const ethProvider = getProvider(1);
+    const name = await ethProvider.lookupAddress(address);
+    return name;
+  } catch {
+    return null;
+  }
 }

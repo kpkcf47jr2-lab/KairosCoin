@@ -7,10 +7,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Send as SendIcon, ChevronDown, AlertTriangle, Fuel, Check, BookOpen, ScanLine } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { sendNative, sendToken, estimateGasNative, estimateGasToken, waitForTransaction } from '../../services/blockchain';
+import { sendNative, sendToken, estimateGasNative, estimateGasToken, waitForTransaction, resolveENS } from '../../services/blockchain';
 import { formatBalance, formatUSD } from '../../services/prices';
 import { isValidAddress, formatAddress, unlockVault } from '../../services/wallet';
 import { CHAINS, KAIROS_TOKEN, GAS_PRESETS } from '../../constants/chains';
+import { analyzeTxRisk, getRiskColor } from '../../services/security';
 import TokenIcon from '../Common/TokenIcon';
 import QRScanner from '../Common/QRScanner';
 import { getContacts, getRecentContacts, touchContact } from '../../services/contacts';
@@ -37,6 +38,9 @@ export default function SendScreen() {
   const account = getActiveAccount();
   const [showContacts, setShowContacts] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const [ensName, setEnsName] = useState(null);
+  const [resolvingENS, setResolvingENS] = useState(false);
+  const [txWarnings, setTxWarnings] = useState([]);
   const contacts = useMemo(() => getContacts(), []);
   const recentContacts = useMemo(() => getRecentContacts(3), []);
 
@@ -69,7 +73,30 @@ export default function SendScreen() {
   }, [selectedToken, nativePrice, tokenPrices]);
 
   const usdValue = parseFloat(amount || 0) * tokenPrice;
-  const isValid = isValidAddress(recipient) && parseFloat(amount) > 0;
+  const finalRecipient = ensName || recipient;
+  const isValid = isValidAddress(finalRecipient) && parseFloat(amount) > 0;
+
+  // Resolve ENS names (.eth)
+  useEffect(() => {
+    if (!recipient) { setEnsName(null); return; }
+    if (recipient.endsWith('.eth') || recipient.endsWith('.bnb')) {
+      setResolvingENS(true);
+      resolveENS(recipient).then(addr => {
+        if (addr) setEnsName(addr);
+        else setEnsName(null);
+      }).finally(() => setResolvingENS(false));
+    } else {
+      setEnsName(null);
+    }
+  }, [recipient]);
+
+  // Security warnings
+  useEffect(() => {
+    const finalRecipient = ensName || recipient;
+    if (!finalRecipient || !isValidAddress(finalRecipient)) { setTxWarnings([]); return; }
+    const risk = analyzeTxRisk({ from: activeAddress, to: finalRecipient, value: amount });
+    setTxWarnings(risk.reasons);
+  }, [recipient, ensName, amount, activeAddress]);
 
   // Estimate gas when form is valid
   useEffect(() => {
@@ -78,10 +105,10 @@ export default function SendScreen() {
     const estimate = async () => {
       try {
         if (selectedToken.isNative) {
-          const est = await estimateGasNative(activeChainId, activeAddress, recipient, amount);
+          const est = await estimateGasNative(activeChainId, activeAddress, finalRecipient, amount);
           setGasEstimate(est);
         } else {
-          const est = await estimateGasToken(activeChainId, activeAddress, selectedToken.address, recipient, amount, selectedToken.decimals);
+          const est = await estimateGasToken(activeChainId, activeAddress, selectedToken.address, finalRecipient, amount, selectedToken.decimals);
           setGasEstimate(est);
         }
       } catch { }
@@ -108,11 +135,11 @@ export default function SendScreen() {
     try {
       let result;
       if (selectedToken.isNative) {
-        result = await sendNative(activeChainId, account.privateKey, recipient, amount, gasPreset);
+        result = await sendNative(activeChainId, account.privateKey, finalRecipient, amount, gasPreset);
       } else {
         result = await sendToken(
           activeChainId, account.privateKey, selectedToken.address,
-          recipient, amount, selectedToken.decimals, gasPreset
+          finalRecipient, amount, selectedToken.decimals, gasPreset
         );
       }
 
@@ -337,13 +364,28 @@ export default function SendScreen() {
             type="text"
             value={recipient}
             onChange={e => setRecipient(e.target.value)}
-            placeholder="0x..."
+            placeholder="0x... o nombre.eth"
             className={`glass-input font-mono text-sm ${
-              recipient && !isValidAddress(recipient) ? 'border-red-500/50' : ''
+              recipient && !isValidAddress(recipient) && !ensName && !recipient.endsWith('.eth') ? 'border-red-500/50' : ''
             }`}
           />
-          {recipient && !isValidAddress(recipient) && (
+          {resolvingENS && (
+            <p className="text-kairos-400 text-xs mt-1">Resolviendo ENS...</p>
+          )}
+          {ensName && (
+            <p className="text-green-400 text-xs mt-1">✓ {formatAddress(ensName, 8)}</p>
+          )}
+          {recipient && !isValidAddress(recipient) && !ensName && !resolvingENS && !recipient.endsWith('.eth') && (
             <p className="text-red-400 text-xs mt-1">Dirección inválida</p>
+          )}
+          {txWarnings.length > 0 && (
+            <div className="mt-2 space-y-1">
+              {txWarnings.map((w, i) => (
+                <p key={i} className="text-orange-400 text-[11px] flex items-center gap-1">
+                  <AlertTriangle size={10} /> {w}
+                </p>
+              ))}
+            </div>
           )}
 
           {/* Quick contacts dropdown */}

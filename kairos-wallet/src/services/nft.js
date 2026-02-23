@@ -22,12 +22,17 @@ const ERC1155_ABI = [
   'function balanceOf(address account, uint256 id) view returns (uint256)',
 ];
 
-// Explorer API keys (free tier)
+// Explorer API keys (free tier — register for better limits)
 const API_KEYS = {
-  56: '', // BscScan
-  1: '',  // Etherscan
-  137: '', // PolygonScan
+  56: 'YourApiKeyToken',   // BscScan — https://bscscan.com/myapikey
+  1: 'YourApiKeyToken',    // Etherscan — https://etherscan.io/myapikey
+  137: 'YourApiKeyToken',  // PolygonScan — https://polygonscan.com/myapikey
+  42161: 'YourApiKeyToken', // Arbiscan
+  8453: 'YourApiKeyToken',  // BaseScan
 };
+
+// NOTE: Replace 'YourApiKeyToken' with real keys for production.
+// Free tier without keys has ~1 req/5s limit which is very slow.
 
 // Cache NFTs per address+chain
 const nftCache = {};

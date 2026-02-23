@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, User, Shield, Globe, Bell, Palette, Info,
-  ChevronRight, LogOut, Trash2, Key, Plus, Copy, Check, ExternalLink, Eye, EyeOff, AlertTriangle, Link2, FileText
+  ChevronRight, LogOut, Trash2, Key, Plus, Copy, Check, ExternalLink, Eye, EyeOff, AlertTriangle, Link2, FileText, Edit3, ShieldCheck
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { formatAddress, resetWallet, addAccount, unlockVault } from '../../services/wallet';
@@ -48,6 +48,8 @@ export default function SettingsScreen() {
 
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetStep, setResetStep] = useState(1); // 1 = first confirm, 2 = second confirm
+  const [renameAddress, setRenameAddress] = useState(null);
+  const [renameName, setRenameName] = useState('');
 
   const accounts = getAllAccounts();
   const chain = CHAINS[activeChainId];
@@ -222,7 +224,15 @@ export default function SettingsScreen() {
           icon: Globe,
           label: t('settings.network'),
           desc: `${chain.icon} ${chain.name}`,
+          action: () => navigate('networks'),
           color: 'text-cyan-400',
+        },
+        {
+          icon: ShieldCheck,
+          label: t('settings.approvals', 'Aprobaciones'),
+          desc: t('settings.approvals_desc', 'Gestionar permisos de tokens'),
+          action: () => navigate('approvals'),
+          color: 'text-orange-400',
         },
         {
           icon: Globe,
@@ -337,6 +347,12 @@ export default function SettingsScreen() {
                   >
                     {hasCopied === acc.address ? <Check size={14} className="text-green-400" /> : <Copy size={14} />}
                   </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setRenameAddress(acc.address); setRenameName(acc.name || ''); }}
+                    className="text-dark-400 hover:text-dark-200 p-1"
+                  >
+                    <Edit3 size={14} />
+                  </button>
                   {acc.address === activeAddress && (
                     <div className="w-2 h-2 rounded-full bg-kairos-400" />
                   )}
@@ -353,6 +369,65 @@ export default function SettingsScreen() {
             </div>
           </motion.div>
         )}
+
+        {/* Rename Account Modal */}
+        <AnimatePresence>
+          {renameAddress && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-6"
+              onClick={() => setRenameAddress(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.9 }}
+                onClick={e => e.stopPropagation()}
+                className="glass-card-strong p-5 w-full max-w-sm"
+              >
+                <h3 className="text-base font-bold mb-3">Renombrar Cuenta</h3>
+                <input
+                  value={renameName}
+                  onChange={e => setRenameName(e.target.value)}
+                  placeholder="Nombre de la cuenta"
+                  className="glass-input mb-3 text-sm"
+                  autoFocus
+                  maxLength={30}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setRenameAddress(null)}
+                    className="glass-button flex-1 py-2.5 text-center text-sm"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!vault || !renameName.trim()) return;
+                      // Update name in vault
+                      const accs = vault.accounts || [];
+                      const imported = vault.importedAccounts || [];
+                      for (const a of [...accs, ...imported]) {
+                        if (a.address.toLowerCase() === renameAddress.toLowerCase()) {
+                          a.name = renameName.trim();
+                          break;
+                        }
+                      }
+                      showToast(`Renombrado a "${renameName.trim()}"`, 'success');
+                      setRenameAddress(null);
+                    }}
+                    disabled={!renameName.trim()}
+                    className="kairos-button flex-1 py-2.5 text-sm disabled:opacity-40"
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Export Private Key Modal */}
         <AnimatePresence>
