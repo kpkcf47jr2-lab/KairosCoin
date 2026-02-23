@@ -113,7 +113,7 @@ export default function BotManager() {
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--gold)] text-black font-bold rounded-xl hover:bg-[var(--gold-light)] transition-colors text-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--gold)] text-white font-bold rounded-xl hover:bg-[var(--gold-light)] transition-colors text-sm"
         >
           <Plus size={16} /> Crear Bot
         </button>
@@ -209,7 +209,7 @@ export default function BotManager() {
               <div className="flex gap-2">
                 <button
                   onClick={handleCreate}
-                  className="flex-1 py-2.5 bg-[var(--gold)] text-black font-bold rounded-xl text-sm hover:bg-[var(--gold-light)] transition-colors"
+                  className="flex-1 py-2.5 bg-[var(--gold)] text-white font-bold rounded-xl text-sm hover:bg-[var(--gold-light)] transition-colors"
                 >
                   Crear Bot
                 </button>

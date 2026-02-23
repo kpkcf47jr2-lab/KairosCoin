@@ -19,6 +19,7 @@ import BrokerManager from './components/Broker/BrokerManager';
 import AIChat from './components/AI/AIChat';
 import StrategyBuilder from './components/Strategy/StrategyBuilder';
 import TradeHistory from './components/Trading/TradeHistory';
+import SimulatorScreen from './components/Trading/SimulatorScreen';
 import SettingsPanel from './components/Settings/SettingsPanel';
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
         </div>
       );
       case 'bots': return <BotManager />;
+      case 'simulator': return <SimulatorScreen />;
       case 'brokers': return <BrokerManager />;
       case 'ai': return <AIChat />;
       case 'strategies': return <StrategyBuilder />;
@@ -47,7 +49,7 @@ function App() {
       case 'wallet': return (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <div className="w-16 h-16 rounded-2xl bg-[var(--gold)]/20 flex items-center justify-center text-[var(--gold)] text-2xl font-bold mx-auto mb-4">K</div>
+            <div className="w-16 h-16 rounded-2xl bg-[var(--gold)]/15 flex items-center justify-center text-[var(--gold)] text-2xl font-bold mx-auto mb-4">K</div>
             <h2 className="text-lg font-bold mb-2">Kairos Wallet</h2>
             <p className="text-sm text-[var(--text-dim)] mb-4 max-w-xs">
               Conecta tu Kairos Wallet para integrar tus balances de KAIROS Coin con la plataforma de trading.
@@ -56,7 +58,7 @@ function App() {
               href="https://kairos-wallet.netlify.app"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--gold)] text-black font-bold rounded-xl hover:bg-[var(--gold-light)] transition-colors"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--gold)] text-white font-semibold rounded-xl hover:bg-[var(--gold-light)] transition-colors"
             >
               Abrir Kairos Wallet
             </a>
@@ -73,7 +75,7 @@ function App() {
       <Toaster
         position="top-right"
         toastOptions={{
-          style: { background: '#1A1A25', color: '#E8E8F0', border: '1px solid #2A2A3A' },
+          style: { background: '#181A20', color: '#EAECEF', border: '1px solid #1E222D', fontSize: '13px' },
         }}
       />
 

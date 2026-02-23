@@ -27,27 +27,27 @@ export default function TradingChart() {
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#0A0A0F' },
-        textColor: '#8888A0',
+        background: { type: ColorType.Solid, color: '#0B0E11' },
+        textColor: '#848E9C',
         fontFamily: 'Inter, sans-serif',
         fontSize: 11,
       },
       grid: {
-        vertLines: { color: '#1A1A25' },
-        horzLines: { color: '#1A1A25' },
+        vertLines: { color: '#1E222D' },
+        horzLines: { color: '#1E222D' },
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: '#D4AF37', width: 1, style: 2 },
-        horzLine: { color: '#D4AF37', width: 1, style: 2 },
+        vertLine: { color: '#3B82F6', width: 1, style: 2, labelBackgroundColor: '#3B82F6' },
+        horzLine: { color: '#3B82F6', width: 1, style: 2, labelBackgroundColor: '#3B82F6' },
       },
       timeScale: {
-        borderColor: '#2A2A3A',
+        borderColor: '#1E222D',
         timeVisible: true,
         secondsVisible: false,
       },
       rightPriceScale: {
-        borderColor: '#2A2A3A',
+        borderColor: '#1E222D',
         scaleMargins: { top: 0.1, bottom: 0.25 },
       },
       handleScroll: true,
@@ -56,17 +56,17 @@ export default function TradingChart() {
 
     // Candlestick series
     const candleSeries = chart.addCandlestickSeries({
-      upColor: '#00C853',
-      downColor: '#FF1744',
-      borderUpColor: '#00C853',
-      borderDownColor: '#FF1744',
-      wickUpColor: '#00C853',
-      wickDownColor: '#FF1744',
+      upColor: '#0ECB81',
+      downColor: '#F6465D',
+      borderUpColor: '#0ECB81',
+      borderDownColor: '#F6465D',
+      wickUpColor: '#0ECB81',
+      wickDownColor: '#F6465D',
     });
 
     // Volume series
     const volumeSeries = chart.addHistogramSeries({
-      color: '#D4AF3733',
+      color: '#3B82F622',
       priceFormat: { type: 'volume' },
       priceScaleId: '',
     });
@@ -109,7 +109,7 @@ export default function TradingChart() {
         volumeSeriesRef.current.setData(candles.map(c => ({
           time: c.time,
           value: c.volume,
-          color: c.close >= c.open ? '#00C85333' : '#FF174433',
+          color: c.close >= c.open ? '#0ECB8133' : '#F6465D33',
         })));
       }
 
@@ -144,7 +144,7 @@ export default function TradingChart() {
           volumeSeriesRef.current.update({
             time: candle.time,
             value: candle.volume,
-            color: candle.close >= candle.open ? '#00C85333' : '#FF174433',
+            color: candle.close >= candle.open ? '#0ECB8133' : '#F6465D33',
           });
         }
       },
@@ -167,7 +167,7 @@ export default function TradingChart() {
     activeIndicators.forEach(ind => {
       if (ind === 'ema20') {
         const ema = calculateEMA(closes, 20);
-        const series = chartRef.current.addLineSeries({ color: '#D4AF37', lineWidth: 1, title: 'EMA 20' });
+        const series = chartRef.current.addLineSeries({ color: '#3B82F6', lineWidth: 1, title: 'EMA 20' });
         series.setData(ema.map((v, i) => ({ time: times[i], value: v })));
         indicatorSeriesRef.current.push(series);
       }
@@ -203,7 +203,7 @@ export default function TradingChart() {
   return (
     <div className="flex flex-col h-full">
       {/* Chart toolbar */}
-      <div className="flex items-center gap-2 p-2 border-b border-[var(--border)] bg-[var(--dark-2)] shrink-0 flex-wrap">
+      <div className="flex items-center gap-2 px-3 py-2 shrink-0 flex-wrap" style={{ borderBottom: '1px solid var(--border)' }}>
         {/* Pair selector */}
         <div className="relative">
           <button
@@ -248,7 +248,7 @@ export default function TradingChart() {
               key={tf.value}
               onClick={() => setSelectedTimeframe(tf.value)}
               className={`px-2.5 py-1 text-xs rounded-md transition-colors
-                ${selectedTimeframe === tf.value ? 'bg-[var(--gold)] text-black font-bold' : 'text-[var(--text-dim)] hover:text-[var(--text)]'}`}
+                ${selectedTimeframe === tf.value ? 'bg-[var(--gold)] text-white font-bold' : 'text-[var(--text-dim)] hover:text-[var(--text)]'}`}
             >
               {tf.label}
             </button>
@@ -261,7 +261,7 @@ export default function TradingChart() {
             <TrendingUp size={14} className="inline" /> Indicadores:
           </span>
           {[
-            { id: 'ema20', label: 'EMA 20', color: '#D4AF37' },
+            { id: 'ema20', label: 'EMA 20', color: '#3B82F6' },
             { id: 'ema50', label: 'EMA 50', color: '#2196F3' },
             { id: 'sma200', label: 'SMA 200', color: '#FF6D00' },
             { id: 'bb', label: 'BB', color: '#9C27B0' },
@@ -283,10 +283,10 @@ export default function TradingChart() {
       </div>
 
       {/* Chart container */}
-      <div ref={chartContainerRef} className="flex-1 relative">
+      <div ref={chartContainerRef} className="flex-1 relative min-h-0" style={{ minHeight: '300px' }}>
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[var(--dark)]/80 z-10">
-            <div className="text-sm text-[var(--gold)] animate-pulse">Cargando gráfico...</div>
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0B0E11]/90 z-10">
+            <div className="text-sm text-[var(--gold)] animate-pulse font-medium">Cargando gráfico...</div>
           </div>
         )}
       </div>

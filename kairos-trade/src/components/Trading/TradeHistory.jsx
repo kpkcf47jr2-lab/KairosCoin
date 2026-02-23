@@ -52,13 +52,13 @@ export default function TradeHistory() {
       <div className="flex gap-1 bg-[var(--dark-3)] rounded-lg p-1 w-fit">
         <button
           onClick={() => setTab('open')}
-          className={`px-4 py-1.5 text-sm rounded-md ${tab === 'open' ? 'bg-[var(--gold)] text-black font-bold' : 'text-[var(--text-dim)]'}`}
+          className={`px-4 py-1.5 text-sm rounded-md ${tab === 'open' ? 'bg-[var(--gold)] text-white font-bold' : 'text-[var(--text-dim)]'}`}
         >
           Abiertas ({positions.length})
         </button>
         <button
           onClick={() => setTab('closed')}
-          className={`px-4 py-1.5 text-sm rounded-md ${tab === 'closed' ? 'bg-[var(--gold)] text-black font-bold' : 'text-[var(--text-dim)]'}`}
+          className={`px-4 py-1.5 text-sm rounded-md ${tab === 'closed' ? 'bg-[var(--gold)] text-white font-bold' : 'text-[var(--text-dim)]'}`}
         >
           Cerradas ({tradeHistory.length})
         </button>

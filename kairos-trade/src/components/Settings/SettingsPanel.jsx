@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Key, Shield, Globe, Bell, Volume2, Percent, Wallet } from 'lucide-react';
 import useStore from '../../store/useStore';
+import aiService from '../../services/ai';
 
 export default function SettingsPanel() {
   const { settings, updateSettings, user } = useStore();
@@ -11,7 +12,6 @@ export default function SettingsPanel() {
 
   const handleSaveApiKey = () => {
     if (apiKey.trim()) {
-      const { default: aiService } = require('../../services/ai');
       aiService.setApiKey(apiKey.trim());
       updateSettings({ openaiKey: apiKey.trim() });
       setSaved(true);
@@ -56,7 +56,7 @@ export default function SettingsPanel() {
           />
           <button
             onClick={handleSaveApiKey}
-            className="px-4 py-2 bg-[var(--gold)] text-black rounded-xl text-sm font-bold"
+            className="px-4 py-2 bg-[var(--gold)] text-white rounded-xl text-sm font-bold"
           >
             {saved ? '✓ Guardado' : 'Guardar'}
           </button>

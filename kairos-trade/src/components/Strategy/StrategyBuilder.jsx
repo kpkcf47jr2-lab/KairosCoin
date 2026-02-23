@@ -98,7 +98,7 @@ export default function StrategyBuilder() {
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--gold)] text-black font-bold rounded-xl hover:bg-[var(--gold-light)] transition-colors text-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--gold)] text-white font-bold rounded-xl hover:bg-[var(--gold-light)] transition-colors text-sm"
         >
           <Plus size={16} /> Crear Estrategia
         </button>
@@ -202,7 +202,7 @@ export default function StrategyBuilder() {
               </div>
 
               <div className="flex gap-2">
-                <button onClick={handleCreate} className="flex-1 py-2.5 bg-[var(--gold)] text-black font-bold rounded-xl text-sm">Crear Estrategia</button>
+                <button onClick={handleCreate} className="flex-1 py-2.5 bg-[var(--gold)] text-white font-bold rounded-xl text-sm">Crear Estrategia</button>
                 <button onClick={() => setShowCreate(false)} className="px-4 py-2.5 bg-[var(--dark-3)] text-[var(--text-dim)] rounded-xl text-sm">Cancelar</button>
               </div>
             </div>

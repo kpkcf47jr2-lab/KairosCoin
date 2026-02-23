@@ -53,10 +53,10 @@ export default function Dashboard() {
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
       {/* Welcome */}
       <div>
-        <h1 className="text-2xl font-bold" style={{ fontFamily: 'Playfair Display, serif' }}>
-          <span className="text-[var(--gold)]">Kairos</span> Trade
+        <h1 className="text-2xl font-bold tracking-tight">
+          <span className="text-[var(--gold)]">Kairos</span> <span className="text-[var(--text)]">Trade</span>
         </h1>
-        <p className="text-sm text-[var(--text-dim)]">Tu centro de control de trading automatizado</p>
+        <p className="text-sm text-[var(--text-dim)] mt-0.5">Tu centro de control de trading automatizado</p>
       </div>
 
       {/* Stats grid */}
@@ -70,7 +70,7 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
               onClick={() => setPage(stat.action)}
-              className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl p-4 text-left hover:border-[var(--gold)]/30 transition-colors"
+              className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl p-4 text-left hover:border-[var(--gold)]/20 transition-colors"
             >
               <div className="flex items-center justify-between mb-2">
                 <Icon size={20} style={{ color: stat.color }} />
@@ -101,7 +101,7 @@ export default function Dashboard() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + i * 0.05 }}
               onClick={() => setPage(action.page)}
-              className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl p-4 text-left hover:border-[var(--gold)]/30 transition-all group"
+              className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl p-4 text-left hover:border-[var(--gold)]/20 transition-all group"
             >
               <Icon size={24} className="text-[var(--gold)] mb-2 group-hover:scale-110 transition-transform" />
               <p className="text-sm font-bold">{action.label}</p>

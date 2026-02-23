@@ -48,11 +48,11 @@ export default function AuthScreen() {
       >
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-[var(--gold)] flex items-center justify-center text-black font-bold text-2xl mx-auto mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-[var(--gold)] flex items-center justify-center text-white font-bold text-2xl mx-auto mb-4">
             K
           </div>
-          <h1 className="text-2xl font-bold text-[var(--gold)]" style={{ fontFamily: 'Playfair Display, serif' }}>
-            KAIROS TRADE
+          <h1 className="text-2xl font-bold tracking-tight">
+            <span className="text-[var(--gold)]">KAIROS</span> <span className="text-[var(--text)]">TRADE</span>
           </h1>
           <p className="text-sm text-[var(--text-dim)] mt-1">
             Trading automatizado con inteligencia artificial
@@ -64,13 +64,13 @@ export default function AuthScreen() {
           <div className="flex mb-6 bg-[var(--dark-3)] rounded-lg p-1">
             <button
               onClick={() => setIsLogin(true)}
-              className={`flex-1 py-2 text-sm rounded-md transition-all ${isLogin ? 'bg-[var(--gold)] text-black font-bold' : 'text-[var(--text-dim)]'}`}
+              className={`flex-1 py-2 text-sm rounded-md transition-all ${isLogin ? 'bg-[var(--gold)] text-white font-bold' : 'text-[var(--text-dim)]'}`}
             >
               Iniciar Sesión
             </button>
             <button
               onClick={() => setIsLogin(false)}
-              className={`flex-1 py-2 text-sm rounded-md transition-all ${!isLogin ? 'bg-[var(--gold)] text-black font-bold' : 'text-[var(--text-dim)]'}`}
+              className={`flex-1 py-2 text-sm rounded-md transition-all ${!isLogin ? 'bg-[var(--gold)] text-white font-bold' : 'text-[var(--text-dim)]'}`}
             >
               Registrarse
             </button>
@@ -117,14 +117,14 @@ export default function AuthScreen() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-[var(--gold)] text-black font-bold rounded-xl hover:bg-[var(--gold-light)] transition-colors disabled:opacity-50"
+              className="w-full py-3 bg-[var(--gold)] text-white font-bold rounded-xl hover:bg-[var(--gold-light)] transition-colors disabled:opacity-50"
             >
               {loading ? 'Cargando...' : isLogin ? 'Entrar' : 'Crear Cuenta'}
             </button>
           </form>
 
           <p className="text-xs text-[var(--text-dim)] text-center mt-4">
-            Parte del ecosistema <span className="text-[var(--gold)]">Kairos 777</span>
+            Parte del ecosistema <span className="text-[var(--gold)] font-medium">Kairos 777</span>
           </p>
         </div>
       </motion.div>

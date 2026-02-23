@@ -62,7 +62,7 @@ export default function TradingPanel() {
   const total = parseFloat(form.quantity || 0) * (orderType === 'market' ? (currentPrice || 0) : parseFloat(form.price || 0));
 
   return (
-    <div className="flex flex-col h-full border-l border-[var(--border)] bg-[var(--dark-2)]" style={{ width: 320 }}>
+    <div className="flex flex-col h-full" style={{ width: 300, borderLeft: '1px solid var(--border)' }}>
       {/* Tabs */}
       <div className="flex border-b border-[var(--border)] shrink-0">
         {['order', 'positions', 'orders'].map(t => (

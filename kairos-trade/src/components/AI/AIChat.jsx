@@ -68,7 +68,7 @@ export default function AIChat() {
         className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
       >
         <div className={`max-w-[85%] rounded-2xl p-3 ${isUser
-          ? 'bg-[var(--gold)] text-black rounded-br-md'
+          ? 'bg-[var(--gold)] text-white rounded-br-md'
           : 'bg-[var(--dark-3)] text-[var(--text)] rounded-bl-md'
         }`}>
           {!isUser && (
@@ -102,14 +102,14 @@ export default function AIChat() {
                   useStore.getState().addStrategy(msg.strategy);
                   addAiMessage({ role: 'assistant', content: '✅ Estrategia guardada. Puedes activarla desde el panel de Bots.', time: new Date().toLocaleTimeString() });
                 }}
-                className="mt-1 px-3 py-1 bg-[var(--gold)] text-black text-xs font-bold rounded-lg"
+                className="mt-1 px-3 py-1 bg-[var(--gold)] text-white text-xs font-bold rounded-lg"
               >
                 Activar Estrategia
               </button>
             </div>
           )}
 
-          <p className={`text-[10px] mt-1 ${isUser ? 'text-black/50' : 'text-[var(--text-dim)]'}`}>{msg.time}</p>
+          <p className={`text-[10px] mt-1 ${isUser ? 'text-white/60' : 'text-[var(--text-dim)]'}`}>{msg.time}</p>
         </div>
       </motion.div>
     );
@@ -140,7 +140,7 @@ export default function AIChat() {
         {aiMessages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <Brain size={48} className="text-[var(--gold)] mb-4" />
-            <h3 className="text-lg font-bold mb-1" style={{ fontFamily: 'Playfair Display, serif' }}>
+            <h3 className="text-lg font-bold mb-1">
               Kairos AI
             </h3>
             <p className="text-sm text-[var(--text-dim)] mb-6 max-w-xs">
@@ -198,7 +198,7 @@ export default function AIChat() {
           <button
             onClick={handleSend}
             disabled={!input.trim() || aiLoading}
-            className="px-4 py-2 bg-[var(--gold)] text-black rounded-xl hover:bg-[var(--gold-light)] transition-colors disabled:opacity-50"
+            className="px-4 py-2 bg-[var(--gold)] text-white rounded-xl hover:bg-[var(--gold-light)] transition-colors disabled:opacity-50"
           >
             <Send size={16} />
           </button>

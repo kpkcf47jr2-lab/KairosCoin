@@ -60,7 +60,7 @@ export default function BrokerManager() {
         </div>
         <button
           onClick={() => setShowAdd(!showAdd)}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--gold)] text-black font-bold rounded-xl hover:bg-[var(--gold-light)] transition-colors text-sm"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--gold)] text-white font-bold rounded-xl hover:bg-[var(--gold-light)] transition-colors text-sm"
         >
           <Plus size={16} /> Agregar Broker
         </button>
@@ -164,7 +164,7 @@ export default function BrokerManager() {
               <div className="flex gap-2">
                 <button
                   onClick={handleAdd}
-                  className="flex-1 py-2.5 bg-[var(--gold)] text-black font-bold rounded-xl text-sm hover:bg-[var(--gold-light)] transition-colors"
+                  className="flex-1 py-2.5 bg-[var(--gold)] text-white font-bold rounded-xl text-sm hover:bg-[var(--gold-light)] transition-colors"
                 >
                   Guardar Broker
                 </button>

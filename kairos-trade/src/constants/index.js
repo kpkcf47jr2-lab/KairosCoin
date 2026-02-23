@@ -130,8 +130,8 @@ export const CONDITIONS = {
 
 // Brand
 export const BRAND = {
-  gold: '#D4AF37',
-  dark: '#0A0A0F',
+  primary: '#3B82F6',
+  dark: '#0B0E11',
   name: 'Kairos Trade',
   company: 'Kairos 777 Inc',
 };
