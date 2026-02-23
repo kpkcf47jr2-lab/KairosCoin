@@ -5,6 +5,31 @@
 
 const COINGECKO_API = 'https://api.coingecko.com/api/v3';
 
+// Rate limiting for CoinGecko free API (30 calls/min)
+let lastCoinGeckoCall = 0;
+const MIN_CALL_INTERVAL = 2100; // ~28 calls/min to stay safe
+
+async function rateLimitedFetch(url) {
+  const now = Date.now();
+  const elapsed = now - lastCoinGeckoCall;
+  if (elapsed < MIN_CALL_INTERVAL) {
+    await new Promise(r => setTimeout(r, MIN_CALL_INTERVAL - elapsed));
+  }
+  lastCoinGeckoCall = Date.now();
+
+  const res = await fetch(url);
+  if (res.status === 429) {
+    // Rate limited — wait and retry once
+    await new Promise(r => setTimeout(r, 5000));
+    lastCoinGeckoCall = Date.now();
+    const retry = await fetch(url);
+    if (!retry.ok) throw new Error('CoinGecko rate limited');
+    return retry;
+  }
+  if (!res.ok) throw new Error(`CoinGecko error: ${res.status}`);
+  return res;
+}
+
 // Map chain IDs to CoinGecko platform IDs
 const PLATFORM_MAP = {
   56: 'binance-smart-chain',
@@ -43,7 +68,7 @@ export async function getNativePrice(chainId) {
   }
 
   try {
-    const res = await fetch(
+    const res = await rateLimitedFetch(
       `${COINGECKO_API}/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`
     );
     const data = await res.json();
@@ -74,7 +99,7 @@ export async function getTokenPrices(chainId, tokenAddresses) {
   }
 
   try {
-    const res = await fetch(
+    const res = await rateLimitedFetch(
       `${COINGECKO_API}/simple/token_price/${platform}?contract_addresses=${addresses}&vs_currencies=usd&include_24hr_change=true`
     );
     const data = await res.json();

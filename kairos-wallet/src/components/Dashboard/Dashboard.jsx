@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, Download, ArrowLeftRight, Clock, Settings, ChevronDown,
   Copy, Check, RefreshCw, Plus, Eye, EyeOff, Shield, ExternalLink,
-  Wallet, TrendingUp, TrendingDown, Lock, BookOpen, Image, Globe, CreditCard
+  Wallet, TrendingUp, TrendingDown, Lock, BookOpen, Image, Globe, CreditCard, Layers
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getAllBalances } from '../../services/blockchain';
@@ -28,7 +28,7 @@ export default function Dashboard() {
     activeAddress, activeChainId, balances, isLoadingBalances,
     nativePrice, tokenPrices, navigate, setBalances, setNativePrice,
     setTokenPrices, setActiveChain, showToast, lock, getActiveAccount,
-    getTotalPortfolioValue,
+    getTotalPortfolioValue, setTokenDetailData,
   } = useStore();
 
   const [hasCopied, setHasCopied] = useState(false);
@@ -234,6 +234,7 @@ export default function Dashboard() {
             { icon: Download, label: t('action.receive'), screen: 'receive', color: 'bg-green-500/10 text-green-400' },
             { icon: CreditCard, label: t('action.buy', 'Comprar'), screen: 'buy', color: 'bg-emerald-500/10 text-emerald-400' },
             { icon: ArrowLeftRight, label: t('action.swap'), screen: 'swap', color: 'bg-purple-500/10 text-purple-400' },
+            { icon: Layers, label: 'Bridge', screen: 'bridge', color: 'bg-indigo-500/10 text-indigo-400' },
             { icon: Globe, label: t('action.dapps'), screen: 'dapps', color: 'bg-orange-500/10 text-orange-400' },
             { icon: Image, label: t('action.nfts'), screen: 'nft', color: 'bg-pink-500/10 text-pink-400' },
             { icon: BookOpen, label: t('action.contacts'), screen: 'contacts', color: 'bg-cyan-500/10 text-cyan-400' },

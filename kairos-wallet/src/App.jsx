@@ -24,6 +24,8 @@ import WalletConnectScreen from './components/WalletConnect/WalletConnectScreen'
 import NFTScreen from './components/NFT/NFTScreen';
 import DAppBrowserScreen from './components/DAppBrowser/DAppBrowserScreen';
 import BuyCryptoScreen from './components/Buy/BuyCryptoScreen';
+import BridgeScreen from './components/Bridge/BridgeScreen';
+import ErrorBoundary from './components/Common/ErrorBoundary';
 import Toast from './components/Common/Toast';
 
 const pageVariants = {
@@ -96,12 +98,15 @@ export default function App() {
         return <DAppBrowserScreen key="dapps" />;
       case 'buy':
         return <BuyCryptoScreen key="buy" />;
+      case 'bridge':
+        return <BridgeScreen key="bridge" />;
       default:
         return <LoadingScreen key="loading" />;
     }
   };
 
   return (
+    <ErrorBoundary onReset={() => navigate('dashboard')}>
     <div className="h-full w-full max-w-md mx-auto relative overflow-hidden bg-dark-950">
       {/* Background effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -126,6 +131,7 @@ export default function App() {
 
       <Toast />
     </div>
+    </ErrorBoundary>
   );
 }
 

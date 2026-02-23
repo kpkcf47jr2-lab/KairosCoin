@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@transak/transak-sdk": "^4.0.2",
     "@walletconnect/utils": "^2.23.6",
     "@walletconnect/web3wallet": "^1.16.1",
     "ethers": "^6.13.4",

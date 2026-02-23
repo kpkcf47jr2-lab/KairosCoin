@@ -1,14 +1,19 @@
 // ═══════════════════════════════════════════════════════
 //  KAIROS WALLET — Buy Crypto Screen
 //  On-ramp: buy crypto with fiat via providers
+//  Transak SDK embedded + other provider redirects
 // ═══════════════════════════════════════════════════════
 
-import React, { useState, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowLeft, CreditCard, ExternalLink, Shield, ChevronRight } from 'lucide-react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, CreditCard, ExternalLink, Shield, ChevronRight, X } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CHAINS } from '../../constants/chains';
 import { useTranslation } from '../../services/i18n';
+
+// Transak config
+const TRANSAK_API_KEY = '02324dee-49a4-4ba2-a42b-44eb70e40e5a'; // staging — switch to prod after KYB approval
+const TRANSAK_ENV = 'STAGING'; // Change to 'PRODUCTION' after approval
 
 // ── On-ramp providers with pre-configured URLs ──
 const PROVIDERS = [
@@ -32,6 +37,7 @@ const PROVIDERS = [
     description: 'Visa, Mastercard, SEPA, transferencia',
     fees: '~1-5%',
     methods: ['💳 Tarjeta', '🏦 SEPA', '📱 Transferencia'],
+    embedded: true, // Uses Transak SDK
     getUrl: (address, chainId) => {
       const network = { 56: 'bsc', 1: 'ethereum', 137: 'polygon', 42161: 'arbitrum', 43114: 'avalanche', 8453: 'base' }[chainId] || 'ethereum';
       const crypto = { 56: 'BNB', 1: 'ETH', 137: 'MATIC', 42161: 'ETH', 43114: 'AVAX', 8453: 'ETH' }[chainId] || 'ETH';
@@ -81,16 +87,62 @@ const PROVIDERS = [
 ];
 
 export default function BuyCryptoScreen() {
-  const { activeAddress, activeChainId, goBack } = useStore();
+  const { activeAddress, activeChainId, goBack, showToast } = useStore();
   const { t } = useTranslation();
   const chain = CHAINS[activeChainId];
+  const [showTransak, setShowTransak] = useState(false);
 
   const availableProviders = useMemo(
     () => PROVIDERS.filter(p => p.chains.includes(activeChainId)),
     [activeChainId]
   );
 
+  const openTransakWidget = useCallback(async () => {
+    try {
+      const { default: TransakSDK } = await import('@transak/transak-sdk');
+      const networkMap = { 56: 'bsc', 1: 'ethereum', 137: 'polygon', 42161: 'arbitrum', 43114: 'avalanche', 8453: 'base' };
+      const cryptoMap = { 56: 'BNB', 1: 'ETH', 137: 'MATIC', 42161: 'ETH', 43114: 'AVAX', 8453: 'ETH' };
+
+      const transak = new TransakSDK({
+        apiKey: TRANSAK_API_KEY,
+        environment: TRANSAK_ENV,
+        walletAddress: activeAddress,
+        defaultNetwork: networkMap[activeChainId] || 'ethereum',
+        defaultCryptoCurrency: cryptoMap[activeChainId] || 'ETH',
+        themeColor: 'D4AF37',
+        widgetHeight: '600px',
+        widgetWidth: '100%',
+      });
+
+      transak.init();
+
+      transak.on('TRANSAK_ORDER_SUCCESSFUL', (data) => {
+        showToast('¡Compra exitosa! Los fondos llegarán pronto.', 'success');
+        transak.close();
+      });
+
+      transak.on('TRANSAK_ORDER_FAILED', () => {
+        showToast('La compra falló. Intenta de nuevo.', 'error');
+      });
+
+      transak.on('TRANSAK_WIDGET_CLOSE', () => {
+        transak.close();
+      });
+    } catch (err) {
+      console.error('[Buy] Transak SDK error:', err);
+      // Fallback to URL redirect
+      const provider = PROVIDERS.find(p => p.id === 'transak');
+      if (provider) {
+        window.open(provider.getUrl(activeAddress, activeChainId), '_blank', 'noopener,noreferrer');
+      }
+    }
+  }, [activeAddress, activeChainId]);
+
   const handleBuy = (provider) => {
+    if (provider.embedded && provider.id === 'transak') {
+      openTransakWidget();
+      return;
+    }
     const url = provider.getUrl(activeAddress, activeChainId);
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -150,6 +202,11 @@ export default function BuyCryptoScreen() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold text-white">{provider.name}</p>
+                    {provider.embedded && (
+                      <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-kairos-500/20 text-kairos-400 font-medium">
+                        INTEGRADO
+                      </span>
+                    )}
                     <span className="text-[10px] text-dark-500">{provider.fees}</span>
                   </div>
                   <p className="text-[10px] text-dark-400">{provider.description}</p>

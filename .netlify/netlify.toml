@@ -1,4 +1,5 @@
 plugins = []
+headers = []
 redirects = []
 
 [functions]
@@ -22,17 +23,3 @@ publishOrigin = "default"
 [build.processing.js]
 
 [build.services]
-
-[[headers]]
-for = "/total-supply.txt"
-
-[headers.values]
-Content-Type = "text/plain"
-Access-Control-Allow-Origin = "*"
-
-[[headers]]
-for = "/circulating-supply.txt"
-
-[headers.values]
-Content-Type = "text/plain"
-Access-Control-Allow-Origin = "*"

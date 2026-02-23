@@ -134,7 +134,15 @@ export const ERC20_ABI = [
   'event Approval(address indexed owner, address indexed spender, uint256 value)',
 ];
 
-// Known KAIROS token on BSC
+// Known KAIROS token addresses per chain
+export const KAIROS_ADDRESSES = {
+  56: '0x14D41707269c7D8b8DFa5095b38824a46dA05da3',     // BSC
+  8453: '0x14D41707269c7D8b8DFa5095b38824a46dA05da3',   // Base
+  42161: '0x14D41707269c7D8b8DFa5095b38824a46dA05da3',  // Arbitrum
+  137: '0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9',     // Polygon
+};
+
+// KAIROS token on BSC (primary)
 export const KAIROS_TOKEN = {
   address: '0x14D41707269c7D8b8DFa5095b38824a46dA05da3',
   name: 'KairosCoin',
@@ -145,6 +153,22 @@ export const KAIROS_TOKEN = {
   isNative: false,
   isStablecoin: true,
 };
+
+// Helper: get KAIROS token config for any chain
+export function getKairosToken(chainId) {
+  const address = KAIROS_ADDRESSES[chainId];
+  if (!address) return null;
+  return {
+    address,
+    name: 'KairosCoin',
+    symbol: 'KAIROS',
+    decimals: 18,
+    chainId,
+    logoURI: '/icons/kairos-token-128.png',
+    isNative: false,
+    isStablecoin: true,
+  };
+}
 
 // Popular tokens per chain (pre-loaded for user convenience)
 export const DEFAULT_TOKENS = {
@@ -162,10 +186,12 @@ export const DEFAULT_TOKENS = {
     { address: '0x6B175474E89094C44Da98b954EedeAC495271d0F', name: 'Dai', symbol: 'DAI', decimals: 18, chainId: 1 },
   ],
   137: [
+    { address: '0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9', name: 'KairosCoin', symbol: 'KAIROS', decimals: 18, chainId: 137, logoURI: '/icons/kairos-token-128.png', isStablecoin: true },
     { address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', name: 'Tether USD', symbol: 'USDT', decimals: 6, chainId: 137 },
     { address: '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174', name: 'USD Coin', symbol: 'USDC', decimals: 6, chainId: 137 },
   ],
   42161: [
+    { address: '0x14D41707269c7D8b8DFa5095b38824a46dA05da3', name: 'KairosCoin', symbol: 'KAIROS', decimals: 18, chainId: 42161, logoURI: '/icons/kairos-token-128.png', isStablecoin: true },
     { address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', name: 'Tether USD', symbol: 'USDT', decimals: 6, chainId: 42161 },
     { address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', name: 'USD Coin', symbol: 'USDC', decimals: 6, chainId: 42161 },
   ],
@@ -174,6 +200,7 @@ export const DEFAULT_TOKENS = {
     { address: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E', name: 'USD Coin', symbol: 'USDC', decimals: 6, chainId: 43114 },
   ],
   8453: [
+    { address: '0x14D41707269c7D8b8DFa5095b38824a46dA05da3', name: 'KairosCoin', symbol: 'KAIROS', decimals: 18, chainId: 8453, logoURI: '/icons/kairos-token-128.png', isStablecoin: true },
     { address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', name: 'USD Coin', symbol: 'USDC', decimals: 6, chainId: 8453 },
   ],
 };
