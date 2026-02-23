@@ -1,0 +1,122 @@
+// Kairos Trade — Main Application
+import { Toaster } from 'react-hot-toast';
+import { AnimatePresence, motion } from 'framer-motion';
+import useStore from './store/useStore';
+
+// Layout
+import Sidebar from './components/Layout/Sidebar';
+import Header from './components/Layout/Header';
+
+// Auth
+import AuthScreen from './components/Auth/AuthScreen';
+
+// Pages
+import Dashboard from './components/Dashboard/Dashboard';
+import TradingChart from './components/Chart/TradingChart';
+import TradingPanel from './components/Trading/TradingPanel';
+import BotManager from './components/Bots/BotManager';
+import BrokerManager from './components/Broker/BrokerManager';
+import AIChat from './components/AI/AIChat';
+import StrategyBuilder from './components/Strategy/StrategyBuilder';
+import TradeHistory from './components/Trading/TradeHistory';
+import SettingsPanel from './components/Settings/SettingsPanel';
+
+function App() {
+  const { isAuthenticated, currentPage, aiPanelOpen } = useStore();
+
+  if (!isAuthenticated) {
+    return <AuthScreen />;
+  }
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'dashboard': return <Dashboard />;
+      case 'chart': return (
+        <div className="flex flex-1 overflow-hidden">
+          <div className="flex-1">
+            <TradingChart />
+          </div>
+          <TradingPanel />
+        </div>
+      );
+      case 'bots': return <BotManager />;
+      case 'brokers': return <BrokerManager />;
+      case 'ai': return <AIChat />;
+      case 'strategies': return <StrategyBuilder />;
+      case 'history': return <TradeHistory />;
+      case 'wallet': return (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-2xl bg-[var(--gold)]/20 flex items-center justify-center text-[var(--gold)] text-2xl font-bold mx-auto mb-4">K</div>
+            <h2 className="text-lg font-bold mb-2">Kairos Wallet</h2>
+            <p className="text-sm text-[var(--text-dim)] mb-4 max-w-xs">
+              Conecta tu Kairos Wallet para integrar tus balances de KAIROS Coin con la plataforma de trading.
+            </p>
+            <a
+              href="https://kairos-wallet.netlify.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--gold)] text-black font-bold rounded-xl hover:bg-[var(--gold-light)] transition-colors"
+            >
+              Abrir Kairos Wallet
+            </a>
+          </div>
+        </div>
+      );
+      case 'settings': return <SettingsPanel />;
+      default: return <Dashboard />;
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-[var(--dark)] overflow-hidden">
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          style: { background: '#1A1A25', color: '#E8E8F0', border: '1px solid #2A2A3A' },
+        }}
+      />
+
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header />
+
+        <div className="flex flex-1 overflow-hidden">
+          {/* Page content */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentPage}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="flex-1 flex flex-col overflow-hidden"
+            >
+              {renderPage()}
+            </motion.div>
+          </AnimatePresence>
+
+          {/* AI Panel (slide-in) */}
+          <AnimatePresence>
+            {aiPanelOpen && currentPage !== 'ai' && (
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 380, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="border-l border-[var(--border)] overflow-hidden shrink-0"
+              >
+                <AIChat />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
