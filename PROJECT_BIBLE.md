@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 23, 2026
+#  Last Updated: February 23, 2026 (Session 8 — Stripe + Redemption System)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -108,13 +108,31 @@
 | GET | `/api/health` | System health |
 | GET | `/api/engine/status` | Auto mint/burn engine status |
 
-### Fiat On-Ramp
+### Fiat On-Ramp (Transak — pending KYB)
 | Method | Route | Description |
 |--------|-------|-------------|
 | POST | `/api/fiat/create-order` | Create fiat purchase order |
 | GET | `/api/fiat/order/:id` | Get fiat order status |
 | GET | `/api/fiat/orders?wallet=0x...` | List orders for a wallet |
 | POST | `/api/webhook/transak` | Transak webhook (automated) |
+
+### Stripe — Buy KAIROS (card → auto-mint)
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/stripe/create-checkout` | Create Stripe Checkout session |
+| GET | `/api/stripe/order/:id` | Get order status |
+| POST | `/api/webhook/stripe` | Stripe webhook (checkout + Connect events) |
+
+### Stripe Connect — Sell/Redeem KAIROS (burn → USD to bank)
+| Method | Route | Description |
+|--------|-------|-------------|
+| POST | `/api/redeem/onboard` | Create Stripe Connect Express account |
+| POST | `/api/redeem/onboard-link` | Regenerate onboarding link if expired |
+| GET | `/api/redeem/account-status?wallet=` | Check Connect account status |
+| POST | `/api/redeem/create` | Redeem KAIROS → burn + payout to bank |
+| GET | `/api/redeem/status/:id` | Redemption status with live Stripe check |
+| GET | `/api/redeem/history?wallet=` | User's redemption history |
+| GET | `/api/redeem/balance` | Platform balance (admin) |
 
 ### Admin (requires API_MASTER_KEY)
 | Method | Route | Description |
@@ -138,6 +156,8 @@ Tables in `backend/data/kairos.db`:
 - **fee_log** — Every on-chain fee collected
 - **api_log** — Every API call logged
 - **fiat_orders** — Fiat-to-KAIROS purchases via Transak/MoonPay/Changelly (NEW v1.1.0)
+- **redemption_accounts** — Stripe Connect accounts linked to wallets (NEW v1.2.0)
+- **redemptions** — KAIROS burn → USD payout tracking (NEW v1.2.0)
 
 ---
 
@@ -246,15 +266,19 @@ KairosCoin/
 │   │   ├── blockchain.js             ← BSC connection, mint/burn execution
 │   │   ├── database.js               ← SQLite, all tables, CRUD ops
 │   │   ├── depositMonitor.js         ← Auto-detect stablecoin deposits → mint
-│   │   └── redemptionMonitor.js      ← Auto-detect KAIROS sends → burn + send USDT
+│   │   ├── redemptionMonitor.js      ← Auto-detect KAIROS sends → burn + send USDT
+│   │   └── payouts.js                ← Stripe Connect payouts (instant/standard)
 │   ├── src/routes/
 │   │   ├── mint.js                   ← POST /api/mint
 │   │   ├── burn.js                   ← POST /api/burn
 │   │   ├── reserves.js               ← Proof of Reserves endpoints
 │   │   ├── supply.js                 ← Supply + fees endpoints
 │   │   ├── health.js                 ← Health check
-│   │   ├── fiat.js                   ← Fiat order CRUD (NEW)
-│   │   └── webhook.js                ← Transak webhook handler (NEW)
+│   │   ├── fiat.js                   ← Fiat order CRUD
+│   │   ├── webhook.js                ← Transak webhook handler
+│   │   ├── stripe.js                 ← Stripe Checkout (buy KAIROS)
+│   │   ├── stripeWebhook.js          ← Stripe webhook (checkout + Connect events)
+│   │   └── redeem.js                 ← Redemption API (burn KAIROS → USD payout)
 │   ├── src/middleware/
 │   │   ├── auth.js                   ← API key auth (master/public/anonymous)
 │   │   ├── rateLimiter.js            ← Rate limiting
@@ -367,6 +391,18 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 
 ## 14. HISTORY / CHANGELOG
 
+### Feb 23, 2026 — Session 8 (Stripe Integration + KAIROS Redemption System)
+- **Stripe Buy Flow (LIVE)** — Users buy KAIROS with card via Stripe Checkout → auto-mint to wallet
+- **Stripe Connect Redemption (LIVE)** — Users burn KAIROS → receive USD in bank via Stripe Connect
+  - Instant Payout: ~30 seconds to debit card (1% + $0.50 fee)
+  - Standard Payout: 1-2 business days to bank (free)
+- **Backend v1.2.0** — New services: `payouts.js`, `redeem.js`, `stripe.js`, `stripeWebhook.js`
+- **Database v1.2.0** — New tables: `redemption_accounts`, `redemptions`
+- **Webhook events**: `checkout.session.completed`, `checkout.session.expired`, `account.updated`, `payout.paid`, `payout.failed`, `transfer.created`
+- **Wallet BuyCryptoScreen redesigned** — Native buy/sell with Stripe (removed external off-ramp providers)
+- **Decision: KAIROS replaces USDT entirely** — No stablecoin intermediary for payouts
+- **Commit:** `7df9b5b` → Backend deployed to Render, Wallet deployed to Netlify
+
 ### Feb 23, 2026 — Session 7 (Kairos Trade Premium UI v2)
 - **Sidebar v2**: 260px width, gradient background, user profile card with plan badge, 3 sections (Principal/Automatización/Gestión), animated tooltips in collapsed mode, spring-animated active states with gradient backgrounds and left bar
 - **Header v2**: 56px, glassmorphism with backdrop blur, pair badge with icon, gradient connection status (Live/Demo), pulsing AI indicator
@@ -437,10 +473,12 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 
 ## 15. NEXT STEPS / ROADMAP
 
-### Immediate (waiting)
-- [ ] Transak KYB approval → activate fiat on-ramp
+### Immediate
+- [x] Stripe Buy KAIROS (card → auto-mint) ✅ DONE Feb 23, 2026
+- [x] Stripe Connect Redemption (burn → USD to bank) ✅ DONE Feb 23, 2026
+- [ ] Transak KYB approval → activate fiat on-ramp (submitted Feb 22)
 - [ ] Add Transak production API key + webhook secret to Render env vars
-- [ ] Replace placeholder API key in buy.html
+- [ ] Test first real redemption end-to-end (buy KAIROS → burn → receive USD)
 
 ### Kairos Trade — Next Features
 - [ ] Strategy marketplace (share/import strategies)
