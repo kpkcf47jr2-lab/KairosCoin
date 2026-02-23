@@ -11,7 +11,8 @@ import { formatAddress } from '../../services/wallet';
 import { CHAINS } from '../../constants/chains';
 
 export default function HistoryScreen() {
-  const { activeAddress, activeChainId, goBack } = useStore();
+  const { activeAddress, activeChainId, goBack, navigate } = useStore();
+  const setTxDetailData = useStore(s => s.setTxDetailData);
   const [transactions, setTransactions] = useState([]);
   const [tokenTxs, setTokenTxs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,15 +110,16 @@ export default function HistoryScreen() {
         ) : (
           <div className="space-y-1 px-1">
             {displayTxs.map((tx, i) => (
-              <motion.a
+              <motion.button
                 key={tx.hash + i}
-                href={`${chain.blockExplorerUrl}/tx/${tx.hash}`}
-                target="_blank"
-                rel="noopener noreferrer"
+                onClick={() => {
+                  setTxDetailData(tx);
+                  navigate('txdetail');
+                }}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.03 }}
-                className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all"
+                className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all w-full text-left"
               >
                 {/* Direction icon */}
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -156,7 +158,7 @@ export default function HistoryScreen() {
                   </span>
                   <ExternalLink size={10} className="text-dark-500 ml-1 inline" />
                 </div>
-              </motion.a>
+              </motion.button>
             ))}
           </div>
         )}

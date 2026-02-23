@@ -28,6 +28,7 @@ export const useStore = create((set, get) => ({
   isBottomSheetOpen: false,
   bottomSheetContent: null,
   tokenDetailData: null, // Token passed to detail screen
+  txDetailData: null, // TX passed to TX detail screen
   
   // ── Transaction State ──
   pendingTransactions: [],
@@ -87,6 +88,7 @@ export const useStore = create((set, get) => ({
   closeBottomSheet: () => set({ isBottomSheetOpen: false, bottomSheetContent: null }),
   
   setTokenDetailData: (token) => set({ tokenDetailData: token }),
+  setTxDetailData: (tx) => set({ txDetailData: tx }),
   
   addPendingTx: (tx) => set(state => ({ 
     pendingTransactions: [...state.pendingTransactions, tx] 

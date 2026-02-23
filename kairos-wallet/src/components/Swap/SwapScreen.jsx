@@ -15,6 +15,7 @@ import { CHAINS, KAIROS_TOKEN } from '../../constants/chains';
 import { unlockVault } from '../../services/wallet';
 import { getAllBalances } from '../../services/blockchain';
 import { getSwapQuote, executeSwap, getSwapTokens, DEX_NAMES, SLIPPAGE_PRESETS } from '../../services/swap';
+import { getAggregatedQuotes } from '../../services/aggregator';
 import { formatBalance, formatUSD, getNativePrice } from '../../services/prices';
 import TokenIcon from '../Common/TokenIcon';
 
@@ -52,6 +53,7 @@ export default function SwapScreen() {
   const [passwordError, setPasswordError] = useState('');
   const [txHash, setTxHash] = useState('');
   const [swapError, setSwapError] = useState('');
+  const [allQuotes, setAllQuotes] = useState([]); // Multi-DEX aggregator quotes
 
   // Available tokens
   const availableTokens = getSwapTokens(activeChainId, balances);
@@ -98,6 +100,16 @@ export default function SwapScreen() {
       );
       setQuote(result);
       setQuoteError('');
+      // Fetch multi-DEX quotes in background
+      try {
+        const fromAddr = tokenFrom.isNative ? 'native' : tokenFrom.address;
+        const toAddr = tokenTo.isNative ? 'native' : tokenTo.address;
+        const multiQuotes = await getAggregatedQuotes(
+          activeChainId, fromAddr, toAddr, amountIn,
+          tokenFrom.decimals || 18, tokenTo.decimals || 18
+        );
+        setAllQuotes(multiQuotes);
+      } catch { setAllQuotes([]); }
     } catch (err) {
       setQuote(null);
       setQuoteError(err.message || 'Error obteniendo cotización');
@@ -407,6 +419,35 @@ export default function SwapScreen() {
                   </span>
                 </div>
               </div>
+
+              {/* ── Multi-DEX Comparison (Aggregator) ── */}
+              {allQuotes.length > 1 && (
+                <div className="mt-3 bg-white/[0.02] rounded-xl p-3 border border-white/5">
+                  <div className="flex items-center gap-1 mb-2">
+                    <Zap size={10} className="text-kairos-400" />
+                    <span className="text-[10px] text-kairos-400 font-bold">COMPARACIÓN MULTI-DEX</span>
+                    {allQuotes[0]?.savingsPercent && parseFloat(allQuotes[0].savingsPercent) > 0 && (
+                      <span className="ml-auto text-[10px] text-green-400 font-bold">Ahorro: +{allQuotes[0].savingsPercent}%</span>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    {allQuotes.slice(0, 4).map((q, i) => (
+                      <div key={i} className={`flex items-center justify-between py-1.5 px-2 rounded-lg text-xs ${
+                        q.isBest ? 'bg-green-500/10 border border-green-500/20' : 'bg-dark-800/30'
+                      }`}>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: q.dexColor || '#666' }}></span>
+                          <span className={q.isBest ? 'text-green-400 font-semibold' : 'text-dark-300'}>{q.dex}</span>
+                          {q.isBest && <span className="text-[9px] bg-green-500/20 text-green-400 px-1 rounded">MEJOR</span>}
+                        </div>
+                        <span className={q.isBest ? 'text-green-400 font-bold' : 'text-dark-400'}>
+                          {parseFloat(q.amountOut).toFixed(6)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

@@ -21,6 +21,7 @@ import PWAInstallPrompt from '../Common/PWAInstallPrompt';
 import PortfolioChart, { recordPortfolioValue } from './PortfolioChart';
 import { discoverTokens } from '../../services/tokenDiscovery';
 import { useTranslation } from '../../services/i18n';
+import { checkAlerts, getActiveAlertCount } from '../../services/alerts';
 
 export default function Dashboard() {
   const { t } = useTranslation();
@@ -35,6 +36,7 @@ export default function Dashboard() {
   const [hideBalance, setHideBalance] = useState(false);
   const [showChainPicker, setShowChainPicker] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [alertCount, setAlertCount] = useState(getActiveAlertCount());
 
   const chain = CHAINS[activeChainId];
   const account = getActiveAccount();
@@ -93,6 +95,20 @@ export default function Dashboard() {
 
       // Run token auto-discovery in background (non-blocking)
       discoverTokens(activeChainId, activeAddress).catch(() => {});
+
+      // Check price alerts
+      try {
+        const priceMap = {};
+        if (nativeP > 0) priceMap[chain.nativeCurrency.symbol.toLowerCase()] = nativeP;
+        for (const [addr, data] of Object.entries(tokenPricesResult)) {
+          if (data.usd) priceMap[addr] = data.usd;
+        }
+        const triggered = checkAlerts(priceMap);
+        if (triggered.length > 0) {
+          showToast(`🔔 ${triggered.length} alerta(s) activada(s)!`, 'success');
+        }
+        setAlertCount(getActiveAlertCount());
+      } catch {}
     } catch (err) {
       console.error('Failed to load balances:', err);
     }
@@ -228,7 +244,7 @@ export default function Dashboard() {
 
       {/* ── Quick Actions ── */}
       <div className="px-5 mb-5">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {[
             { icon: Send, label: t('action.send'), screen: 'send', color: 'bg-blue-500/10 text-blue-400' },
             { icon: Download, label: t('action.receive'), screen: 'receive', color: 'bg-green-500/10 text-green-400' },
@@ -237,7 +253,9 @@ export default function Dashboard() {
             { icon: Layers, label: 'Bridge', screen: 'bridge', color: 'bg-indigo-500/10 text-indigo-400' },
             { icon: Globe, label: t('action.dapps'), screen: 'dapps', color: 'bg-orange-500/10 text-orange-400' },
             { icon: Image, label: t('action.nfts'), screen: 'nft', color: 'bg-pink-500/10 text-pink-400' },
-            { icon: BookOpen, label: t('action.contacts'), screen: 'contacts', color: 'bg-cyan-500/10 text-cyan-400' },
+            { icon: Lock, label: 'Staking', screen: 'staking', color: 'bg-teal-500/10 text-teal-400' },
+            { icon: Shield, label: 'Auditoría', screen: 'tokenaudit', color: 'bg-red-500/10 text-red-400' },
+            { icon: TrendingUp, label: 'Gas', screen: 'gas', color: 'bg-amber-500/10 text-amber-400' },
             { icon: Clock, label: t('action.history'), screen: 'history', color: 'bg-kairos-500/10 text-kairos-400' },
             { icon: Settings, label: t('action.settings'), screen: 'settings', color: 'bg-white/5 text-dark-300' },
           ].map(action => (

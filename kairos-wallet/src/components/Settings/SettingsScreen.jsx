@@ -6,10 +6,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, User, Shield, Globe, Bell, Palette, Info,
-  ChevronRight, LogOut, Trash2, Key, Plus, Copy, Check, ExternalLink, Eye, EyeOff, AlertTriangle, Link2, FileText, Edit3, ShieldCheck, Clock, Binoculars
+  ChevronRight, LogOut, Trash2, Key, Plus, Copy, Check, ExternalLink, Eye, EyeOff, AlertTriangle, Link2, FileText, Edit3, ShieldCheck, Clock, Binoculars, Fuel, Coins, Lock, Search
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { formatAddress, resetWallet, addAccount, unlockVault, importWatchOnly, isValidAddress } from '../../services/wallet';
+import { formatAddress, resetWallet, addAccount, unlockVault, importWatchOnly, isValidAddress, changePassword } from '../../services/wallet';
 import { CHAINS } from '../../constants/chains';
 import { APP_VERSION } from '../../constants/chains';
 import {
@@ -58,6 +58,13 @@ export default function SettingsScreen() {
   const [watchOnlyLoading, setWatchOnlyLoading] = useState(false);
   const [renameAddress, setRenameAddress] = useState(null);
   const [renameName, setRenameName] = useState('');
+  // Change password states
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [oldPwd, setOldPwd] = useState('');
+  const [newPwd, setNewPwd] = useState('');
+  const [confirmPwd, setConfirmPwd] = useState('');
+  const [changePwdError, setChangePwdError] = useState('');
+  const [changePwdLoading, setChangePwdLoading] = useState(false);
 
   const accounts = getAllAccounts();
   const chain = CHAINS[activeChainId];
@@ -199,6 +206,13 @@ export default function SettingsScreen() {
           color: 'text-yellow-400',
         },
         {
+          icon: Lock,
+          label: 'Cambiar Contraseña',
+          desc: 'Actualiza tu contraseña del vault',
+          action: () => setShowChangePassword(true),
+          color: 'text-pink-400',
+        },
+        {
           icon: Shield,
           label: t('settings.autolock'),
           desc: getAutoLockOptions().find(o => o.value === autoLockMs)?.label || '5 minutos',
@@ -273,6 +287,27 @@ export default function SettingsScreen() {
           desc: t('settings.approvals_desc', 'Gestionar permisos de tokens'),
           action: () => navigate('approvals'),
           color: 'text-orange-400',
+        },
+        {
+          icon: Coins,
+          label: 'Staking Hub',
+          desc: 'Lido, PancakeSwap, GMX — gana yield',
+          action: () => navigate('staking'),
+          color: 'text-green-400',
+        },
+        {
+          icon: Fuel,
+          label: 'Gas Tracker',
+          desc: 'Precios de gas en todas las redes',
+          action: () => navigate('gas'),
+          color: 'text-amber-400',
+        },
+        {
+          icon: Search,
+          label: 'Auditoría de Token',
+          desc: 'Analiza tokens por scams/honeypots',
+          action: () => navigate('tokenaudit'),
+          color: 'text-red-400',
         },
         {
           icon: Globe,
@@ -773,6 +808,89 @@ export default function SettingsScreen() {
                 <button onClick={handleWatchOnlySubmit} disabled={!watchOnlyPwd || !watchOnlyAddress || watchOnlyLoading}
                   className="kairos-button flex-1 py-3 text-sm disabled:opacity-40">
                   {watchOnlyLoading ? 'Importando...' : 'Importar'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* ── Change Password Modal ── */}
+        {showChangePassword && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-6"
+            onClick={() => setShowChangePassword(false)}
+          >
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+              className="glass-card w-full max-w-sm p-6 rounded-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-2 mb-4">
+                <Lock size={18} className="text-pink-400" />
+                <h3 className="font-bold text-white">Cambiar Contraseña</h3>
+              </div>
+              <p className="text-dark-400 text-xs mb-4">
+                La nueva contraseña protegerá tu vault. Mínimo 8 caracteres.
+              </p>
+              <div className="space-y-3">
+                <input
+                  type="password"
+                  value={oldPwd}
+                  onChange={e => setOldPwd(e.target.value)}
+                  placeholder="Contraseña actual"
+                  className="glass-input w-full text-sm"
+                  autoFocus
+                />
+                <input
+                  type="password"
+                  value={newPwd}
+                  onChange={e => setNewPwd(e.target.value)}
+                  placeholder="Nueva contraseña (mín. 8 chars)"
+                  className="glass-input w-full text-sm"
+                />
+                <input
+                  type="password"
+                  value={confirmPwd}
+                  onChange={e => setConfirmPwd(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      // handleChangePassword inline
+                      (async () => {
+                        if (newPwd !== confirmPwd) { setChangePwdError('Las contraseñas no coinciden'); return; }
+                        setChangePwdLoading(true);
+                        setChangePwdError('');
+                        try {
+                          await changePassword(oldPwd, newPwd);
+                          showToast('✅ Contraseña cambiada exitosamente', 'success');
+                          setShowChangePassword(false);
+                          setOldPwd(''); setNewPwd(''); setConfirmPwd('');
+                        } catch (err) {
+                          setChangePwdError(err.message);
+                        }
+                        setChangePwdLoading(false);
+                      })();
+                    }
+                  }}
+                  placeholder="Confirmar nueva contraseña"
+                  className="glass-input w-full text-sm"
+                />
+              </div>
+              {changePwdError && <p className="text-red-400 text-xs mt-2">{changePwdError}</p>}
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => { setShowChangePassword(false); setOldPwd(''); setNewPwd(''); setConfirmPwd(''); setChangePwdError(''); }} className="glass-button flex-1 py-3 text-center text-sm">Cancelar</button>
+                <button onClick={async () => {
+                  if (newPwd !== confirmPwd) { setChangePwdError('Las contraseñas no coinciden'); return; }
+                  setChangePwdLoading(true);
+                  setChangePwdError('');
+                  try {
+                    await changePassword(oldPwd, newPwd);
+                    showToast('✅ Contraseña cambiada exitosamente', 'success');
+                    setShowChangePassword(false);
+                    setOldPwd(''); setNewPwd(''); setConfirmPwd('');
+                  } catch (err) {
+                    setChangePwdError(err.message);
+                  }
+                  setChangePwdLoading(false);
+                }} disabled={!oldPwd || !newPwd || !confirmPwd || changePwdLoading}
+                  className="kairos-button flex-1 py-3 text-sm disabled:opacity-40">
+                  {changePwdLoading ? 'Cambiando...' : 'Cambiar'}
                 </button>
               </div>
             </motion.div>

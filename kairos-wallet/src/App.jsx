@@ -28,6 +28,10 @@ import BridgeScreen from './components/Bridge/BridgeScreen';
 import NetworksScreen from './components/Settings/NetworksScreen';
 import ApprovalsScreen from './components/Security/ApprovalsScreen';
 import PendingTxScreen from './components/History/PendingTxScreen';
+import StakingScreen from './components/Staking/StakingScreen';
+import GasTrackerScreen from './components/Gas/GasTrackerScreen';
+import TxDetailScreen from './components/History/TxDetailScreen';
+import TokenSecurityScreen from './components/Security/TokenSecurityScreen';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import Toast from './components/Common/Toast';
 
@@ -109,6 +113,14 @@ export default function App() {
         return <ApprovalsScreen key="approvals" />;
       case 'pending':
         return <PendingTxScreen key="pending" />;
+      case 'staking':
+        return <StakingScreen key="staking" />;
+      case 'gas':
+        return <GasTrackerScreen key="gas" />;
+      case 'txdetail':
+        return <TxDetailScreen key="txdetail" />;
+      case 'tokenaudit':
+        return <TokenSecurityScreen key="tokenaudit" />;
       default:
         return <LoadingScreen key="loading" />;
     }

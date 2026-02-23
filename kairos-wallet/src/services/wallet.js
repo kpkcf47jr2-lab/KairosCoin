@@ -254,6 +254,20 @@ export function setActiveWallet(address) {
 }
 
 /**
+ * Change vault password
+ * Decrypts with old password, re-encrypts with new password
+ */
+export async function changePassword(oldPassword, newPassword) {
+  if (!newPassword || newPassword.length < 8) {
+    throw new Error('La nueva contraseña debe tener al menos 8 caracteres');
+  }
+  const vault = await unlockVault(oldPassword);
+  const encryptedVault = await encrypt(JSON.stringify(vault), newPassword);
+  localStorage.setItem(STORAGE_KEYS.ENCRYPTED_VAULT, encryptedVault);
+  return true;
+}
+
+/**
  * Reset wallet (dangerous!)
  */
 export function resetWallet() {
