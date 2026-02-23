@@ -11,6 +11,7 @@
   --green: #0ECB81;
   --red: #F6465D;
   --blue: #3B82F6;
+  --purple: #8B5CF6;
   --text: #EAECEF;
   --text-dim: #848E9C;
   --border: #1E222D;
@@ -27,41 +28,76 @@ body {
   height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
 }
 
 #root { height: 100vh; display: flex; flex-direction: column; }
 
-::-webkit-scrollbar { width: 5px; }
+/* Premium scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--dark-4); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+::-webkit-scrollbar-thumb { background: rgba(43,49,57,0.8); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(59,130,246,0.3); }
 
+/* Form inputs */
 input, select, textarea {
-  background: var(--dark-3);
-  border: 1px solid var(--border);
+  background: rgba(24,26,32,0.8);
+  border: 1px solid rgba(30,34,45,0.6);
   color: var(--text);
-  border-radius: 6px;
-  padding: 8px 12px;
+  border-radius: 10px;
+  padding: 10px 14px;
   font-size: 13px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
+  font-family: inherit;
 }
 
 input:focus, select:focus, textarea:focus {
-  border-color: var(--gold);
-  box-shadow: 0 0 0 1px var(--gold-dark);
+  border-color: rgba(59,130,246,0.4);
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.08);
+  background: rgba(24,26,32,1);
+}
+
+input:hover, select:hover, textarea:hover {
+  border-color: rgba(43,49,57,0.8);
 }
 
 input::placeholder, textarea::placeholder {
   color: var(--text-dim);
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
+/* Number input — hide arrows */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+/* Utility classes */
 .green { color: var(--green); }
 .red { color: var(--red); }
 .gold { color: var(--gold); }
 
+/* Animations */
 @keyframes pulse-gold {
   0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.3); }
   50% { box-shadow: 0 0 15px 3px rgba(59, 130, 246, 0.08); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-4px); }
+}
+
+/* Selection */
+::selection {
+  background: rgba(59, 130, 246, 0.25);
+  color: var(--text);
 }

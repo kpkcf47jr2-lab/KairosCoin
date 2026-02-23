@@ -1,10 +1,9 @@
-// Kairos Trade — Trading Panel (Order Entry + Positions + Order Book)
+// Kairos Trade — Trading Panel (Premium v2)
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { DollarSign, TrendingUp, TrendingDown, Target, Shield } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Target, Shield, ChevronDown } from 'lucide-react';
 import useStore from '../../store/useStore';
 import marketData from '../../services/marketData';
-import { ORDER_TYPES } from '../../constants';
 
 export default function TradingPanel() {
   const { selectedPair, currentPrice, positions, orders, addPosition, addOrder, closePosition, cancelOrder } = useStore();
@@ -12,7 +11,7 @@ export default function TradingPanel() {
   const [orderType, setOrderType] = useState('market');
   const [form, setForm] = useState({ quantity: '', price: '', stopLoss: '', takeProfit: '' });
   const [orderBook, setOrderBook] = useState({ bids: [], asks: [] });
-  const [tab, setTab] = useState('order'); // order | positions | orders
+  const [tab, setTab] = useState('order');
 
   useEffect(() => {
     loadOrderBook();
@@ -62,15 +61,20 @@ export default function TradingPanel() {
   const total = parseFloat(form.quantity || 0) * (orderType === 'market' ? (currentPrice || 0) : parseFloat(form.price || 0));
 
   return (
-    <div className="flex flex-col h-full" style={{ width: 300, borderLeft: '1px solid var(--border)' }}>
+    <div className="flex flex-col h-full" style={{ width: 320, borderLeft: '1px solid rgba(30,34,45,0.6)' }}>
       {/* Tabs */}
-      <div className="flex border-b border-[var(--border)] shrink-0">
+      <div className="flex shrink-0 px-2 pt-2 gap-1"
+        style={{ borderBottom: '1px solid rgba(30,34,45,0.4)' }}>
         {['order', 'positions', 'orders'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 py-2 text-xs font-bold transition-colors
-              ${tab === t ? 'text-[var(--gold)] border-b-2 border-[var(--gold)]' : 'text-[var(--text-dim)]'}`}
+            className={`flex-1 py-2.5 text-[11px] font-bold rounded-t-lg transition-all
+              ${tab === t
+                ? 'text-[var(--gold)] bg-[var(--gold)]/[0.06]'
+                : 'text-[var(--text-dim)] hover:text-[var(--text)]'
+              }`}
+            style={tab === t ? { borderBottom: '2px solid var(--gold)' } : { borderBottom: '2px solid transparent' }}
           >
             {t === 'order' ? 'Orden' : t === 'positions' ? `Pos (${positions.length})` : `Órd (${orders.length})`}
           </button>
@@ -80,33 +84,39 @@ export default function TradingPanel() {
       {tab === 'order' && (
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
           {/* Buy/Sell toggle */}
-          <div className="flex gap-1 bg-[var(--dark-3)] rounded-lg p-1">
+          <div className="flex gap-1 p-1 rounded-xl"
+            style={{ background: 'rgba(24,26,32,0.8)', border: '1px solid rgba(30,34,45,0.4)' }}>
             <button
               onClick={() => setSide('buy')}
-              className={`flex-1 py-2 text-sm font-bold rounded-md transition-all
-                ${side === 'buy' ? 'bg-[var(--green)] text-white' : 'text-[var(--text-dim)]'}`}
+              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all duration-200
+                ${side === 'buy' ? 'text-white shadow-lg' : 'text-[var(--text-dim)]'}`}
+              style={side === 'buy' ? { background: 'linear-gradient(135deg, #0ECB81, #0AA06A)', boxShadow: '0 4px 12px rgba(14,203,129,0.25)' } : {}}
             >
               Comprar
             </button>
             <button
               onClick={() => setSide('sell')}
-              className={`flex-1 py-2 text-sm font-bold rounded-md transition-all
-                ${side === 'sell' ? 'bg-[var(--red)] text-white' : 'text-[var(--text-dim)]'}`}
+              className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all duration-200
+                ${side === 'sell' ? 'text-white shadow-lg' : 'text-[var(--text-dim)]'}`}
+              style={side === 'sell' ? { background: 'linear-gradient(135deg, #F6465D, #D32F4A)', boxShadow: '0 4px 12px rgba(246,70,93,0.25)' } : {}}
             >
               Vender
             </button>
           </div>
 
           {/* Order type */}
-          <div className="flex gap-1">
+          <div className="flex gap-1 p-1 rounded-lg bg-[var(--dark-3)]">
             {['market', 'limit', 'stop_loss'].map(type => (
               <button
                 key={type}
                 onClick={() => setOrderType(type)}
-                className={`flex-1 py-1.5 text-xs rounded-md transition-colors
-                  ${orderType === type ? 'bg-[var(--dark-4)] text-[var(--text)] font-bold' : 'text-[var(--text-dim)]'}`}
+                className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all
+                  ${orderType === type
+                    ? 'bg-[var(--dark-4)] text-[var(--text)] shadow-sm'
+                    : 'text-[var(--text-dim)] hover:text-[var(--text)]'
+                  }`}
               >
-                {type === 'market' ? 'Market' : type === 'limit' ? 'Limit' : 'Stop'}
+                {type === 'market' ? 'Market' : type === 'limit' ? 'Límite' : 'Stop'}
               </button>
             ))}
           </div>
@@ -114,7 +124,7 @@ export default function TradingPanel() {
           {/* Price (for limit/stop) */}
           {orderType !== 'market' && (
             <div>
-              <label className="text-xs text-[var(--text-dim)] mb-1 block">Precio</label>
+              <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Precio</label>
               <input
                 type="number"
                 value={form.price}
@@ -127,7 +137,7 @@ export default function TradingPanel() {
 
           {/* Quantity */}
           <div>
-            <label className="text-xs text-[var(--text-dim)] mb-1 block">Cantidad</label>
+            <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Cantidad</label>
             <input
               type="number"
               value={form.quantity}
@@ -135,11 +145,12 @@ export default function TradingPanel() {
               placeholder="0.001"
               className="w-full text-sm"
             />
-            <div className="flex gap-1 mt-1">
+            <div className="flex gap-1 mt-1.5">
               {['25%', '50%', '75%', '100%'].map(pct => (
                 <button
                   key={pct}
-                  className="flex-1 py-1 text-[10px] bg-[var(--dark-3)] rounded text-[var(--text-dim)] hover:text-[var(--text)]"
+                  className="flex-1 py-1.5 text-[10px] font-semibold rounded-md text-[var(--text-dim)] hover:text-[var(--text)] transition-all"
+                  style={{ background: 'rgba(24,26,32,0.6)', border: '1px solid rgba(30,34,45,0.4)' }}
                 >
                   {pct}
                 </button>
@@ -150,8 +161,8 @@ export default function TradingPanel() {
           {/* Stop Loss / Take Profit */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-[var(--text-dim)] mb-1 flex items-center gap-1">
-                <Shield size={10} /> Stop Loss
+              <label className="text-[10px] text-[var(--text-dim)] mb-1 flex items-center gap-1 font-semibold uppercase tracking-wider">
+                <Shield size={9} className="text-[var(--red)]" /> SL
               </label>
               <input
                 type="number"
@@ -162,8 +173,8 @@ export default function TradingPanel() {
               />
             </div>
             <div>
-              <label className="text-xs text-[var(--text-dim)] mb-1 flex items-center gap-1">
-                <Target size={10} /> Take Profit
+              <label className="text-[10px] text-[var(--text-dim)] mb-1 flex items-center gap-1 font-semibold uppercase tracking-wider">
+                <Target size={9} className="text-[var(--green)]" /> TP
               </label>
               <input
                 type="number"
@@ -176,8 +187,9 @@ export default function TradingPanel() {
           </div>
 
           {/* Total */}
-          <div className="bg-[var(--dark-3)] rounded-lg p-2 flex items-center justify-between">
-            <span className="text-xs text-[var(--text-dim)]">Total</span>
+          <div className="rounded-lg p-3 flex items-center justify-between"
+            style={{ background: 'rgba(24,26,32,0.6)', border: '1px solid rgba(30,34,45,0.4)' }}>
+            <span className="text-[10px] text-[var(--text-dim)] font-semibold uppercase tracking-wider">Total</span>
             <span className="text-sm font-mono font-bold">${total.toFixed(2)}</span>
           </div>
 
@@ -185,32 +197,34 @@ export default function TradingPanel() {
           <button
             onClick={handleSubmit}
             disabled={!form.quantity}
-            className={`w-full py-3 font-bold rounded-xl text-sm transition-colors disabled:opacity-50
-              ${side === 'buy'
-                ? 'bg-[var(--green)] text-white hover:bg-[var(--green)]/80'
-                : 'bg-[var(--red)] text-white hover:bg-[var(--red)]/80'
-              }`}
+            className="w-full py-3.5 font-bold rounded-xl text-sm transition-all duration-200 disabled:opacity-40 text-white"
+            style={side === 'buy'
+              ? { background: 'linear-gradient(135deg, #0ECB81, #0AA06A)', boxShadow: '0 4px 15px rgba(14,203,129,0.25)' }
+              : { background: 'linear-gradient(135deg, #F6465D, #D32F4A)', boxShadow: '0 4px 15px rgba(246,70,93,0.25)' }
+            }
           >
             {side === 'buy' ? 'Comprar' : 'Vender'} {selectedPair.replace('USDT', '')}
           </button>
 
           {/* Mini order book */}
-          <div className="bg-[var(--dark-3)] rounded-lg p-2">
-            <p className="text-[10px] text-[var(--text-dim)] mb-1 font-bold">Order Book</p>
-            <div className="space-y-0.5 text-[10px] font-mono">
+          <div className="rounded-xl p-3"
+            style={{ background: 'rgba(24,26,32,0.6)', border: '1px solid rgba(30,34,45,0.4)' }}>
+            <p className="text-[10px] text-[var(--text-dim)] mb-2 font-bold uppercase tracking-wider">Order Book</p>
+            <div className="space-y-[2px] text-[10px] font-mono">
               {orderBook.asks.slice(0, 5).reverse().map((a, i) => (
-                <div key={`a${i}`} className="flex justify-between text-[var(--red)]">
+                <div key={`a${i}`} className="flex justify-between text-[var(--red)] py-0.5 px-1 rounded hover:bg-[var(--red)]/[0.04]">
                   <span>${a.price.toFixed(2)}</span>
-                  <span>{a.quantity.toFixed(4)}</span>
+                  <span className="text-[var(--text-dim)]">{a.quantity.toFixed(4)}</span>
                 </div>
               ))}
-              <div className="text-center py-0.5 text-sm font-bold text-[var(--gold)]">
+              <div className="text-center py-1.5 text-[15px] font-bold text-[var(--gold)] my-1"
+                style={{ background: 'rgba(59,130,246,0.04)', borderRadius: '6px' }}>
                 ${currentPrice?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '---'}
               </div>
               {orderBook.bids.slice(0, 5).map((b, i) => (
-                <div key={`b${i}`} className="flex justify-between text-[var(--green)]">
+                <div key={`b${i}`} className="flex justify-between text-[var(--green)] py-0.5 px-1 rounded hover:bg-[var(--green)]/[0.04]">
                   <span>${b.price.toFixed(2)}</span>
-                  <span>{b.quantity.toFixed(4)}</span>
+                  <span className="text-[var(--text-dim)]">{b.quantity.toFixed(4)}</span>
                 </div>
               ))}
             </div>
@@ -222,28 +236,36 @@ export default function TradingPanel() {
       {tab === 'positions' && (
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {positions.length === 0 ? (
-            <p className="text-center text-sm text-[var(--text-dim)] py-8">Sin posiciones abiertas</p>
+            <div className="text-center py-12">
+              <DollarSign size={32} className="mx-auto text-[var(--text-dim)]/20 mb-2" />
+              <p className="text-sm text-[var(--text-dim)]">Sin posiciones abiertas</p>
+            </div>
           ) : positions.map(pos => {
             const pnl = pos.side === 'buy'
               ? (currentPrice - pos.entryPrice) * pos.quantity
               : (pos.entryPrice - currentPrice) * pos.quantity;
             return (
-              <div key={pos.id} className="bg-[var(--dark-3)] rounded-lg p-2">
-                <div className="flex items-center justify-between mb-1">
+              <div key={pos.id} className="rounded-xl p-3"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(17,19,24,0.8), rgba(24,26,32,0.6))',
+                  border: `1px solid ${pnl >= 0 ? 'rgba(14,203,129,0.1)' : 'rgba(246,70,93,0.1)'}`,
+                }}>
+                <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold">{pos.symbol}</span>
-                  <span className={`text-xs font-bold ${pos.side === 'buy' ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${pos.side === 'buy' ? 'text-[var(--green)] bg-[var(--green)]/[0.08]' : 'text-[var(--red)] bg-[var(--red)]/[0.08]'}`}>
                     {pos.side.toUpperCase()}
                   </span>
                 </div>
-                <div className="flex justify-between text-[10px] text-[var(--text-dim)]">
+                <div className="flex justify-between text-[10px] text-[var(--text-dim)] mb-2">
                   <span>Entrada: ${pos.entryPrice}</span>
-                  <span className={pnl >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}>
+                  <span className={`font-bold ${pnl >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
                     P&L: {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
                   </span>
                 </div>
                 <button
                   onClick={() => closePosition(pos.id)}
-                  className="w-full mt-1 py-1 bg-[var(--dark-4)] text-[var(--text-dim)] rounded text-[10px] hover:bg-[var(--red)]/20 hover:text-[var(--red)] transition-colors"
+                  className="w-full py-1.5 rounded-lg text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--red)] transition-all"
+                  style={{ background: 'rgba(24,26,32,0.6)', border: '1px solid rgba(30,34,45,0.4)' }}
                 >
                   Cerrar Posición
                 </button>
@@ -257,21 +279,29 @@ export default function TradingPanel() {
       {tab === 'orders' && (
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {orders.length === 0 ? (
-            <p className="text-center text-sm text-[var(--text-dim)] py-8">Sin órdenes pendientes</p>
+            <div className="text-center py-12">
+              <DollarSign size={32} className="mx-auto text-[var(--text-dim)]/20 mb-2" />
+              <p className="text-sm text-[var(--text-dim)]">Sin órdenes pendientes</p>
+            </div>
           ) : orders.map(order => (
-            <div key={order.id} className="bg-[var(--dark-3)] rounded-lg p-2">
+            <div key={order.id} className="rounded-xl p-3"
+              style={{
+                background: 'linear-gradient(135deg, rgba(17,19,24,0.8), rgba(24,26,32,0.6))',
+                border: '1px solid rgba(30,34,45,0.5)',
+              }}>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-bold">{order.symbol}</span>
-                <span className={`text-xs font-bold ${order.side === 'buy' ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
+                <span className={`text-[10px] font-bold ${order.side === 'buy' ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
                   {order.side.toUpperCase()} {order.type}
                 </span>
               </div>
-              <div className="text-[10px] text-[var(--text-dim)]">
+              <div className="text-[10px] text-[var(--text-dim)] mb-2">
                 Precio: ${order.price} | Cantidad: {order.quantity}
               </div>
               <button
                 onClick={() => cancelOrder(order.id)}
-                className="w-full mt-1 py-1 bg-[var(--dark-4)] text-[var(--text-dim)] rounded text-[10px] hover:bg-[var(--red)]/20 hover:text-[var(--red)] transition-colors"
+                className="w-full py-1.5 rounded-lg text-[10px] font-semibold text-[var(--text-dim)] hover:text-[var(--red)] transition-all"
+                style={{ background: 'rgba(24,26,32,0.6)', border: '1px solid rgba(30,34,45,0.4)' }}
               >
                 Cancelar
               </button>

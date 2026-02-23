@@ -1,4 +1,4 @@
-// Kairos Trade — Main Application
+// Kairos Trade — Main Application (Premium v2)
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import useStore from './store/useStore';
@@ -21,6 +21,7 @@ import StrategyBuilder from './components/Strategy/StrategyBuilder';
 import TradeHistory from './components/Trading/TradeHistory';
 import SimulatorScreen from './components/Trading/SimulatorScreen';
 import SettingsPanel from './components/Settings/SettingsPanel';
+import AlertPanel from './components/Alerts/AlertPanel';
 
 function App() {
   const { isAuthenticated, currentPage, aiPanelOpen } = useStore();
@@ -46,6 +47,7 @@ function App() {
       case 'ai': return <AIChat />;
       case 'strategies': return <StrategyBuilder />;
       case 'history': return <TradeHistory />;
+      case 'alerts': return <AlertPanel />;
       case 'wallet': return (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
