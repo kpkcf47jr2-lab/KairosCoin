@@ -1,4 +1,4 @@
-import{r as yc}from"./ui-DykaratV.js";var hi={exports:{}},ve={},yi={exports:{}},gi={};/**
+import{r as yc}from"./ui-BVATmWoE.js";var hi={exports:{}},ve={},yi={exports:{}},gi={};/**
  * @license React
  * scheduler.production.min.js
  *

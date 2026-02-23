@@ -5,9 +5,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Send as SendIcon, ChevronDown, AlertTriangle, Fuel, Check, BookOpen, ScanLine } from 'lucide-react';
+import { ArrowLeft, Send as SendIcon, ChevronDown, AlertTriangle, Fuel, Check, BookOpen, ScanLine, Sliders } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { sendNative, sendToken, estimateGasNative, estimateGasToken, waitForTransaction, resolveENS } from '../../services/blockchain';
+import { sendNative, sendToken, sendNativeCustomGas, estimateGasNative, estimateGasToken, waitForTransaction, resolveENS, getGasPrice } from '../../services/blockchain';
 import { formatBalance, formatUSD } from '../../services/prices';
 import { isValidAddress, formatAddress, unlockVault } from '../../services/wallet';
 import { CHAINS, KAIROS_TOKEN, GAS_PRESETS } from '../../constants/chains';
@@ -33,9 +33,15 @@ export default function SendScreen() {
   const [step, setStep] = useState('form'); // 'form' | 'confirm' | 'password' | 'success'
   const [sendPassword, setSendPassword] = useState('');
   const [sendPasswordError, setSendPasswordError] = useState('');
+  const [showAdvancedGas, setShowAdvancedGas] = useState(false);
+  const [customGasLimit, setCustomGasLimit] = useState('');
+  const [customGasPrice, setCustomGasPrice] = useState('');
+  const [customPriorityFee, setCustomPriorityFee] = useState('');
+  const [liveGasPrice, setLiveGasPrice] = useState(null);
 
   const chain = CHAINS[activeChainId];
   const account = getActiveAccount();
+  const isWatchOnly = account?.isWatchOnly;
   const [showContacts, setShowContacts] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [ensName, setEnsName] = useState(null);
@@ -134,7 +140,17 @@ export default function SendScreen() {
     
     try {
       let result;
-      if (selectedToken.isNative) {
+      // Use custom gas if advanced mode is active with values
+      const useCustomGas = showAdvancedGas && customGasPrice;
+      
+      if (selectedToken.isNative && useCustomGas) {
+        result = await sendNativeCustomGas(activeChainId, account.privateKey, finalRecipient, amount, {
+          maxFeePerGas: parseFloat(customGasPrice),
+          maxPriorityFeePerGas: customPriorityFee ? parseFloat(customPriorityFee) : undefined,
+          gasLimit: customGasLimit ? parseInt(customGasLimit) : undefined,
+          gasPrice: parseFloat(customGasPrice), // fallback for legacy chains
+        });
+      } else if (selectedToken.isNative) {
         result = await sendNative(activeChainId, account.privateKey, finalRecipient, amount, gasPreset);
       } else {
         result = await sendToken(
@@ -478,36 +494,105 @@ export default function SendScreen() {
 
         {/* Gas Presets */}
         <div>
-          <label className="text-xs text-dark-400 mb-2 block flex items-center gap-1">
-            <Fuel size={12} /> Velocidad de transacción
-          </label>
-          <div className="grid grid-cols-4 gap-2">
-            {Object.entries(GAS_PRESETS).map(([key, preset]) => (
-              <button
-                key={key}
-                onClick={() => setGasPreset(key)}
-                className={`p-2 rounded-xl text-center transition-all ${
-                  gasPreset === key
-                    ? 'bg-kairos-500/15 border border-kairos-500/30'
-                    : 'bg-white/5 border border-transparent'
-                }`}
-              >
-                <span className="text-lg">{preset.icon}</span>
-                <p className="text-[10px] mt-0.5 text-dark-300">{preset.label}</p>
-              </button>
-            ))}
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs text-dark-400 flex items-center gap-1">
+              <Fuel size={12} /> Velocidad de transacción
+            </label>
+            <button
+              onClick={() => {
+                setShowAdvancedGas(!showAdvancedGas);
+                if (!liveGasPrice) {
+                  getGasPrice(activeChainId).then(p => setLiveGasPrice(p)).catch(() => {});
+                }
+              }}
+              className="flex items-center gap-1 text-[10px] text-kairos-400"
+            >
+              <Sliders size={10} />
+              {showAdvancedGas ? 'Modo Simple' : 'Avanzado'}
+            </button>
           </div>
+
+          {!showAdvancedGas ? (
+            <div className="grid grid-cols-4 gap-2">
+              {Object.entries(GAS_PRESETS).map(([key, preset]) => (
+                <button
+                  key={key}
+                  onClick={() => setGasPreset(key)}
+                  className={`p-2 rounded-xl text-center transition-all ${
+                    gasPreset === key
+                      ? 'bg-kairos-500/15 border border-kairos-500/30'
+                      : 'bg-white/5 border border-transparent'
+                  }`}
+                >
+                  <span className="text-lg">{preset.icon}</span>
+                  <p className="text-[10px] mt-0.5 text-dark-300">{preset.label}</p>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2 bg-white/[0.03] rounded-xl p-3 border border-white/5">
+              {liveGasPrice && (
+                <p className="text-[10px] text-dark-400 mb-2">
+                  Gas actual: <span className="text-kairos-400">{liveGasPrice.standard.toFixed(2)} Gwei</span>
+                  {' · '}Rápido: {liveGasPrice.fast.toFixed(2)} · Instant: {liveGasPrice.instant.toFixed(2)}
+                </p>
+              )}
+              <div>
+                <label className="text-[10px] text-dark-400 mb-0.5 block">Gas Price / Max Fee (Gwei)</label>
+                <input
+                  type="number"
+                  value={customGasPrice}
+                  onChange={e => setCustomGasPrice(e.target.value)}
+                  placeholder={liveGasPrice ? liveGasPrice.standard.toFixed(2) : 'Auto'}
+                  className="glass-input text-sm h-9"
+                  step="0.1"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-dark-400 mb-0.5 block">Priority Fee (Gwei) — EIP-1559</label>
+                <input
+                  type="number"
+                  value={customPriorityFee}
+                  onChange={e => setCustomPriorityFee(e.target.value)}
+                  placeholder="1.5"
+                  className="glass-input text-sm h-9"
+                  step="0.1"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-dark-400 mb-0.5 block">Gas Limit</label>
+                <input
+                  type="number"
+                  value={customGasLimit}
+                  onChange={e => setCustomGasLimit(e.target.value)}
+                  placeholder={gasEstimate?.gasLimit || '21000'}
+                  className="glass-input text-sm h-9"
+                />
+              </div>
+              <p className="text-[9px] text-dark-500">
+                ⚠️ Gas incorrecto puede hacer que la TX falle o cueste de más. Usa "Modo Simple" si no estás seguro.
+              </p>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Watch-only guard */}
+      {isWatchOnly && (
+        <div className="flex items-center gap-2 p-3 mb-2 rounded-xl bg-orange-500/10 border border-orange-500/20">
+          <AlertTriangle size={16} className="text-orange-400 flex-shrink-0" />
+          <p className="text-xs text-orange-400">Cuenta Watch-Only — solo lectura, no puedes enviar.</p>
+        </div>
+      )}
 
       {/* Send button */}
       <button
         onClick={() => setStep('confirm')}
-        disabled={!isValid || !selectedToken || parseFloat(amount || 0) <= 0}
+        disabled={!isValid || !selectedToken || parseFloat(amount || 0) <= 0 || isWatchOnly}
         className="kairos-button w-full py-4 mt-4 disabled:opacity-40 flex items-center justify-center gap-2"
       >
         <SendIcon size={18} />
-        Revisar Transacción
+        {isWatchOnly ? 'Solo Lectura' : 'Revisar Transacción'}
       </button>
 
       {/* QR Scanner */}

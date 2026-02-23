@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════
 //  KAIROS WALLET — NFT Service
-//  Fetch NFTs via block explorer APIs and ERC-721 calls
+//  Fetch ERC-721 + ERC-1155 NFTs via block explorer APIs
+//  Superior: supports both NFT standards
 // ═══════════════════════════════════════════════════════
 
 import { ethers } from 'ethers';
@@ -110,20 +111,113 @@ export async function getNFTs(chainId, address) {
     console.error('Error fetching NFTs:', err);
   }
 
+  // ── Also fetch ERC-1155 tokens ──
+  try {
+    const url1155 = `${chain.blockExplorerApiUrl}?module=account&action=token1155tx&address=${address}&startblock=0&endblock=99999999&sort=desc&apikey=${API_KEYS[chainId] || ''}`;
+    const resp1155 = await fetch(url1155);
+    const json1155 = await resp1155.json();
+
+    if (json1155.status === '1' && json1155.result) {
+      const owned1155 = new Map();
+
+      for (const tx of json1155.result) {
+        const nftKey = `${tx.contractAddress}_${tx.tokenID}`;
+        const isOwner = tx.to.toLowerCase() === address.toLowerCase();
+
+        if (isOwner) {
+          if (!owned1155.has(nftKey)) {
+            owned1155.set(nftKey, {
+              contractAddress: tx.contractAddress,
+              tokenId: tx.tokenID,
+              name: tx.tokenName || 'ERC-1155',
+              symbol: tx.tokenSymbol || 'ERC-1155',
+              blockNumber: parseInt(tx.blockNumber),
+              tokenType: 'ERC-1155',
+              tokenValue: tx.tokenValue || '1',
+            });
+          }
+        } else {
+          owned1155.delete(nftKey);
+        }
+      }
+
+      const ownedList1155 = Array.from(owned1155.values()).slice(0, 15);
+
+      for (const nft of ownedList1155) {
+        try {
+          // Verify actual balance on-chain
+          const provider = getProvider(chainId);
+          const contract = new ethers.Contract(nft.contractAddress, ERC1155_ABI, provider);
+          const balance = await contract.balanceOf(address, nft.tokenId);
+          if (balance === 0n) continue;
+
+          const metadata = await get1155Metadata(chainId, nft.contractAddress, nft.tokenId);
+          nfts.push({
+            ...nft,
+            balance: balance.toString(),
+            image: metadata?.image || null,
+            nftName: metadata?.name || `${nft.name} #${nft.tokenId}`,
+            description: metadata?.description || '',
+            attributes: metadata?.attributes || [],
+          });
+        } catch {
+          nfts.push({
+            ...nft,
+            balance: nft.tokenValue,
+            image: null,
+            nftName: `${nft.name} #${nft.tokenId}`,
+            description: '',
+            attributes: [],
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching ERC-1155 NFTs:', err);
+  }
+
   const result = nfts;
   nftCache[key] = { data: result, timestamp: Date.now() };
   return result;
 }
 
 /**
- * Get NFT metadata from tokenURI
+ * Get NFT metadata from tokenURI (ERC-721)
  */
 async function getNFTMetadata(chainId, contractAddress, tokenId) {
   try {
     const provider = getProvider(chainId);
     const contract = new ethers.Contract(contractAddress, ERC721_ABI, provider);
     let uri = await contract.tokenURI(tokenId);
+    return await resolveMetadataUri(uri);
+  } catch {
+    return null;
+  }
+}
 
+/**
+ * Get NFT metadata from uri (ERC-1155)
+ */
+async function get1155Metadata(chainId, contractAddress, tokenId) {
+  try {
+    const provider = getProvider(chainId);
+    const contract = new ethers.Contract(contractAddress, ERC1155_ABI, provider);
+    let uri = await contract.uri(tokenId);
+    // ERC-1155 uses {id} placeholder in URIs
+    uri = uri.replace('{id}', BigInt(tokenId).toString(16).padStart(64, '0'));
+    return await resolveMetadataUri(uri);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve a metadata URI (IPFS, data:, https:) to JSON
+ */
+async function resolveMetadataUri(uri) {
+  if (!uri) return null;
+
+  try {
     // Handle IPFS URIs
     if (uri.startsWith('ipfs://')) {
       uri = uri.replace('ipfs://', 'https://ipfs.io/ipfs/');

@@ -172,6 +172,60 @@ export async function importAccount(password, privateKey, accountName) {
 }
 
 /**
+ * Import a watch-only account (address only, no private key)
+ * Can view balances and history but cannot sign transactions
+ */
+export async function importWatchOnly(password, address, accountName) {
+  // Validate address
+  const checksumAddress = ethers.getAddress(address);
+  
+  const vault = await unlockVault(password);
+  
+  // Check for duplicates
+  const allAddresses = [
+    ...vault.accounts.map(a => a.address.toLowerCase()),
+    ...(vault.importedAccounts || []).map(a => a.address.toLowerCase()),
+    ...(vault.watchOnlyAccounts || []).map(a => a.address.toLowerCase()),
+  ];
+  
+  if (allAddresses.includes(checksumAddress.toLowerCase())) {
+    throw new Error('Esta dirección ya existe');
+  }
+  
+  if (!vault.watchOnlyAccounts) vault.watchOnlyAccounts = [];
+  
+  vault.watchOnlyAccounts.push({
+    name: accountName || `Watch ${vault.watchOnlyAccounts.length + 1}`,
+    address: checksumAddress,
+    privateKey: null,
+    path: null,
+    index: null,
+    isWatchOnly: true,
+    createdAt: Date.now(),
+  });
+
+  const encryptedVault = await encrypt(JSON.stringify(vault), password);
+  localStorage.setItem(STORAGE_KEYS.ENCRYPTED_VAULT, encryptedVault);
+  
+  return { address: checksumAddress, name: accountName, isWatchOnly: true };
+}
+
+/**
+ * Remove a watch-only account
+ */
+export async function removeWatchOnly(password, address) {
+  const vault = await unlockVault(password);
+  if (!vault.watchOnlyAccounts) return;
+  
+  vault.watchOnlyAccounts = vault.watchOnlyAccounts.filter(
+    a => a.address.toLowerCase() !== address.toLowerCase()
+  );
+
+  const encryptedVault = await encrypt(JSON.stringify(vault), password);
+  localStorage.setItem(STORAGE_KEYS.ENCRYPTED_VAULT, encryptedVault);
+}
+
+/**
  * Get signer for transactions
  */
 export function getSigner(privateKey, provider) {

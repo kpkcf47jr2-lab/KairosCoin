@@ -109,14 +109,14 @@ export const useStore = create((set, get) => ({
   getActiveAccount: () => {
     const { vault, activeAddress } = get();
     if (!vault) return null;
-    const all = [...(vault.accounts || []), ...(vault.importedAccounts || [])];
+    const all = [...(vault.accounts || []), ...(vault.importedAccounts || []), ...(vault.watchOnlyAccounts || [])];
     return all.find(a => a.address.toLowerCase() === activeAddress?.toLowerCase()) || all[0];
   },
   
   getAllAccounts: () => {
     const { vault } = get();
     if (!vault) return [];
-    return [...(vault.accounts || []), ...(vault.importedAccounts || [])];
+    return [...(vault.accounts || []), ...(vault.importedAccounts || []), ...(vault.watchOnlyAccounts || [])];
   },
 
   getTotalPortfolioValue: () => {

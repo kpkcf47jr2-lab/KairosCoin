@@ -6,10 +6,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, User, Shield, Globe, Bell, Palette, Info,
-  ChevronRight, LogOut, Trash2, Key, Plus, Copy, Check, ExternalLink, Eye, EyeOff, AlertTriangle, Link2, FileText, Edit3, ShieldCheck
+  ChevronRight, LogOut, Trash2, Key, Plus, Copy, Check, ExternalLink, Eye, EyeOff, AlertTriangle, Link2, FileText, Edit3, ShieldCheck, Clock, Binoculars
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { formatAddress, resetWallet, addAccount, unlockVault } from '../../services/wallet';
+import { formatAddress, resetWallet, addAccount, unlockVault, importWatchOnly, isValidAddress } from '../../services/wallet';
 import { CHAINS } from '../../constants/chains';
 import { APP_VERSION } from '../../constants/chains';
 import {
@@ -48,6 +48,14 @@ export default function SettingsScreen() {
 
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetStep, setResetStep] = useState(1); // 1 = first confirm, 2 = second confirm
+
+  // Watch-only modal
+  const [showWatchOnlyModal, setShowWatchOnlyModal] = useState(false);
+  const [watchOnlyAddress, setWatchOnlyAddress] = useState('');
+  const [watchOnlyName, setWatchOnlyName] = useState('');
+  const [watchOnlyPwd, setWatchOnlyPwd] = useState('');
+  const [watchOnlyError, setWatchOnlyError] = useState('');
+  const [watchOnlyLoading, setWatchOnlyLoading] = useState(false);
   const [renameAddress, setRenameAddress] = useState(null);
   const [renameName, setRenameName] = useState('');
 
@@ -120,6 +128,24 @@ export default function SettingsScreen() {
     setExportedKey(null);
     setExportError('');
     setShowKeyVisible(false);
+  };
+
+  const handleWatchOnlySubmit = async () => {
+    if (!watchOnlyPwd || !watchOnlyAddress) return;
+    setWatchOnlyLoading(true);
+    setWatchOnlyError('');
+    try {
+      if (!isValidAddress(watchOnlyAddress)) throw new Error('Dirección inválida');
+      const result = await importWatchOnly(watchOnlyPwd, watchOnlyAddress, watchOnlyName || undefined);
+      showToast(`Watch-only añadida: ${formatAddress(result.address)}`, 'success');
+      setShowWatchOnlyModal(false);
+      setWatchOnlyAddress('');
+      setWatchOnlyName('');
+      setWatchOnlyPwd('');
+    } catch (err) {
+      setWatchOnlyError(err.message);
+    }
+    setWatchOnlyLoading(false);
   };
 
   const handleCopyKey = async () => {
@@ -213,6 +239,20 @@ export default function SettingsScreen() {
     {
       title: t('settings.general', 'General'),
       items: [
+        {
+          icon: Clock,
+          label: 'TX Pendientes',
+          desc: 'Acelerar o cancelar transacciones',
+          action: () => navigate('pending'),
+          color: 'text-yellow-400',
+        },
+        {
+          icon: Binoculars,
+          label: 'Watch-Only',
+          desc: 'Importar dirección de solo lectura',
+          action: () => setShowWatchOnlyModal(true),
+          color: 'text-teal-400',
+        },
         {
           icon: Link2,
           label: t('settings.walletconnect'),
@@ -338,7 +378,15 @@ export default function SettingsScreen() {
                     {acc.name?.charAt(0) || 'W'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{acc.name}</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-sm font-medium truncate">{acc.name}</p>
+                      {acc.isWatchOnly && (
+                        <span className="text-[8px] bg-teal-500/15 text-teal-400 px-1.5 py-0.5 rounded font-bold">👁 WATCH</span>
+                      )}
+                      {acc.isImported && (
+                        <span className="text-[8px] bg-purple-500/15 text-purple-400 px-1.5 py-0.5 rounded font-bold">IMPORTADA</span>
+                      )}
+                    </div>
                     <p className="text-dark-400 text-xs font-mono">{formatAddress(acc.address, 6)}</p>
                   </div>
                   <button
@@ -673,6 +721,58 @@ export default function SettingsScreen() {
                 <button onClick={handleResetConfirm}
                   className="flex-1 py-3 text-sm font-semibold rounded-xl bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors">
                   {resetStep === 1 ? 'Continuar' : 'Sí, eliminar'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* ── Watch-Only Import Modal ── */}
+        {showWatchOnlyModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-6"
+            onClick={() => setShowWatchOnlyModal(false)}
+          >
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+              className="glass-card w-full max-w-sm p-6 rounded-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-2 mb-4">
+                <Binoculars size={18} className="text-teal-400" />
+                <h3 className="font-bold text-white">Importar Watch-Only</h3>
+              </div>
+              <p className="text-dark-400 text-xs mb-4">
+                Solo lectura — puedes ver balances e historial pero no enviar transacciones.
+              </p>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={watchOnlyAddress}
+                  onChange={e => setWatchOnlyAddress(e.target.value)}
+                  placeholder="0x... dirección"
+                  className="glass-input w-full text-sm font-mono"
+                  autoFocus
+                />
+                <input
+                  type="text"
+                  value={watchOnlyName}
+                  onChange={e => setWatchOnlyName(e.target.value)}
+                  placeholder="Nombre (opcional)"
+                  className="glass-input w-full text-sm"
+                />
+                <input
+                  type="password"
+                  value={watchOnlyPwd}
+                  onChange={e => setWatchOnlyPwd(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleWatchOnlySubmit()}
+                  placeholder="Contraseña"
+                  className="glass-input w-full text-sm"
+                />
+              </div>
+              {watchOnlyError && <p className="text-red-400 text-xs mt-2">{watchOnlyError}</p>}
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setShowWatchOnlyModal(false)} className="glass-button flex-1 py-3 text-center text-sm">Cancelar</button>
+                <button onClick={handleWatchOnlySubmit} disabled={!watchOnlyPwd || !watchOnlyAddress || watchOnlyLoading}
+                  className="kairos-button flex-1 py-3 text-sm disabled:opacity-40">
+                  {watchOnlyLoading ? 'Importando...' : 'Importar'}
                 </button>
               </div>
             </motion.div>

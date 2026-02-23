@@ -27,6 +27,7 @@ import BuyCryptoScreen from './components/Buy/BuyCryptoScreen';
 import BridgeScreen from './components/Bridge/BridgeScreen';
 import NetworksScreen from './components/Settings/NetworksScreen';
 import ApprovalsScreen from './components/Security/ApprovalsScreen';
+import PendingTxScreen from './components/History/PendingTxScreen';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import Toast from './components/Common/Toast';
 
@@ -106,6 +107,8 @@ export default function App() {
         return <NetworksScreen key="networks" />;
       case 'approvals':
         return <ApprovalsScreen key="approvals" />;
+      case 'pending':
+        return <PendingTxScreen key="pending" />;
       default:
         return <LoadingScreen key="loading" />;
     }
