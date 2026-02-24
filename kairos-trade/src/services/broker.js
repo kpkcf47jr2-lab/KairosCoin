@@ -172,25 +172,30 @@ class BrokerService {
     return new Uint8Array([tag, 0x82, (len >> 8) & 0xff, len & 0xff]);
   }
 
-  // ─── Coinbase CDP Signed Request ───
-  async _coinbaseRequest(creds, method, path) {
+  // ─── Coinbase CDP Signed Request (via Netlify proxy to bypass CORS) ───
+  async _coinbaseRequest(creds, method, path, body = null) {
     const jwt = await this._coinbaseJWT(creds);
-    const url = `https://api.coinbase.com${path}`;
+
+    // Use serverless proxy to bypass CORS — JWT signed client-side, keys never leave browser
+    const proxyUrl = '/api/coinbase-proxy';
     try {
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${jwt}`,
-          'Content-Type': 'application/json',
-        },
+      const res = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jwt, method, path, body }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
+
+      let data;
+      const text = await res.text();
+      try { data = JSON.parse(text); } catch { data = { error: text }; }
+
+      if (!res.ok) {
+        throw new Error(data.error || data.message || `Coinbase HTTP ${res.status}`);
+      }
       return data;
     } catch (err) {
-      // CORS or network error
       if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
-        throw new Error('CORS bloqueado: la API de Coinbase no permite llamadas desde el navegador. Necesitas conectar desde la app de escritorio o usaremos un proxy.');
+        throw new Error('Error de red al conectar con el proxy. Reintenta en unos segundos.');
       }
       throw err;
     }
