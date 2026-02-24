@@ -58,7 +58,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+    <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5" style={{ maxWidth: '100%' }}>
       {/* Welcome section */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -73,15 +73,15 @@ export default function Dashboard() {
         </div>
         <button
           onClick={() => setPage('chart')}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 btn-gold"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all hover:opacity-90 btn-gold shrink-0"
         >
-          <BarChart3 size={16} />
-          Abrir Trading
+          <BarChart3 size={14} />
+          Trading
         </button>
       </motion.div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {stats.map((stat, i) => {
           const Icon = stat.icon;
           return (
@@ -117,7 +117,7 @@ export default function Dashboard() {
           <Zap size={14} className="text-[var(--gold)]" />
           Acceso Rápido
         </h2>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           {quickActions.map((action, i) => {
             const Icon = action.icon;
             return (
@@ -164,7 +164,7 @@ export default function Dashboard() {
         </div>
 
         {/* Table header */}
-        <div className="grid grid-cols-4 gap-4 px-4 py-2 text-[10px] font-bold text-[var(--text-dim)]/50 uppercase tracking-wider">
+        <div className="grid grid-cols-4 gap-3 px-4 py-2 text-[10px] font-bold text-[var(--text-dim)]/50 uppercase tracking-wider">
           <span>Par</span>
           <span className="text-right">Precio</span>
           <span className="text-right">Cambio 24h</span>
@@ -181,7 +181,7 @@ export default function Dashboard() {
               animate={{ opacity: 1 }}
               transition={{ delay: i * 0.05 }}
               onClick={() => { useStore.getState().setSelectedPair(toDisplayPair(ticker.symbol)); setPage('chart'); }}
-              className="group w-full grid grid-cols-4 gap-4 items-center px-4 py-3 hover:bg-white/[0.02] transition-colors"
+              className="group w-full grid grid-cols-4 gap-3 items-center px-4 py-3 hover:bg-white/[0.02] transition-colors"
             >
               {/* Pair */}
               <div className="flex items-center gap-3">

@@ -26,18 +26,18 @@ export default function OrdersPanel() {
   if (collapsed) {
     return (
       <div
-        className="flex items-center justify-between px-3 py-1.5 cursor-pointer shrink-0 select-none"
+        className="flex items-center justify-between px-4 py-2 cursor-pointer shrink-0 select-none"
         style={{ borderTop: '1px solid rgba(30,34,45,0.6)', background: 'rgba(14,16,21,0.95)' }}
         onClick={() => setCollapsed(false)}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4 overflow-x-auto">
           {tabs.map(t => (
-            <span key={t.id} className="text-[10px] text-[var(--text-dim)] font-medium">
-              {t.label} <span className="text-[var(--text-dim)]/60">({t.count})</span>
+            <span key={t.id} className="text-[11px] text-[var(--text-dim)] font-medium whitespace-nowrap">
+              {t.label} <span style={{ opacity: 0.5 }}>({t.count})</span>
             </span>
           ))}
         </div>
-        <ChevronUp size={14} className="text-[var(--text-dim)]" />
+        <ChevronUp size={14} className="text-[var(--text-dim)] shrink-0 ml-2" />
       </div>
     );
   }
@@ -52,30 +52,30 @@ export default function OrdersPanel() {
       }}
     >
       {/* Tab bar */}
-      <div className="flex items-center shrink-0 px-1" style={{ borderBottom: '1px solid rgba(30,34,45,0.4)' }}>
+      <div className="flex items-center shrink-0 px-2 gap-0.5" style={{ borderBottom: '1px solid rgba(30,34,45,0.4)' }}>
         {tabs.map(t => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-3 py-2 text-[11px] font-semibold transition-colors relative
+            className={`px-2.5 py-2 text-[11px] font-semibold transition-colors relative whitespace-nowrap
               ${tab === t.id ? 'text-[var(--text)]' : 'text-[var(--text-dim)] hover:text-[var(--text-secondary)]'}`}
           >
             {t.label}
             {t.count > 0 && (
-              <span className={`ml-1 text-[9px] px-1.5 py-0.5 rounded-full font-bold
+              <span className={`ml-1 text-[9px] px-1 py-0.5 rounded-full font-bold
                 ${tab === t.id ? 'bg-[var(--gold)]/15 text-[var(--gold)]' : 'bg-white/5 text-[var(--text-dim)]'}`}>
                 {t.count}
               </span>
             )}
             {tab === t.id && (
-              <div className="absolute bottom-0 left-1 right-1 h-[2px] rounded-t-full bg-[var(--gold)]" />
+              <div className="absolute bottom-0 left-0.5 right-0.5 h-[2px] rounded-t-full bg-[var(--gold)]" />
             )}
           </button>
         ))}
         <div className="flex-1" />
         <button
           onClick={() => setCollapsed(true)}
-          className="p-1.5 text-[var(--text-dim)] hover:text-[var(--text)] transition-colors mr-1"
+          className="p-1.5 text-[var(--text-dim)] hover:text-[var(--text)] transition-colors mr-1 shrink-0"
         >
           <ChevronDown size={14} />
         </button>
