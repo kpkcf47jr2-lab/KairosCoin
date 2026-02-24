@@ -413,7 +413,88 @@ class BrokerService {
       }
     }
 
-    // Simulated execution for other brokers
+    if (conn.config.id === 'coinbase') {
+      try {
+        // Coinbase Advanced Trade API — Create Order
+        // https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_postorder
+        const productId = symbol.replace(/([A-Z]+)(USDT|USDC|USD|BTC|ETH)$/i, '$1-$2').toUpperCase();
+
+        const orderConfig = {};
+        if (type === 'market') {
+          if (side.toLowerCase() === 'buy') {
+            // Market buy: specify quote_size (USD amount)
+            orderConfig.market_market_ioc = {
+              quote_size: (parseFloat(quantity) * parseFloat(price || 0)).toFixed(2),
+            };
+          } else {
+            // Market sell: specify base_size (crypto amount)
+            orderConfig.market_market_ioc = {
+              base_size: parseFloat(quantity).toString(),
+            };
+          }
+        } else if (type === 'limit') {
+          orderConfig.limit_limit_gtc = {
+            base_size: parseFloat(quantity).toString(),
+            limit_price: parseFloat(price).toFixed(2),
+          };
+        }
+
+        const orderBody = {
+          client_order_id: crypto.randomUUID(),
+          product_id: productId,
+          side: side.toUpperCase(),
+          order_configuration: orderConfig,
+        };
+
+        const result = await this._coinbaseRequest(conn.creds, 'POST', '/api/v3/brokerage/orders', orderBody);
+
+        const orderResult = result.success_response || result;
+        const orderId = orderResult.order_id || orderResult.id || Date.now().toString(36);
+
+        // Fetch filled details if available
+        let filledPrice = parseFloat(price || 0);
+        let filledQty = parseFloat(quantity);
+        let orderStatus = 'pending';
+
+        if (result.success) {
+          // Get order details to confirm fill
+          try {
+            const details = await this._coinbaseRequest(conn.creds, 'GET', `/api/v3/brokerage/orders/historical/${orderId}`);
+            const order = details.order || details;
+            filledPrice = parseFloat(order.average_filled_price || order.filled_price || price || 0);
+            filledQty = parseFloat(order.filled_size || order.filled_value || quantity);
+            orderStatus = (order.status || 'FILLED').toLowerCase();
+          } catch {
+            orderStatus = 'filled'; // Market orders usually fill immediately
+          }
+        } else {
+          // Order might have error
+          const errMsg = result.error_response?.error || result.error || 'Unknown error';
+          throw new Error(`Coinbase order failed: ${errMsg}`);
+        }
+
+        return {
+          id: orderId,
+          clientOrderId: orderBody.client_order_id,
+          symbol: productId,
+          side: side.toLowerCase(),
+          type,
+          quantity: filledQty,
+          price: filledPrice,
+          filledPrice,
+          filledQty,
+          status: orderStatus,
+          timestamp: new Date().toISOString(),
+          broker: 'Coinbase',
+          real: true,
+        };
+      } catch (err) {
+        console.error('Coinbase placeOrder error:', err);
+        throw err;
+      }
+    }
+
+    // Simulated execution for unsupported brokers
     return {
       id: Date.now().toString(36),
       symbol, side, type,

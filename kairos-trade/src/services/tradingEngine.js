@@ -11,6 +11,26 @@ class TradingEngine {
   constructor() {
     this.activeBots = new Map();
     this.intervals = new Map();
+    this.positions = new Map(); // Track open positions per bot { botId -> { side, entryPrice, quantity, entryTime } }
+  }
+
+  // ─── Auto-reconnect broker if needed ───
+  async _ensureBrokerConnected(bot) {
+    if (!bot.brokerId) return false;
+    if (brokerService.connections.has(bot.brokerId)) return true;
+
+    // Try to reconnect from stored broker data
+    try {
+      const useStore = (await import('../store/useStore')).default;
+      const broker = useStore.getState().brokers.find(b => b.id === bot.brokerId);
+      if (broker && broker.connected) {
+        await brokerService.connect(broker);
+        return true;
+      }
+    } catch (err) {
+      console.warn('Auto-reconnect failed:', err.message);
+    }
+    return false;
   }
 
   // ─── Start a bot ───
@@ -18,6 +38,15 @@ class TradingEngine {
     if (this.activeBots.has(bot.id)) return;
 
     onLog?.(`🤖 Bot "${bot.name}" iniciado en ${bot.pair}`);
+
+    // Auto-reconnect broker
+    const brokerReady = await this._ensureBrokerConnected(bot);
+    if (bot.brokerId) {
+      onLog?.(brokerReady
+        ? `🔗 Broker conectado — modo REAL activado`
+        : `⚠️ Broker no disponible — modo DEMO`);
+    }
+
     this.activeBots.set(bot.id, { bot, running: true });
 
     // Monitor loop — check every interval based on timeframe
@@ -37,41 +66,162 @@ class TradingEngine {
         const signal = this._evaluateStrategy(bot.strategy, candles, closes);
 
         if (signal) {
-          onLog?.(`📊 Señal detectada: ${signal.type.toUpperCase()} a $${currentPrice}`);
+          const openPosition = this.positions.get(bot.id);
 
-          // Calculate position size
-          const positionSize = this._calculatePositionSize(bot, currentPrice);
+          // Check if this signal closes an existing position
+          if (openPosition && openPosition.side !== signal.type) {
+            // CLOSE position — calculate real P&L
+            const entryPrice = openPosition.entryPrice;
+            const exitPrice = currentPrice;
+            const qty = openPosition.quantity;
+            let profit;
 
-          // Build order
-          const order = {
-            symbol: toApiPair(bot.pair),
-            side: signal.type,
-            type: 'market',
-            quantity: positionSize,
-            price: currentPrice,
-            stopLoss: signal.type === 'buy'
-              ? currentPrice * (1 - parseFloat(bot.strategy.stopLoss || 2) / 100)
-              : currentPrice * (1 + parseFloat(bot.strategy.stopLoss || 2) / 100),
-            takeProfit: signal.type === 'buy'
-              ? currentPrice * (1 + parseFloat(bot.strategy.takeProfit || 4) / 100)
-              : currentPrice * (1 - parseFloat(bot.strategy.takeProfit || 4) / 100),
-          };
-
-          // ─── REAL EXECUTION via connected broker ───
-          if (bot.brokerId && brokerService.connections.has(bot.brokerId)) {
-            try {
-              onLog?.(`🔄 Ejecutando orden REAL en broker...`);
-              const result = await brokerService.placeOrder(bot.brokerId, order);
-              onLog?.(`✅ ORDEN REAL ejecutada: ${result.side?.toUpperCase()} ${result.filledQty || positionSize} ${order.symbol} @ $${result.filledPrice || currentPrice} [${result.status}]`);
-              onTrade?.({ ...order, ...result, real: true });
-            } catch (err) {
-              onLog?.(`❌ Error ejecutando orden real: ${err.message}`);
-              onTrade?.({ ...order, status: 'error', error: err.message });
+            if (openPosition.side === 'buy') {
+              profit = (exitPrice - entryPrice) * qty;
+            } else {
+              profit = (entryPrice - exitPrice) * qty;
             }
-          } else {
-            // Demo mode — just log the signal
-            onLog?.(`📝 [DEMO] Orden simulada: ${signal.type.toUpperCase()} ${positionSize} ${order.symbol} @ $${currentPrice}`);
-            onTrade?.({ ...order, status: 'filled', simulated: true });
+
+            onLog?.(`📊 Cerrando posición: ${openPosition.side.toUpperCase()} → ${signal.type.toUpperCase()} | Entrada: $${entryPrice.toFixed(2)} → Salida: $${exitPrice.toFixed(2)} | P&L: ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`);
+
+            // Build close order
+            const closeOrder = {
+              symbol: toApiPair(bot.pair),
+              side: signal.type,
+              type: 'market',
+              quantity: qty,
+              price: currentPrice,
+            };
+
+            // Execute close on broker
+            if (bot.brokerId && brokerService.connections.has(bot.brokerId)) {
+              try {
+                onLog?.(`🔄 Cerrando posición REAL en broker...`);
+                const result = await brokerService.placeOrder(bot.brokerId, closeOrder);
+                const realProfit = result.filledPrice
+                  ? (openPosition.side === 'buy'
+                    ? (result.filledPrice - entryPrice) * qty
+                    : (entryPrice - result.filledPrice) * qty)
+                  : profit;
+                onLog?.(`✅ Posición cerrada: P&L real ${realProfit >= 0 ? '+' : ''}$${realProfit.toFixed(2)}`);
+                onTrade?.({ ...closeOrder, ...result, profit: realProfit, real: true, action: 'close' });
+              } catch (err) {
+                onLog?.(`❌ Error cerrando posición: ${err.message}`);
+                onTrade?.({ ...closeOrder, profit, status: 'error', error: err.message, action: 'close' });
+              }
+            } else {
+              onLog?.(`📝 [DEMO] Posición cerrada: P&L ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`);
+              onTrade?.({ ...closeOrder, profit, status: 'filled', simulated: true, action: 'close' });
+            }
+
+            this.positions.delete(bot.id);
+          }
+
+          // Open NEW position (if no position is open)
+          if (!this.positions.has(bot.id)) {
+            onLog?.(`📊 Señal detectada: ${signal.type.toUpperCase()} a $${currentPrice}`);
+
+            const positionSize = this._calculatePositionSize(bot, currentPrice);
+
+            const order = {
+              symbol: toApiPair(bot.pair),
+              side: signal.type,
+              type: 'market',
+              quantity: positionSize,
+              price: currentPrice,
+              stopLoss: signal.type === 'buy'
+                ? currentPrice * (1 - parseFloat(bot.strategy?.stopLoss || 2) / 100)
+                : currentPrice * (1 + parseFloat(bot.strategy?.stopLoss || 2) / 100),
+              takeProfit: signal.type === 'buy'
+                ? currentPrice * (1 + parseFloat(bot.strategy?.takeProfit || 4) / 100)
+                : currentPrice * (1 - parseFloat(bot.strategy?.takeProfit || 4) / 100),
+            };
+
+            // Execute on broker
+            if (bot.brokerId && brokerService.connections.has(bot.brokerId)) {
+              try {
+                onLog?.(`🔄 Ejecutando orden REAL en broker...`);
+                const result = await brokerService.placeOrder(bot.brokerId, order);
+                const fillPrice = result.filledPrice || currentPrice;
+                onLog?.(`✅ ORDEN REAL ejecutada: ${result.side?.toUpperCase()} ${result.filledQty || positionSize} @ $${fillPrice} [${result.status}]`);
+
+                // Track open position
+                this.positions.set(bot.id, {
+                  side: signal.type,
+                  entryPrice: fillPrice,
+                  quantity: result.filledQty || positionSize,
+                  entryTime: Date.now(),
+                  orderId: result.id,
+                });
+
+                onTrade?.({ ...order, ...result, real: true, action: 'open' });
+              } catch (err) {
+                onLog?.(`❌ Error ejecutando orden real: ${err.message}`);
+                onTrade?.({ ...order, status: 'error', error: err.message });
+              }
+            } else {
+              // Demo mode
+              onLog?.(`📝 [DEMO] Orden: ${signal.type.toUpperCase()} ${positionSize} @ $${currentPrice}`);
+
+              this.positions.set(bot.id, {
+                side: signal.type,
+                entryPrice: currentPrice,
+                quantity: positionSize,
+                entryTime: Date.now(),
+                simulated: true,
+              });
+
+              onTrade?.({ ...order, status: 'filled', simulated: true, action: 'open' });
+            }
+          }
+        }
+
+        // Check stop-loss / take-profit for open positions
+        const pos = this.positions.get(bot.id);
+        if (pos) {
+          const sl = pos.side === 'buy'
+            ? pos.entryPrice * (1 - parseFloat(bot.strategy?.stopLoss || 2) / 100)
+            : pos.entryPrice * (1 + parseFloat(bot.strategy?.stopLoss || 2) / 100);
+          const tp = pos.side === 'buy'
+            ? pos.entryPrice * (1 + parseFloat(bot.strategy?.takeProfit || 4) / 100)
+            : pos.entryPrice * (1 - parseFloat(bot.strategy?.takeProfit || 4) / 100);
+
+          const hitSL = pos.side === 'buy' ? currentPrice <= sl : currentPrice >= sl;
+          const hitTP = pos.side === 'buy' ? currentPrice >= tp : currentPrice <= tp;
+
+          if (hitSL || hitTP) {
+            const exitSide = pos.side === 'buy' ? 'sell' : 'buy';
+            const profit = pos.side === 'buy'
+              ? (currentPrice - pos.entryPrice) * pos.quantity
+              : (pos.entryPrice - currentPrice) * pos.quantity;
+
+            onLog?.(`${hitSL ? '🛑 STOP-LOSS' : '🎯 TAKE-PROFIT'} alcanzado a $${currentPrice.toFixed(2)} | P&L: ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`);
+
+            const closeOrder = {
+              symbol: toApiPair(bot.pair),
+              side: exitSide,
+              type: 'market',
+              quantity: pos.quantity,
+              price: currentPrice,
+            };
+
+            if (bot.brokerId && brokerService.connections.has(bot.brokerId)) {
+              try {
+                const result = await brokerService.placeOrder(bot.brokerId, closeOrder);
+                const realProfit = result.filledPrice
+                  ? (pos.side === 'buy'
+                    ? (result.filledPrice - pos.entryPrice) * pos.quantity
+                    : (pos.entryPrice - result.filledPrice) * pos.quantity)
+                  : profit;
+                onTrade?.({ ...closeOrder, ...result, profit: realProfit, real: true, action: 'close', reason: hitSL ? 'stop_loss' : 'take_profit' });
+              } catch (err) {
+                onLog?.(`❌ Error cerrando por ${hitSL ? 'SL' : 'TP'}: ${err.message}`);
+              }
+            } else {
+              onTrade?.({ ...closeOrder, profit, status: 'filled', simulated: true, action: 'close', reason: hitSL ? 'stop_loss' : 'take_profit' });
+            }
+
+            this.positions.delete(bot.id);
           }
         }
       } catch (err) {
@@ -97,6 +247,8 @@ class TradingEngine {
       clearInterval(interval);
       this.intervals.delete(botId);
     }
+    // Clear tracked position
+    this.positions.delete(botId);
   }
 
   // ─── Evaluate strategy rules ───

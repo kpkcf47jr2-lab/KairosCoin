@@ -67,7 +67,7 @@ export default function Sidebar() {
           onMouseLeave={() => setHoveredItem(null)}
           title={!sidebarOpen ? item.label : undefined}
           className={`w-full flex items-center rounded-xl transition-all duration-200 relative group
-            ${sidebarOpen ? 'px-3.5 py-3.5 gap-3.5' : 'px-0 py-3 justify-center'}
+            ${sidebarOpen ? 'px-3 py-3 gap-3.5' : 'px-0 py-3 justify-center'}
             ${isActive
               ? 'text-white'
               : 'text-[var(--text-dim)] hover:text-[var(--text)]'
@@ -165,7 +165,7 @@ export default function Sidebar() {
 
   const SectionLabel = ({ label }) => (
     sidebarOpen ? (
-      <div className="flex items-center gap-2 px-2 mb-2.5 mt-1">
+      <div className="flex items-center gap-2 px-3 mb-2.5 mt-1">
         <p className="text-[11px] font-bold text-[var(--text-dim)]/60 uppercase tracking-[0.14em] whitespace-nowrap">
           {label}
         </p>
@@ -178,7 +178,7 @@ export default function Sidebar() {
 
   return (
     <motion.aside
-      animate={{ width: sidebarOpen ? 280 : 72 }}
+      animate={{ width: sidebarOpen ? 300 : 72 }}
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
       className="h-full flex flex-col relative shrink-0"
       style={{
@@ -188,7 +188,7 @@ export default function Sidebar() {
     >
       {/* Logo area */}
       <div
-        className={`flex items-center shrink-0 ${sidebarOpen ? 'px-6 gap-3.5 h-[68px]' : 'justify-center h-[68px]'}`}
+        className={`flex items-center shrink-0 ${sidebarOpen ? 'px-7 gap-3.5 h-[68px]' : 'justify-center h-[68px]'}`}
         style={{ borderBottom: '1px solid rgba(30,34,45,0.6)' }}
       >
         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 relative"
@@ -214,7 +214,7 @@ export default function Sidebar() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mx-4 mt-4 mb-2 p-3.5 rounded-xl"
+          className="mx-5 mt-4 mb-2 p-3.5 rounded-xl"
           style={{
             background: 'linear-gradient(135deg, rgba(59,130,246,0.04), rgba(26,29,38,0.5))',
             border: '1px solid rgba(59,130,246,0.06)',
@@ -236,7 +236,7 @@ export default function Sidebar() {
       )}
 
       {/* Main Navigation */}
-      <nav className={`flex-1 overflow-y-auto py-3 ${sidebarOpen ? 'px-4' : 'px-2'}`}
+      <nav className={`flex-1 overflow-y-auto py-3 ${sidebarOpen ? 'px-5' : 'px-2'}`}
         style={{ scrollbarWidth: 'none' }}>
         {SECTIONS.map((section, si) => (
           <div key={section.label} className={si > 0 ? 'mt-6' : 'mt-1'}>
@@ -250,7 +250,7 @@ export default function Sidebar() {
 
       {/* Bottom section */}
       <div
-        className={`py-3 ${sidebarOpen ? 'px-4' : 'px-2'}`}
+        className={`py-3 ${sidebarOpen ? 'px-5' : 'px-2'}`}
         style={{ borderTop: '1px solid rgba(30,34,45,0.6)' }}
       >
         <div className="space-y-0.5">

@@ -39,15 +39,21 @@ export default function BotManager() {
     scriptCode: '', scriptStrategyId: '',
   });
 
-  // Fetch real balances from connected brokers
+  // Fetch real balances from connected brokers (auto-reconnect if needed)
   const fetchBrokerBalances = useCallback(async () => {
     for (const broker of brokers.filter(b => b.connected)) {
       try {
+        // Auto-reconnect if broker service lost the connection (e.g. page reload)
+        if (!brokerService.connections?.has(broker.id)) {
+          await brokerService.connect(broker);
+        }
         const result = await brokerService.getBalances(broker.id);
         const balArr = Array.isArray(result) ? result : result?.balances || [];
-        const totalUsd = balArr.reduce((sum, b) => sum + parseFloat(b.total || 0), 0);
-        setBrokerBalances(prev => ({ ...prev, [broker.id]: { balances: balArr, totalUsd } }));
-      } catch {}
+        setBrokerBalances(prev => ({ ...prev, [broker.id]: { balances: balArr, loading: false, error: false } }));
+      } catch (err) {
+        console.warn('Balance fetch failed for', broker.id, err.message);
+        setBrokerBalances(prev => ({ ...prev, [broker.id]: { balances: [], loading: false, error: true } }));
+      }
     }
   }, [brokers]);
 
@@ -145,12 +151,23 @@ export default function BotManager() {
 
   const addTrade = (bot, trade) => {
     setLogs(prev => [...prev.slice(-100), { type: 'trade', bot: bot.name, ...trade, time: new Date().toLocaleTimeString() }]);
-    // Update bot stats
+    // Update bot stats — only count closed trades for P&L
     const current = useStore.getState().bots.find(b => b.id === bot.id);
     if (current) {
       const trades = (current.trades || 0) + 1;
-      const pnl = (current.pnl || 0) + (trade.profit || 0);
-      updateBot(bot.id, { trades, pnl });
+      const profit = parseFloat(trade.profit) || 0;
+      const pnl = (current.pnl || 0) + profit;
+
+      // Track win rate: only on close actions with profit data
+      let winRate = current.winRate || 0;
+      if (trade.action === 'close' && profit !== 0) {
+        const totalClosed = (current._closedTrades || 0) + 1;
+        const totalWins = (current._wins || 0) + (profit > 0 ? 1 : 0);
+        winRate = totalClosed > 0 ? (totalWins / totalClosed) * 100 : 0;
+        updateBot(bot.id, { trades, pnl, winRate, _closedTrades: totalClosed, _wins: totalWins });
+      } else {
+        updateBot(bot.id, { trades, pnl });
+      }
     }
   };
 
@@ -215,7 +232,7 @@ export default function BotManager() {
   const getTypeInfo = (type) => BOT_TYPES.find(t => t.id === type) || BOT_TYPES[0];
 
   return (
-    <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 space-y-5 min-w-0">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-lg font-bold">Trading Bots</h1>
@@ -509,8 +526,23 @@ export default function BotManager() {
                     <p className="text-lg font-bold text-[var(--gold)]">{(bot.winRate || 0).toFixed(0)}%</p>
                   </div>
                   <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
-                    <p className="text-xs text-[var(--text-dim)] mb-1">Balance Bot</p>
-                    <p className="text-lg font-bold">${bot.balance?.toLocaleString() || '0'}</p>
+                    <p className="text-xs text-[var(--text-dim)] mb-1">Balance</p>
+                    {(() => {
+                      const initial = parseFloat(bot.balance) || 0;
+                      const pnl = parseFloat(bot.pnl) || 0;
+                      const current = initial + pnl;
+                      const isUp = current >= initial;
+                      return (
+                        <div>
+                          <p className={`text-lg font-bold ${isUp ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
+                            ${current.toFixed(2)}
+                          </p>
+                          <p className="text-[10px] text-[var(--text-dim)]">
+                            Inicio: ${initial.toFixed(2)}
+                          </p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
