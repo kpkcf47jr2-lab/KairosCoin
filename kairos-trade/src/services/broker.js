@@ -19,21 +19,23 @@ class BrokerService {
   }
 
   // ─── Coinbase CDP: Build JWT from EC Private Key ───
-  async _coinbaseJWT(creds) {
+  async _coinbaseJWT(creds, method, path) {
     const keyName = creds.apiKey;
     const privateKeyPem = creds.apiSecret;
 
     // JWT Header
     const header = { alg: 'ES256', kid: keyName, nonce: crypto.randomUUID(), typ: 'JWT' };
 
-    // JWT Payload
+    // JWT Payload — Coinbase CDP requires 'uri' field: "METHOD host/path"
     const now = Math.floor(Date.now() / 1000);
+    const uri = `${method} api.coinbase.com${path}`;
     const payload = {
       sub: keyName,
       iss: 'coinbase-cloud',
       aud: ['cdp_service'],
       nbf: now,
       exp: now + 120,
+      uri,
     };
 
     const toB64url = (str) => btoa(str).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
@@ -174,7 +176,7 @@ class BrokerService {
 
   // ─── Coinbase CDP Signed Request (via Netlify proxy to bypass CORS) ───
   async _coinbaseRequest(creds, method, path, body = null) {
-    const jwt = await this._coinbaseJWT(creds);
+    const jwt = await this._coinbaseJWT(creds, method, path);
 
     // Use serverless proxy to bypass CORS — JWT signed client-side, keys never leave browser
     const proxyUrl = '/api/coinbase-proxy';
