@@ -4,7 +4,7 @@ import { createChart, ColorType, CrosshairMode } from 'lightweight-charts';
 import { TIMEFRAMES, POPULAR_PAIRS } from '../../constants';
 import { calculateEMA, calculateRSI, calculateBollingerBands, calculateSMA } from '../../services/indicators';
 import marketData from '../../services/marketData';
-import { toApiPair, getBase, QUOTE } from '../../utils/pairUtils';
+import { toApiPair, getBase, formatPair, QUOTE } from '../../utils/pairUtils';
 import useStore from '../../store/useStore';
 import { Search, TrendingUp } from 'lucide-react';
 
@@ -304,7 +304,7 @@ export default function TradingChart() {
             className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--dark-3)] rounded-lg text-sm font-bold hover:bg-[var(--dark-4)] transition-colors"
           >
             <Search size={13} className="text-[var(--text-dim)]" />
-            {selectedPair}
+            {formatPair(selectedPair)}
           </button>
           {searchOpen && (
             <div className="absolute top-full left-0 mt-1 w-64 bg-[var(--dark-3)] border border-[var(--border)] rounded-xl shadow-xl z-50 p-2">
@@ -326,7 +326,7 @@ export default function TradingChart() {
                       className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors
                         ${pair === selectedPair ? 'bg-[var(--gold)]/15 text-[var(--gold)]' : 'text-[var(--text-dim)] hover:bg-[var(--dark-4)] hover:text-[var(--text)]'}`}
                     >
-                      {pair}
+                      {formatPair(pair)}
                     </button>
                   ))}
               </div>
@@ -384,7 +384,7 @@ export default function TradingChart() {
           <div className="absolute inset-0 flex items-center justify-center z-20" style={{ background: 'rgba(11,14,17,0.85)' }}>
             <div className="flex flex-col items-center gap-2">
               <div className="w-8 h-8 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
-              <span className="text-xs text-[var(--text-dim)]">Cargando {selectedPair}...</span>
+              <span className="text-xs text-[var(--text-dim)]">Cargando {formatPair(selectedPair)}...</span>
             </div>
           </div>
         )}

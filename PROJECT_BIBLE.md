@@ -481,6 +481,7 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 - [ ] Test first real redemption end-to-end (buy KAIROS → burn → receive USD)
 
 ### Kairos Trade — Next Features
+- [x] Real Coinbase CDP connection (JWT/ES256 + Netlify proxy) ✅ DONE Feb 23, 2026
 - [ ] Strategy marketplace (share/import strategies)
 - [ ] Wallet integration (connect Kairos Wallet with trading platform)
 - [ ] Advanced order types (OCO, trailing stop, iceberg)

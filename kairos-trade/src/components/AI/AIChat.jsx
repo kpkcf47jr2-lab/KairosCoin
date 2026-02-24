@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Brain, Zap, BarChart3, Sparkles, Trash2, Code, Copy, Check, ArrowRightLeft, BookOpen, Target } from 'lucide-react';
 import useStore from '../../store/useStore';
 import aiService from '../../services/ai';
+import { formatPair } from '../../utils/pairUtils';
 
 export default function AIChat() {
   const { aiMessages, addAiMessage, aiLoading, setAiLoading, clearAiMessages, currentPrice, selectedPair, priceChange24h, setSelectedPair, setPage } = useStore();
@@ -58,9 +59,9 @@ export default function AIChat() {
   };
 
   const quickActions = [
-    { label: `Analiza ${selectedPair}`, icon: BarChart3, prompt: `Analiza ${selectedPair}` },
+    { label: `Analiza ${formatPair(selectedPair)}`, icon: BarChart3, prompt: `Analiza ${selectedPair}` },
     { label: 'Crea un Script Bot', icon: Code, prompt: `Crea un kairos script ganador para ${selectedPair}` },
-    { label: 'Estrategia ganadora', icon: Target, prompt: `Dame una estrategia para ${selectedPair} según el mercado` },
+    { label: 'Estrategia ganadora', icon: Target, prompt: `Dame una estrategia para ${formatPair(selectedPair)} según el mercado` },
     { label: '¿Qué es el RSI?', icon: BookOpen, prompt: '¿Qué es el RSI y cómo se usa?' },
     { label: 'Muéstrame SOLUSDT', icon: ArrowRightLeft, prompt: 'Muéstrame SOLUSDT' },
     { label: 'Ayuda', icon: Sparkles, prompt: '¿Qué puedes hacer?' },

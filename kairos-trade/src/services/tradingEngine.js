@@ -1,10 +1,11 @@
 // Kairos Trade — Trading Engine (Bot Execution Core)
-// Monitors market conditions and executes trades based on strategy rules
+// Monitors market conditions and executes REAL trades via connected broker
 
 import { calculateEMA, calculateRSI, calculateMACD, detectCrossover } from './indicators';
 import { marketData } from './marketData';
 import { brokerService } from './broker';
 import { executeScript } from './kairosScript';
+import { toApiPair } from '../utils/pairUtils';
 
 class TradingEngine {
   constructor() {
@@ -40,23 +41,37 @@ class TradingEngine {
           // Calculate position size
           const positionSize = this._calculatePositionSize(bot, currentPrice);
 
-          // Execute order
+          // Build order
           const order = {
-            symbol: bot.pair,
+            symbol: toApiPair(bot.pair),
             side: signal.type,
             type: 'market',
             quantity: positionSize,
             price: currentPrice,
             stopLoss: signal.type === 'buy'
-              ? currentPrice * (1 - parseFloat(bot.strategy.stopLoss) / 100)
-              : currentPrice * (1 + parseFloat(bot.strategy.stopLoss) / 100),
+              ? currentPrice * (1 - parseFloat(bot.strategy.stopLoss || 2) / 100)
+              : currentPrice * (1 + parseFloat(bot.strategy.stopLoss || 2) / 100),
             takeProfit: signal.type === 'buy'
-              ? currentPrice * (1 + parseFloat(bot.strategy.takeProfit) / 100)
-              : currentPrice * (1 - parseFloat(bot.strategy.takeProfit) / 100),
+              ? currentPrice * (1 + parseFloat(bot.strategy.takeProfit || 4) / 100)
+              : currentPrice * (1 - parseFloat(bot.strategy.takeProfit || 4) / 100),
           };
 
-          onTrade?.(order);
-          onLog?.(`✅ Orden ejecutada: ${signal.type.toUpperCase()} ${positionSize} ${bot.pair} @ $${currentPrice}`);
+          // ─── REAL EXECUTION via connected broker ───
+          if (bot.brokerId && brokerService.connections.has(bot.brokerId)) {
+            try {
+              onLog?.(`🔄 Ejecutando orden REAL en broker...`);
+              const result = await brokerService.placeOrder(bot.brokerId, order);
+              onLog?.(`✅ ORDEN REAL ejecutada: ${result.side?.toUpperCase()} ${result.filledQty || positionSize} ${order.symbol} @ $${result.filledPrice || currentPrice} [${result.status}]`);
+              onTrade?.({ ...order, ...result, real: true });
+            } catch (err) {
+              onLog?.(`❌ Error ejecutando orden real: ${err.message}`);
+              onTrade?.({ ...order, status: 'error', error: err.message });
+            }
+          } else {
+            // Demo mode — just log the signal
+            onLog?.(`📝 [DEMO] Orden simulada: ${signal.type.toUpperCase()} ${positionSize} ${order.symbol} @ $${currentPrice}`);
+            onTrade?.({ ...order, status: 'filled', simulated: true });
+          }
         }
       } catch (err) {
         onLog?.(`❌ Error: ${err.message}`);

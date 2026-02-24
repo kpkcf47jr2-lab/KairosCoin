@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import marketData from '../../services/marketData';
+import { toDisplayPair, getBase, formatPair } from '../../utils/pairUtils';
 
 export default function Dashboard() {
   const { setPage, bots, brokers, tradeHistory, positions, user } = useStore();
@@ -179,7 +180,7 @@ export default function Dashboard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: i * 0.05 }}
-              onClick={() => { useStore.getState().setSelectedPair(ticker.symbol); setPage('chart'); }}
+              onClick={() => { useStore.getState().setSelectedPair(toDisplayPair(ticker.symbol)); setPage('chart'); }}
               className="group w-full grid grid-cols-4 gap-4 items-center px-4 py-3 hover:bg-white/[0.02] transition-colors"
             >
               {/* Pair */}
@@ -191,12 +192,12 @@ export default function Dashboard() {
                       : 'rgba(246,70,93,0.08)',
                   }}>
                   <span className={ticker.changePercent >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}>
-                    {ticker.symbol.replace('USDT', '').slice(0, 3)}
+                    {getBase(ticker.symbol).slice(0, 3)}
                   </span>
                 </div>
                 <div className="text-left">
-                  <p className="text-[13px] font-bold leading-none">{ticker.symbol.replace('USDT', '')}</p>
-                  <p className="text-[10px] text-[var(--text-dim)]/50 mt-0.5">USDT</p>
+                  <p className="text-[13px] font-bold leading-none">{getBase(ticker.symbol)}</p>
+                  <p className="text-[10px] text-[var(--text-dim)]/50 mt-0.5">KAIROS</p>
                 </div>
               </div>
 

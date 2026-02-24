@@ -7,6 +7,7 @@ import { tradingEngine } from '../../services/tradingEngine';
 import gridBotEngine from '../../services/gridBot';
 import dcaBotEngine from '../../services/dcaBot';
 import { POPULAR_PAIRS, TIMEFRAMES } from '../../constants';
+import { formatPair } from '../../utils/pairUtils';
 import StrategyEditor from './StrategyEditor';
 
 const BOT_TYPES = [
@@ -24,7 +25,7 @@ export default function BotManager() {
   const [botType, setBotType] = useState('signal');
   const [logs, setLogs] = useState([]);
   const [form, setForm] = useState({
-    name: '', pair: 'BTCUSDT', timeframe: '1h', strategyId: '', brokerId: '',
+    name: '', pair: 'BTCKAIROS', timeframe: '1h', strategyId: '', brokerId: '',
     balance: '1000', riskPercent: '2', maxTrades: '10',
     // Grid bot fields
     upperPrice: '', lowerPrice: '', gridLines: '10',
@@ -213,7 +214,7 @@ export default function BotManager() {
                 <div>
                   <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Par</label>
                   <select value={form.pair} onChange={(e) => setForm({ ...form, pair: e.target.value })} className="w-full">
-                    {POPULAR_PAIRS.map(p => <option key={p} value={p}>{p}</option>)}
+                    {POPULAR_PAIRS.map(p => <option key={p} value={p}>{formatPair(p)}</option>)}
                   </select>
                 </div>
               </div>
@@ -332,6 +333,22 @@ export default function BotManager() {
                 </>
               )}
 
+              {/* Broker selector — real execution */}
+              {brokers.filter(b => b.connected).length > 0 && (
+                <div>
+                  <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Broker (ejecución real)</label>
+                  <select value={form.brokerId} onChange={(e) => setForm({ ...form, brokerId: e.target.value })} className="w-full">
+                    <option value="">Demo (sin broker)</option>
+                    {brokers.filter(b => b.connected).map(b => (
+                      <option key={b.id} value={b.id}>🟢 {b.name || b.broker} — Real</option>
+                    ))}
+                  </select>
+                  {form.brokerId && (
+                    <p className="text-[10px] text-[var(--red)] mt-1 font-semibold">⚠️ Este bot ejecutará órdenes REALES con dinero real</p>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <button onClick={handleCreate} className="flex-1 py-2.5 btn-gold rounded-xl text-sm">Crear Bot</button>
                 <button onClick={() => setShowCreate(false)} className="px-4 py-2.5 bg-[var(--surface-2)] text-[var(--text-dim)] rounded-xl text-sm border border-[var(--border)]">Cancelar</button>
@@ -369,7 +386,10 @@ export default function BotManager() {
                           {typeInfo.label}
                         </span>
                       </div>
-                      <p className="text-xs text-[var(--text-dim)]">{bot.pair}{bot.timeframe ? ` • ${bot.timeframe}` : ''}</p>
+                      <p className="text-xs text-[var(--text-dim)]">
+                        {formatPair(bot.pair)}{bot.timeframe ? ` • ${bot.timeframe}` : ''}
+                        {bot.brokerId ? ' • 🟢 REAL' : ' • Demo'}
+                      </p>
                     </div>
                   </div>
                   <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold"

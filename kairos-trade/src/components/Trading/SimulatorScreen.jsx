@@ -8,6 +8,7 @@ import {
 import useStore from '../../store/useStore';
 import simulator from '../../services/simulator';
 import { POPULAR_PAIRS } from '../../constants';
+import { formatPair, getBase } from '../../utils/pairUtils';
 
 // Mini equity curve component
 function EquityCurve({ data, height = 140 }) {
@@ -269,7 +270,7 @@ export default function SimulatorScreen() {
           <h3 className="text-sm font-bold">Abrir Posición (Demo)</h3>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold text-[var(--gold)]">{selectedPair}</span>
+            <span className="text-sm font-bold text-[var(--gold)]">{formatPair(selectedPair)}</span>
             <span className="text-sm font-mono">${currentPrice?.toLocaleString(undefined, { maximumFractionDigits: 2 }) || '---'}</span>
             <button onClick={() => setPage('chart')} className="text-xs text-[var(--gold)] hover:underline ml-auto">
               Ver gráfico →
@@ -342,7 +343,7 @@ export default function SimulatorScreen() {
               form.side === 'buy' ? 'bg-[var(--green)] text-white' : 'bg-[var(--red)] text-white'
             }`}
           >
-            {loading ? 'Ejecutando...' : `${form.side === 'buy' ? 'Comprar' : 'Vender'} ${selectedPair.replace('USDT', '')} (Demo)`}
+            {loading ? 'Ejecutando...' : `${form.side === 'buy' ? 'Comprar' : 'Vender'} ${getBase(selectedPair)} (Demo)`}
           </button>
         </div>
 

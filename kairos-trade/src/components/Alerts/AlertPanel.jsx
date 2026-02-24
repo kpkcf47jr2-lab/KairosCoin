@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import alertService from '../../services/alerts';
+import { formatPair } from '../../utils/pairUtils';
 
 const SIGNAL_TYPES = [
   { id: 'ema_cross', label: 'EMA Cruce', desc: 'EMA 20/50 crossover', icon: Activity },
@@ -119,7 +120,7 @@ export default function AlertPanel() {
               border: '1px solid rgba(30,34,45,0.5)',
             }}
           >
-            <h3 className="text-sm font-bold">Crear Alerta para {selectedPair}</h3>
+            <h3 className="text-sm font-bold">Crear Alerta para {formatPair(selectedPair)}</h3>
 
             {/* Type toggle */}
             <div className="flex gap-2">

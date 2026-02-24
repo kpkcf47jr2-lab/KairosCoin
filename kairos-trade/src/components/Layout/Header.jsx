@@ -2,11 +2,12 @@
 import { Search, Bell, Wifi, WifiOff, Brain, TrendingUp, TrendingDown, Globe, Volume2 } from 'lucide-react';
 import { useState } from 'react';
 import useStore from '../../store/useStore';
-import { getBase, QUOTE } from '../../utils/pairUtils';
+import { getBase, formatPair, QUOTE } from '../../utils/pairUtils';
 
 export default function Header() {
-  const { selectedPair, currentPrice, priceChange24h, toggleAiPanel, aiPanelOpen, brokers } = useStore();
+  const { selectedPair, currentPrice, priceChange24h, toggleAiPanel, aiPanelOpen, brokers, activeBroker } = useStore();
   const connected = brokers.some(b => b.connected);
+  const connectedBroker = activeBroker || brokers.find(b => b.connected);
   const [searchFocused, setSearchFocused] = useState(false);
 
   return (
@@ -28,8 +29,8 @@ export default function Header() {
               <span className="text-[var(--gold)]">{getBase(selectedPair).slice(0, 3)}</span>
             </div>
             <div>
-              <h2 className="text-[14px] font-bold text-[var(--text)] tracking-wide leading-none">{selectedPair}</h2>
-              <span className="text-[9px] text-[var(--text-dim)]/60 font-medium">Perpetual</span>
+              <h2 className="text-[14px] font-bold text-[var(--text)] tracking-wide leading-none">{formatPair(selectedPair)}</h2>
+              <span className="text-[9px] text-[var(--text-dim)]/60 font-medium">Spot Trading</span>
             </div>
           </div>
 
@@ -66,14 +67,15 @@ export default function Header() {
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
-        {/* Connection status */}
+        {/* Connection status + broker name */}
         <div className={`flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg transition-all
           ${connected
             ? 'text-[var(--green)] bg-[var(--green)]/[0.06] border border-[var(--green)]/10'
             : 'text-[var(--text-dim)] bg-white/[0.02] border border-[var(--border)]/50'
           }`}>
           {connected ? <Wifi size={12} /> : <WifiOff size={12} />}
-          <span className="font-semibold">{connected ? 'Live' : 'Demo'}</span>
+          <span className="font-semibold">{connected && connectedBroker ? connectedBroker.name || connectedBroker.broker : 'Demo'}</span>
+          {connected && <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] animate-pulse" />}
         </div>
 
         {/* AI toggle */}
