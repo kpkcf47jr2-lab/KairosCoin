@@ -4,6 +4,7 @@
 import { calculateEMA, calculateRSI, calculateMACD, detectCrossover } from './indicators';
 import { marketData } from './marketData';
 import { brokerService } from './broker';
+import { executeScript } from './kairosScript';
 
 class TradingEngine {
   constructor() {
@@ -84,6 +85,16 @@ class TradingEngine {
 
   // ─── Evaluate strategy rules ───
   _evaluateStrategy(strategy, candles, closes) {
+    // Custom Kairos Script
+    if (strategy?.type === 'custom_script' && strategy?.code) {
+      const result = executeScript(strategy.code, candles);
+      if (result.error) {
+        console.warn('[KairosScript] Error:', result.error);
+        return null;
+      }
+      return result.signal; // { type: 'buy' } or { type: 'sell' } or null
+    }
+
     if (!strategy?.entry?.indicator) return null;
 
     const len = closes.length;

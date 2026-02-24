@@ -41,7 +41,11 @@ function TradingView() {
             </button>
           ))}
         </div>
-        {chartTab === 'chart' ? <TradingChart /> : <DepthChart pair={selectedPair || 'BTCUSDT'} height={500} />}
+        {chartTab === 'chart' ? (
+          <div className="flex-1 min-h-0 overflow-hidden"><TradingChart /></div>
+        ) : (
+          <div className="flex-1 min-h-0 overflow-hidden"><DepthChart pair={selectedPair || 'BTCUSDT'} height={500} /></div>
+        )}
       </div>
       <TradingPanel />
     </div>

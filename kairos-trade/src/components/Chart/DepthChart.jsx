@@ -126,13 +126,13 @@ export default function DepthChart({ pair = 'BTCUSDT', height = 260 }) {
     ctx.setLineDash([4, 4]);
     ctx.moveTo(midX, pad.top);
     ctx.lineTo(midX, h - pad.bottom);
-    ctx.strokeStyle = '#D4AF3780';
+    ctx.strokeStyle = '#3B82F680';
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.setLineDash([]);
 
     // Mid price label
-    ctx.fillStyle = '#D4AF37';
+    ctx.fillStyle = '#3B82F6';
     ctx.font = '600 10px Inter, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText(`$${midPrice.toFixed(2)}`, midX, h - pad.bottom + 14);
@@ -170,7 +170,7 @@ export default function DepthChart({ pair = 'BTCUSDT', height = 260 }) {
       const tw = ctx.measureText(label).width + 16;
       const tx = Math.min(hovering.x - tw / 2, w - tw - 4);
       ctx.fillStyle = '#1A1B1E';
-      ctx.strokeStyle = 'rgba(212,175,55,0.3)';
+      ctx.strokeStyle = 'rgba(59,130,246,0.3)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.roundRect(Math.max(tx, 4), pad.top, tw, 22, 4);

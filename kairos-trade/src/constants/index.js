@@ -130,9 +130,9 @@ export const CONDITIONS = {
 
 // Brand
 export const BRAND = {
-  primary: '#D4AF37',
-  primaryLight: '#E8C84A',
-  primaryDark: '#B8960C',
+  primary: '#3B82F6',
+  primaryLight: '#60A5FA',
+  primaryDark: '#2563EB',
   dark: '#08090C',
   surface: '#0E1015',
   green: '#00DC82',

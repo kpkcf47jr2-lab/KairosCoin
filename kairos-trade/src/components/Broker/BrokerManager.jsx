@@ -112,7 +112,7 @@ export default function BrokerManager() {
 
       {/* Security notice */}
       <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: 'var(--gold-dark)', opacity: 0.08, position: 'absolute' }} />
-      <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.15)' }}>
+      <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.15)' }}>
         <Shield size={20} className="text-[var(--gold)] shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-bold text-[var(--gold)]">Tus API Keys están seguras</p>
@@ -137,7 +137,7 @@ export default function BrokerManager() {
                   <button key={b.id} onClick={() => setForm({ ...form, brokerId: b.id })}
                     className="p-3 rounded-xl text-center transition-all"
                     style={{
-                      background: form.brokerId === b.id ? 'rgba(212,175,55,0.08)' : 'var(--surface-2)',
+                      background: form.brokerId === b.id ? 'rgba(59,130,246,0.08)' : 'var(--surface-2)',
                       border: `1px solid ${form.brokerId === b.id ? 'var(--gold)' : 'var(--border)'}`,
                     }}>
                     <span className="text-2xl">{b.logo}</span>
@@ -229,7 +229,7 @@ export default function BrokerManager() {
                     )}
                     <button onClick={(e) => { e.stopPropagation(); handleConnect(broker); }} disabled={connecting === broker.id}
                       className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
-                      style={{ background: 'rgba(212,175,55,0.1)', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.2)' }}>
+                      style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--gold)', border: '1px solid rgba(59,130,246,0.2)' }}>
                       {connecting === broker.id ? '...' : broker.connected ? 'Reconectar' : 'Conectar'}
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); handleDelete(broker.id); }}

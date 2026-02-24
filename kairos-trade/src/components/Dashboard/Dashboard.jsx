@@ -41,17 +41,17 @@ export default function Dashboard() {
   const connectedBrokers = brokers.filter(b => b.connected);
 
   const stats = [
-    { label: 'Bots Activos', value: activeBots.length, icon: Bot, color: '#D4AF37', gradient: 'linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.02))', border: 'rgba(212,175,55,0.1)', action: 'bots' },
+    { label: 'Bots Activos', value: activeBots.length, icon: Bot, color: '#3B82F6', gradient: 'linear-gradient(135deg, rgba(59,130,246,0.1), rgba(59,130,246,0.02))', border: 'rgba(59,130,246,0.1)', action: 'bots' },
     { label: 'Brokers', value: `${connectedBrokers.length}/${brokers.length}`, icon: Link2, color: '#A855F7', gradient: 'linear-gradient(135deg, rgba(168,85,247,0.1), rgba(168,85,247,0.02))', border: 'rgba(168,85,247,0.1)', action: 'brokers' },
     { label: 'Posiciones', value: positions.length, icon: Activity, color: '#00DC82', gradient: 'linear-gradient(135deg, rgba(0,220,130,0.1), rgba(0,220,130,0.02))', border: 'rgba(0,220,130,0.1)', action: 'history' },
     { label: 'P&L Total', value: `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`, icon: DollarSign, color: totalPnl >= 0 ? '#00DC82' : '#FF4757', gradient: totalPnl >= 0 ? 'linear-gradient(135deg, rgba(0,220,130,0.1), rgba(0,220,130,0.02))' : 'linear-gradient(135deg, rgba(255,71,87,0.1), rgba(255,71,87,0.02))', border: totalPnl >= 0 ? 'rgba(0,220,130,0.1)' : 'rgba(255,71,87,0.1)', action: 'history' },
   ];
 
   const quickActions = [
-    { label: 'Trading', icon: BarChart3, page: 'chart', desc: 'Gráficos profesionales', color: '#D4AF37' },
+    { label: 'Trading', icon: BarChart3, page: 'chart', desc: 'Gráficos profesionales', color: '#3B82F6' },
     { label: 'Simulador', icon: Play, page: 'simulator', desc: 'Paper trading sin riesgo', color: '#00DC82' },
     { label: 'Kairos AI', icon: Sparkles, page: 'ai', desc: 'Asistente inteligente', color: '#A855F7' },
-    { label: 'Crear Bot', icon: Bot, page: 'bots', desc: 'Automatiza tu trading', color: '#E8C84A' },
+    { label: 'Crear Bot', icon: Bot, page: 'bots', desc: 'Automatiza tu trading', color: '#60A5FA' },
     { label: 'Estrategias', icon: Zap, page: 'strategies', desc: 'Crea y gestiona', color: '#EC4899' },
     { label: 'Brokers', icon: Shield, page: 'brokers', desc: 'Conecta tu cuenta', color: '#22D3EE' },
   ];

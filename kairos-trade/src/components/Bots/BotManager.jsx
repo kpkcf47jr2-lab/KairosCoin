@@ -1,22 +1,26 @@
 // Kairos Trade — Bot Management Panel (Elite v3)
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Plus, Play, Pause, Square, Trash2, Settings, TrendingUp, TrendingDown, AlertCircle, Grid3x3, DollarSign, Zap } from 'lucide-react';
+import { Bot, Plus, Play, Pause, Square, Trash2, Settings, TrendingUp, TrendingDown, AlertCircle, Grid3x3, DollarSign, Zap, Code2, Edit3 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { tradingEngine } from '../../services/tradingEngine';
 import gridBotEngine from '../../services/gridBot';
 import dcaBotEngine from '../../services/dcaBot';
 import { POPULAR_PAIRS, TIMEFRAMES } from '../../constants';
+import StrategyEditor from './StrategyEditor';
 
 const BOT_TYPES = [
-  { id: 'signal', label: 'Signal Bot', icon: Zap, desc: 'Ejecuta trades basado en indicadores técnicos', color: '#D4AF37' },
-  { id: 'grid', label: 'Grid Bot', icon: Grid3x3, desc: 'Compra y vende en niveles de precio predefinidos', color: '#00DC82' },
-  { id: 'dca', label: 'DCA Bot', icon: DollarSign, desc: 'Invierte cantidades fijas a intervalos regulares', color: '#A855F7' },
+  { id: 'signal', label: 'Signal Bot', icon: Zap, desc: 'Indicadores técnicos predefinidos', color: '#3B82F6' },
+  { id: 'script', label: 'Script Bot', icon: Code2, desc: 'Estrategia personalizada con código', color: '#A855F7' },
+  { id: 'grid', label: 'Grid Bot', icon: Grid3x3, desc: 'Compra y vende en niveles de precio', color: '#00DC82' },
+  { id: 'dca', label: 'DCA Bot', icon: DollarSign, desc: 'Inversión a intervalos regulares', color: '#22D3EE' },
 ];
 
 export default function BotManager() {
-  const { bots, addBot, updateBot, removeBot, strategies, brokers } = useStore();
+  const { bots, addBot, updateBot, removeBot, strategies, addStrategy, brokers } = useStore();
   const [showCreate, setShowCreate] = useState(false);
+  const [showStrategyEditor, setShowStrategyEditor] = useState(false);
+  const [editingStrategy, setEditingStrategy] = useState(null);
   const [botType, setBotType] = useState('signal');
   const [logs, setLogs] = useState([]);
   const [form, setForm] = useState({
@@ -27,6 +31,8 @@ export default function BotManager() {
     // DCA bot fields
     investmentPerOrder: '100', intervalMinutes: '60', maxOrders: '50',
     useRsiFilter: false, rsiThreshold: '40', usePriceDipFilter: false, dipPercent: '3',
+    // Script bot fields
+    scriptCode: '', scriptStrategyId: '',
   });
 
   const handleCreate = () => {
@@ -50,6 +56,17 @@ export default function BotManager() {
         timeframe: form.timeframe, strategy,
         balance: parseFloat(form.balance), riskPercent: parseFloat(form.riskPercent),
         maxTrades: parseInt(form.maxTrades),
+      });
+    } else if (botType === 'script') {
+      // Custom script bot — uses Kairos Script engine
+      const customStrategy = strategies.find(s => s.id === form.scriptStrategyId);
+      if (!customStrategy?.code) return; // Need a saved strategy with code
+      Object.assign(botData, {
+        timeframe: form.timeframe,
+        strategy: { type: 'custom_script', code: customStrategy.code, name: customStrategy.name },
+        balance: parseFloat(form.balance), riskPercent: parseFloat(form.riskPercent),
+        maxTrades: parseInt(form.maxTrades),
+        scriptName: customStrategy.name,
       });
     } else if (botType === 'grid') {
       Object.assign(botData, {
@@ -89,7 +106,7 @@ export default function BotManager() {
     updateBot(bot.id, { status: 'active' });
     const type = bot.botType || 'signal';
 
-    if (type === 'signal') {
+    if (type === 'signal' || type === 'script') {
       tradingEngine.startBot(
         { ...bot, status: 'active' },
         (trade) => addTrade(bot, trade),
@@ -118,7 +135,7 @@ export default function BotManager() {
 
   const handleStop = (bot) => {
     const type = bot.botType || 'signal';
-    if (type === 'signal') tradingEngine.stopBot(bot.id);
+    if (type === 'signal' || type === 'script') tradingEngine.stopBot(bot.id);
     else if (type === 'grid') gridBotEngine.stop(bot.id);
     else if (type === 'dca') dcaBotEngine.stop(bot.id);
     updateBot(bot.id, { status: 'stopped' });
@@ -217,6 +234,46 @@ export default function BotManager() {
                   <div>
                     <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Riesgo (%)</label>
                     <input type="number" value={form.riskPercent} onChange={(e) => setForm({ ...form, riskPercent: e.target.value })} className="w-full" />
+                  </div>
+                </div>
+              )}
+
+              {/* Script bot fields */}
+              {botType === 'script' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Timeframe</label>
+                      <select value={form.timeframe} onChange={(e) => setForm({ ...form, timeframe: e.target.value })} className="w-full">
+                        {TIMEFRAMES.map(tf => <option key={tf.value} value={tf.value}>{tf.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Balance ($)</label>
+                      <input type="number" value={form.balance} onChange={(e) => setForm({ ...form, balance: e.target.value })} className="w-full" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Riesgo (%)</label>
+                      <input type="number" value={form.riskPercent} onChange={(e) => setForm({ ...form, riskPercent: e.target.value })} className="w-full" />
+                    </div>
+                  </div>
+
+                  {/* Strategy selector or create new */}
+                  <div>
+                    <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Estrategia</label>
+                    <div className="flex gap-2">
+                      <select value={form.scriptStrategyId} onChange={(e) => setForm({ ...form, scriptStrategyId: e.target.value })} className="flex-1">
+                        <option value="">Seleccionar estrategia...</option>
+                        {strategies.filter(s => s.type === 'custom_script').map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                      <button onClick={() => setShowStrategyEditor(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold shrink-0"
+                        style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.2)', color: '#A855F7' }}>
+                        <Code2 size={13} /> {strategies.filter(s => s.type === 'custom_script').length > 0 ? 'Crear Nueva' : 'Crear Estrategia'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -386,6 +443,70 @@ export default function BotManager() {
           </div>
         </div>
       )}
+
+      {/* Mis Estrategias Custom */}
+      {strategies.filter(s => s.type === 'custom_script').length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold flex items-center gap-2">
+              <Code2 size={16} className="text-[#A855F7]" /> Mis Estrategias
+            </h2>
+            <button onClick={() => setShowStrategyEditor(true)}
+              className="text-xs text-[var(--text-dim)] hover:text-[#A855F7] transition-colors flex items-center gap-1">
+              <Plus size={12} /> Nueva
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {strategies.filter(s => s.type === 'custom_script').map(s => (
+              <div key={s.id} className="rounded-lg p-3 transition-colors hover:bg-[var(--dark-3)]"
+                style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-bold text-[var(--text)] flex items-center gap-1.5">
+                    <Code2 size={12} className="text-[#A855F7]" /> {s.name}
+                  </span>
+                  <button onClick={() => { setEditingStrategy(s); setShowStrategyEditor(true); }}
+                    className="text-[var(--text-dim)] hover:text-[#A855F7] transition-colors">
+                    <Edit3 size={12} />
+                  </button>
+                </div>
+                <p className="text-[10px] text-[var(--text-dim)]">
+                  {s.code?.split('\n').filter(l => l.trim() && !l.trim().startsWith('//')).length || 0} líneas de lógica
+                </p>
+                <p className="text-[9px] text-[var(--text-dim)] mt-1">
+                  Creada: {new Date(s.createdAt).toLocaleDateString('es')}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Strategy Editor Modal */}
+      <AnimatePresence>
+        {showStrategyEditor && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+            onClick={() => { setShowStrategyEditor(false); setEditingStrategy(null); }}>
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}>
+              <StrategyEditor
+                initialCode={editingStrategy?.code}
+                initialName={editingStrategy?.name}
+                editMode={!!editingStrategy}
+                onClose={() => { setShowStrategyEditor(false); setEditingStrategy(null); }}
+                onSave={(strategy) => {
+                  const saved = addStrategy(strategy);
+                  setForm(prev => ({ ...prev, scriptStrategyId: saved.id }));
+                  setShowStrategyEditor(false);
+                  setEditingStrategy(null);
+                }}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

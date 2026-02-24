@@ -227,7 +227,7 @@ export default function TradingPanel() {
                 </div>
               ))}
               <div className="text-center py-1.5 text-[15px] font-bold text-[var(--gold)] my-1"
-                style={{ background: 'rgba(212,175,55,0.04)', borderRadius: '6px' }}>
+                style={{ background: 'rgba(59,130,246,0.04)', borderRadius: '6px' }}>
                 ${currentPrice?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '---'}
               </div>
               {orderBook.bids.slice(0, 5).map((b, i) => (

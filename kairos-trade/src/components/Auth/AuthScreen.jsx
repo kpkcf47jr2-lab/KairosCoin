@@ -58,14 +58,14 @@ export default function AuthScreen() {
       {/* Ambient background effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-20%] right-[-10%] w-[700px] h-[700px] rounded-full opacity-[0.03]"
-          style={{ background: 'radial-gradient(circle, #D4AF37 0%, transparent 65%)' }} />
+          style={{ background: 'radial-gradient(circle, #3B82F6 0%, transparent 65%)' }} />
         <div className="absolute bottom-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full opacity-[0.02]"
-          style={{ background: 'radial-gradient(circle, #E8C84A 0%, transparent 65%)' }} />
+          style={{ background: 'radial-gradient(circle, #60A5FA 0%, transparent 65%)' }} />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] rounded-full opacity-[0.015]"
-          style={{ background: 'radial-gradient(circle, #D4AF37 0%, transparent 50%)' }} />
+          style={{ background: 'radial-gradient(circle, #3B82F6 0%, transparent 50%)' }} />
         <div className="absolute inset-0 opacity-[0.02]"
           style={{
-            backgroundImage: 'linear-gradient(rgba(212,175,55,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,55,0.3) 1px, transparent 1px)',
+            backgroundImage: 'linear-gradient(rgba(59,130,246,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.3) 1px, transparent 1px)',
             backgroundSize: '60px 60px',
           }} />
       </div>
@@ -75,8 +75,8 @@ export default function AuthScreen() {
         <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="relative z-10">
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center relative"
-              style={{ background: 'linear-gradient(135deg, #D4AF37, #B8960C)', boxShadow: '0 0 30px rgba(212,175,55,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' }}>
-              <span className="text-[#08090C] font-extrabold text-lg">K</span>
+              style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 0 30px rgba(59,130,246,0.25), inset 0 1px 0 rgba(255,255,255,0.15)' }}>
+              <span className="text-white font-extrabold text-lg">K</span>
             </div>
             <div>
               <div className="flex items-baseline gap-2">
@@ -112,8 +112,8 @@ export default function AuthScreen() {
                   className={`flex items-start gap-4 p-3.5 rounded-xl transition-all duration-500 cursor-default ${isActive ? 'glass-gold' : 'bg-transparent'}`}
                   onMouseEnter={() => setActiveFeature(i)}>
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-500
-                    ${isActive ? 'bg-gradient-to-br from-[var(--gold)] to-[var(--gold-dark)] shadow-[0_0_20px_rgba(212,175,55,0.2)]' : 'bg-[var(--surface-2)] border border-[var(--border)]'}`}>
-                    <Icon size={18} className={`transition-colors duration-500 ${isActive ? 'text-[#08090C]' : 'text-[var(--text-dim)]'}`} />
+                    ${isActive ? 'bg-gradient-to-br from-[var(--gold)] to-[var(--gold-dark)] shadow-[0_0_20px_rgba(59,130,246,0.2)]' : 'bg-[var(--surface-2)] border border-[var(--border)]'}`}>
+                    <Icon size={18} className={`transition-colors duration-500 ${isActive ? 'text-white' : 'text-[var(--text-dim)]'}`} />
                   </div>
                   <div>
                     <p className={`text-[13px] font-bold transition-colors duration-500 ${isActive ? 'text-[var(--text)]' : 'text-[var(--text-secondary)]'}`}>{f.label}</p>
@@ -147,8 +147,8 @@ export default function AuthScreen() {
       <div className="flex-1 flex items-center justify-center p-6 lg:max-w-[480px] relative z-10">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-[380px]">
           <div className="text-center mb-8 lg:hidden">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-[#08090C] font-extrabold text-xl mx-auto mb-3"
-              style={{ background: 'linear-gradient(135deg, #D4AF37, #B8960C)', boxShadow: '0 0 30px rgba(212,175,55,0.25)' }}>K</div>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-extrabold text-xl mx-auto mb-3"
+              style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 0 30px rgba(59,130,246,0.25)' }}>K</div>
             <h1 className="text-xl font-extrabold tracking-tight">
               <span className="text-gradient-gold">KAIROS</span> <span className="text-[var(--text)]">TRADE</span>
             </h1>
@@ -161,13 +161,13 @@ export default function AuthScreen() {
 
           <div className="flex mb-7 rounded-xl p-1 glass">
             <button onClick={() => { setIsLogin(true); setError(''); }}
-              className={`flex-1 py-2.5 text-sm rounded-lg transition-all duration-300 ${isLogin ? 'text-[#08090C] font-bold shadow-lg' : 'text-[var(--text-dim)] font-medium hover:text-[var(--text)]'}`}
-              style={isLogin ? { background: 'linear-gradient(135deg, #D4AF37, #B8960C)', boxShadow: '0 4px 15px rgba(212,175,55,0.3)' } : {}}>
+              className={`flex-1 py-2.5 text-sm rounded-lg transition-all duration-300 ${isLogin ? 'text-white font-bold shadow-lg' : 'text-[var(--text-dim)] font-medium hover:text-[var(--text)]'}`}
+              style={isLogin ? { background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 15px rgba(59,130,246,0.3)' } : {}}>
               Iniciar Sesión
             </button>
             <button onClick={() => { setIsLogin(false); setError(''); }}
-              className={`flex-1 py-2.5 text-sm rounded-lg transition-all duration-300 ${!isLogin ? 'text-[#08090C] font-bold shadow-lg' : 'text-[var(--text-dim)] font-medium hover:text-[var(--text)]'}`}
-              style={!isLogin ? { background: 'linear-gradient(135deg, #D4AF37, #B8960C)', boxShadow: '0 4px 15px rgba(212,175,55,0.3)' } : {}}>
+              className={`flex-1 py-2.5 text-sm rounded-lg transition-all duration-300 ${!isLogin ? 'text-white font-bold shadow-lg' : 'text-[var(--text-dim)] font-medium hover:text-[var(--text)]'}`}
+              style={!isLogin ? { background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 15px rgba(59,130,246,0.3)' } : {}}>
               Registrarse
             </button>
           </div>
@@ -202,7 +202,7 @@ export default function AuthScreen() {
             </AnimatePresence>
             <button type="submit" disabled={loading}
               className="w-full py-3.5 rounded-xl transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 text-sm btn-gold">
-              {loading ? <div className="w-5 h-5 border-2 border-[#08090C]/30 border-t-[#08090C] rounded-full animate-spin" /> : (<>{isLogin ? 'Acceder a la Plataforma' : 'Crear Cuenta'}<ArrowRight size={16} /></>)}
+              {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (<>{isLogin ? 'Acceder a la Plataforma' : 'Crear Cuenta'}<ArrowRight size={16} /></>)}
             </button>
           </form>
 

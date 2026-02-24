@@ -69,7 +69,7 @@ function EquityCurve({ data, height = 140 }) {
     const baseY = py(startVal);
     ctx.moveTo(0, baseY);
     ctx.lineTo(w, baseY);
-    ctx.strokeStyle = '#D4AF3740';
+    ctx.strokeStyle = '#3B82F640';
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.setLineDash([]);
