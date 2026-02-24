@@ -89,6 +89,17 @@ export default function TradingChart() {
     candleSeriesRef.current = candleSeries;
     volumeSeriesRef.current = volumeSeries;
 
+    // Force resize after layout settles (handles AnimatePresence transitions)
+    const resizeAfterLayout = () => {
+      const r = container.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        chart.applyOptions({ width: r.width, height: r.height });
+      }
+    };
+    requestAnimationFrame(resizeAfterLayout);
+    setTimeout(resizeAfterLayout, 100);
+    setTimeout(resizeAfterLayout, 300);
+
     // Responsive resize
     const ro = new ResizeObserver(entries => {
       if (!entries || !entries[0]) return;
@@ -281,7 +292,7 @@ export default function TradingChart() {
   };
 
   return (
-    <div className="flex flex-col w-full h-full" style={{ minHeight: 0 }}>
+    <div className="flex flex-col w-full flex-1 min-h-0">
       {/* Chart toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 shrink-0 flex-wrap" style={{ borderBottom: '1px solid var(--border)' }}>
         {/* Pair selector */}

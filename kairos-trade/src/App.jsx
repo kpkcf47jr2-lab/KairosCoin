@@ -30,9 +30,9 @@ function TradingView() {
   const [chartTab, setChartTab] = useStateTrade('chart');
   const { selectedPair } = useStore();
   return (
-    <div className="flex flex-1 overflow-hidden h-full">
-      <div className="flex-1 h-full overflow-hidden flex flex-col">
-        <div className="flex gap-1 px-3 pt-2" style={{ background: 'var(--surface)' }}>
+    <div className="flex flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden flex flex-col min-w-0">
+        <div className="flex gap-1 px-3 pt-2 shrink-0" style={{ background: 'var(--surface)' }}>
           {[['chart', 'Chart'], ['depth', 'Depth']].map(([id, label]) => (
             <button key={id} onClick={() => setChartTab(id)}
               className={`px-3 py-1.5 text-xs font-bold rounded-t-lg transition-colors ${chartTab === id ? 'text-[var(--gold)]' : 'text-[var(--text-dim)] hover:text-[var(--text-secondary)]'}`}
@@ -42,9 +42,9 @@ function TradingView() {
           ))}
         </div>
         {chartTab === 'chart' ? (
-          <div className="flex-1 min-h-0 overflow-hidden"><TradingChart /></div>
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><TradingChart /></div>
         ) : (
-          <div className="flex-1 min-h-0 overflow-hidden"><DepthChart pair={selectedPair || 'BTCUSDT'} height={500} /></div>
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><DepthChart pair={selectedPair || 'BTCUSDT'} height={500} /></div>
         )}
       </div>
       <TradingPanel />
