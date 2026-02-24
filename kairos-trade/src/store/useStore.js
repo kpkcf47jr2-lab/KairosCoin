@@ -144,49 +144,112 @@ const useStore = create((set, get) => ({
   strategies: loadJSON(STORAGE_KEYS.STRATEGIES, []),
 
   seedDefaultStrategies: () => {
+    const FACTORY_VERSION = 2; // bump to force refresh
     const existing = get().strategies;
-    if (existing.some(s => s.isFactory)) return; // Already seeded
+    const prevVer = parseInt(localStorage.getItem('kairos_factory_ver') || '0');
+    if (prevVer >= FACTORY_VERSION && existing.some(s => s.isFactory)) return;
+    // Remove old factory strategies
+    const userOnly = existing.filter(s => !s.isFactory);
+    localStorage.setItem('kairos_factory_ver', String(FACTORY_VERSION));
 
     const defaults = [
       {
-        id: 'factory_scalper',
-        name: 'Kairos Scalper RSI+EMA',
+        id: 'factory_alpha',
+        name: 'Kairos Alpha v1',
         type: 'custom_script',
         isFactory: true,
-        description: 'Scalper agresivo: compra en sobreventa RSI con EMA confirmación, vende en sobrecompra',
-        code: `// Kairos Scalper — RSI + EMA rápida
+        description: 'Bot multi-señal agresivo — RSI zones + MACD momentum + volumen + mean reversion. Óptimo en 1m-5m.',
+        code: `// ═══════════════════════════════════════════
+// KAIROS ALPHA v1 — Multi-Signal Scalper
+// Diseñado por Mario Isaac @ Kairos 777
+// Timeframe recomendado: 1m / 5m
+// ═══════════════════════════════════════════
+
+config({ stopLoss: 1.2, takeProfit: 2.0 });
+
+// ─── Indicadores ───
+const r = rsi(14);
+const emaFast = ema(8);
+const emaMid = ema(21);
+const emaSlow = ema(50);
+const m = macd(12, 26, 9);
+const bands = bb(20, 2);
+const volAvg = avg(volume, 20);
+const volNow = volume.value;
+const volSpike = volNow > volAvg * 1.5;
+
+// ─── Scoring system ───
+let bullScore = 0;
+let bearScore = 0;
+
+// RSI zones
+if (r < 30) bullScore += 3;
+else if (r < 40) bullScore += 1;
+if (r > 70) bearScore += 3;
+else if (r > 60) bearScore += 1;
+
+// EMA alignment
+if (emaFast > emaMid && emaMid > emaSlow) bullScore += 2;
+if (emaFast < emaMid && emaMid < emaSlow) bearScore += 2;
+
+// EMA crossovers
+if (crossover(emaFast, emaMid)) bullScore += 2;
+if (crossunder(emaFast, emaMid)) bearScore += 2;
+
+// MACD
+if (m.histogram > 0 && m.histogram > m.histogram.prev(1)) bullScore += 1;
+if (m.histogram < 0 && m.histogram < m.histogram.prev(1)) bearScore += 1;
+if (crossover(m.line, m.signal)) bullScore += 2;
+if (crossunder(m.line, m.signal)) bearScore += 2;
+
+// Bollinger Bands mean reversion
+if (price < bands.lower) bullScore += 2;
+if (price > bands.upper) bearScore += 2;
+
+// Volume confirmation
+if (volSpike) {
+  bullScore += 1;
+  bearScore += 1;
+}
+
+// ─── Price action ───
+const pctMove = percentChange(close, 3);
+if (pctMove < -0.3) bullScore += 1;  // oversold bounce
+if (pctMove > 0.3) bearScore += 1;  // overbought drop
+
+log("📊 Bull: " + bullScore + " | Bear: " + bearScore + " | RSI: " + r.toFixed(1) + " | Vol: " + (volSpike ? "🔥SPIKE" : "normal"));
+
+// ─── Execute trades ───
+if (bullScore >= 5 && bearScore < 3) {
+  log("🟢 COMPRA — Score " + bullScore + " [RSI:" + r.toFixed(0) + " MACD:" + m.histogram.toFixed(2) + "]");
+  buy();
+}
+
+if (bearScore >= 5 && bullScore < 3) {
+  log("🔴 VENTA — Score " + bearScore + " [RSI:" + r.toFixed(0) + " MACD:" + m.histogram.toFixed(2) + "]");
+  sell();
+}`,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'factory_scalper',
+        name: 'Scalper RSI+EMA',
+        type: 'custom_script',
+        isFactory: true,
+        description: 'Scalper con RSI y doble EMA crossover',
+        code: `// Scalper — RSI + EMA cross
 config({ stopLoss: 1.5, takeProfit: 2.5 });
 
-const rsiVal = rsi(14);
-const emaFast = ema(9);
-const emaSlow = ema(21);
-const macdInd = macd(12, 26, 9);
+const r = rsi(14);
+const fast = ema(9);
+const slow = ema(21);
 
-log("RSI: " + rsiVal.toFixed(1) + " | EMA9: " + emaFast.toFixed(0) + " | EMA21: " + emaSlow.toFixed(0));
+log("RSI: " + r.toFixed(1) + " | EMA9: " + fast.toFixed(0) + " | EMA21: " + slow.toFixed(0));
 
-// BUY: RSI < 35 + EMA9 cruza encima de EMA21 + MACD positivo
-if (rsiVal < 35 && crossover(emaFast, emaSlow)) {
-  log("🟢 Señal de COMPRA — RSI sobreventa + EMA cross alcista");
-  buy();
-}
-
-// SELL: RSI > 65 + EMA9 cruza debajo de EMA21
-if (rsiVal > 65 && crossunder(emaFast, emaSlow)) {
-  log("🔴 Señal de VENTA — RSI sobrecompra + EMA cross bajista");
-  sell();
-}
-
-// Extra: sell fuerte cuando RSI extremo
-if (rsiVal > 78) {
-  log("🔴 RSI extremo — Venta de protección");
-  sell();
-}
-
-// Extra: buy fuerte cuando RSI extremo bajo
-if (rsiVal < 22) {
-  log("🟢 RSI extremo bajo — Compra agresiva");
-  buy();
-}`,
+if (r < 35 && crossover(fast, slow)) { log("🟢 COMPRA"); buy(); }
+if (r > 65 && crossunder(fast, slow)) { log("🔴 VENTA"); sell(); }
+if (r > 78) { log("🔴 RSI extremo"); sell(); }
+if (r < 22) { log("🟢 RSI extremo bajo"); buy(); }`,
         createdAt: new Date().toISOString(),
       },
       {
@@ -194,32 +257,27 @@ if (rsiVal < 22) {
         name: 'Momentum MACD+BB',
         type: 'custom_script',
         isFactory: true,
-        description: 'Momentum trading con MACD y Bandas de Bollinger',
+        description: 'Momentum trading con MACD y Bollinger Bands',
         code: `// Momentum MACD + Bollinger Bands
 config({ stopLoss: 2, takeProfit: 3 });
 
-const macdInd = macd(12, 26, 9);
+const m = macd(12, 26, 9);
 const bands = bb(20, 2);
-const rsiVal = rsi(14);
+const r = rsi(14);
 
-log("MACD: " + macdInd.histogram.toFixed(2) + " | BB: " + bands.lower.toFixed(0) + "-" + bands.upper.toFixed(0));
+log("MACD: " + m.histogram.toFixed(2) + " | BB: " + bands.lower.toFixed(0) + "-" + bands.upper.toFixed(0));
 
-// BUY: precio toca BB inferior + MACD cruce alcista + RSI < 40
-if (price < bands.lower && crossover(macdInd.line, macdInd.signal) && rsiVal < 40) {
-  log("🟢 COMPRA — Precio en BB inferior + MACD alcista");
-  buy();
+if (price < bands.lower && crossover(m.line, m.signal) && r < 40) {
+  log("🟢 COMPRA — BB inferior + MACD alcista"); buy();
 }
-
-// SELL: precio toca BB superior + MACD cruce bajista + RSI > 60
-if (price > bands.upper && crossunder(macdInd.line, macdInd.signal) && rsiVal > 60) {
-  log("🔴 VENTA — Precio en BB superior + MACD bajista");
-  sell();
+if (price > bands.upper && crossunder(m.line, m.signal) && r > 60) {
+  log("🔴 VENTA — BB superior + MACD bajista"); sell();
 }`,
         createdAt: new Date().toISOString(),
       },
     ];
 
-    const updated = [...existing, ...defaults];
+    const updated = [...userOnly, ...defaults];
     saveJSON(STORAGE_KEYS.STRATEGIES, updated);
     set({ strategies: updated });
   },
