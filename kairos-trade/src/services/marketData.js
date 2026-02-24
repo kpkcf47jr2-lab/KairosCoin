@@ -1,5 +1,16 @@
 // Kairos Trade — Market Data Service (WebSocket + REST)
 // Real-time price feeds from Binance public API (no API key needed)
+// Auto-detects US restriction and falls back to Binance US
+
+const API_ENDPOINTS = [
+  'https://api.binance.us/api/v3',
+  'https://api.binance.com/api/v3',
+];
+
+const WS_ENDPOINTS = [
+  'wss://stream.binance.us:9443/ws',
+  'wss://stream.binance.com:9443/ws',
+];
 
 class MarketDataService {
   constructor() {
@@ -8,12 +19,40 @@ class MarketDataService {
     this.reconnectAttempts = 0;
     this.maxReconnect = 5;
     this.candleCache = new Map();
+    this._apiBase = null;   // resolved after first successful call
+    this._wsBase = null;
+  }
+
+  // ─── Auto-detect working API endpoint ───
+  async _getAPI() {
+    if (this._apiBase) return this._apiBase;
+    for (const base of API_ENDPOINTS) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 5000);
+        const res = await fetch(`${base}/ping`, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (res.ok) {
+          this._apiBase = base;
+          this._wsBase = base.includes('binance.us') ? WS_ENDPOINTS[0] : WS_ENDPOINTS[1];
+          console.log('Kairos MarketData: using', base);
+          return base;
+        }
+      } catch { /* try next */ }
+    }
+    // Default to Binance US
+    this._apiBase = API_ENDPOINTS[0];
+    this._wsBase = WS_ENDPOINTS[0];
+    return this._apiBase;
   }
 
   // ─── WebSocket for real-time prices ───
   connectStream(symbol, callbacks = {}) {
     const pair = symbol.toLowerCase();
-    const url = `wss://stream.binance.com:9443/ws/${pair}@ticker/${pair}@kline_1m`;
+
+    // Start with auto-detected endpoint, fallback to US
+    const wsBase = this._wsBase || WS_ENDPOINTS[0];
+    const url = `${wsBase}/${pair}@ticker/${pair}@kline_1m`;
 
     if (this.ws) this.ws.close();
 
@@ -58,6 +97,12 @@ class MarketDataService {
 
     this.ws.onerror = (err) => {
       console.error('WS error:', err);
+      // Try alternate WS endpoint
+      if (wsBase === WS_ENDPOINTS[1] && this.reconnectAttempts === 0) {
+        this._wsBase = WS_ENDPOINTS[0];
+        this.connectStream(symbol, callbacks);
+        return;
+      }
       callbacks.onError?.(err);
     };
 
@@ -82,10 +127,14 @@ class MarketDataService {
   // ─── REST: Get klines/candles ───
   async getCandles(symbol, interval = '1h', limit = 500) {
     const cacheKey = `${symbol}_${interval}`;
+    const base = await this._getAPI();
 
     try {
-      const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-      const res = await fetch(url);
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 10000);
+      const url = `${base}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+      const res = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(timer);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
@@ -101,6 +150,26 @@ class MarketDataService {
       this.candleCache.set(cacheKey, { data: candles, ts: Date.now() });
       return candles;
     } catch (err) {
+      console.error('getCandles error:', err.message);
+      // Try alternate endpoint if primary fails
+      if (this._apiBase) {
+        this._apiBase = null; // Reset to re-detect
+        const altBase = await this._getAPI();
+        if (altBase) {
+          try {
+            const res = await fetch(`${altBase}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
+            if (res.ok) {
+              const data = await res.json();
+              const candles = data.map(k => ({
+                time: Math.floor(k[0] / 1000), open: parseFloat(k[1]), high: parseFloat(k[2]),
+                low: parseFloat(k[3]), close: parseFloat(k[4]), volume: parseFloat(k[5]),
+              }));
+              this.candleCache.set(cacheKey, { data: candles, ts: Date.now() });
+              return candles;
+            }
+          } catch {}
+        }
+      }
       // Return cached if available
       const cached = this.candleCache.get(cacheKey);
       if (cached) return cached.data;
@@ -110,14 +179,16 @@ class MarketDataService {
 
   // ─── REST: Get current price ───
   async getPrice(symbol) {
-    const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
+    const base = await this._getAPI();
+    const res = await fetch(`${base}/ticker/price?symbol=${symbol}`);
     const data = await res.json();
     return parseFloat(data.price);
   }
 
   // ─── REST: Get 24hr ticker ───
   async get24hrTicker(symbol) {
-    const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
+    const base = await this._getAPI();
+    const res = await fetch(`${base}/ticker/24hr?symbol=${symbol}`);
     const data = await res.json();
     return {
       symbol: data.symbol,
@@ -133,7 +204,8 @@ class MarketDataService {
 
   // ─── REST: Get order book ───
   async getOrderBook(symbol, limit = 20) {
-    const res = await fetch(`https://api.binance.com/api/v3/depth?symbol=${symbol}&limit=${limit}`);
+    const base = await this._getAPI();
+    const res = await fetch(`${base}/depth?symbol=${symbol}&limit=${limit}`);
     const data = await res.json();
     return {
       bids: data.bids.map(([price, qty]) => ({ price: parseFloat(price), quantity: parseFloat(qty) })),
@@ -143,7 +215,8 @@ class MarketDataService {
 
   // ─── REST: Search symbols ───
   async searchSymbols(query) {
-    const res = await fetch('https://api.binance.com/api/v3/exchangeInfo');
+    const base = await this._getAPI();
+    const res = await fetch(`${base}/exchangeInfo`);
     const data = await res.json();
     const q = query.toUpperCase();
     return data.symbols
