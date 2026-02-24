@@ -164,16 +164,16 @@ export default function BotManager() {
   const getTypeInfo = (type) => BOT_TYPES.find(t => t.id === type) || BOT_TYPES[0];
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Trading Bots</h1>
-          <p className="text-sm text-[var(--text-dim)]">
+    <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-lg font-bold">Trading Bots</h1>
+          <p className="text-xs text-[var(--text-dim)]">
             {bots.filter(b => b.status === 'active').length} activos de {bots.length} total
           </p>
         </div>
-        <button onClick={() => setShowCreate(!showCreate)} className="flex items-center gap-2 px-4 py-2 btn-gold rounded-xl text-sm">
-          <Plus size={16} /> Crear Bot
+        <button onClick={() => setShowCreate(!showCreate)} className="flex items-center gap-2 px-4 py-2 btn-gold rounded-xl text-xs font-semibold shrink-0">
+          <Plus size={14} /> Crear Bot
         </button>
       </div>
 
@@ -467,12 +467,12 @@ export default function BotManager() {
       {/* Mis Estrategias Custom */}
       {strategies.filter(s => s.type === 'custom_script').length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold flex items-center gap-2">
-              <Code2 size={16} className="text-[#A855F7]" /> Mis Estrategias
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold flex items-center gap-2 min-w-0">
+              <Code2 size={14} className="text-[#A855F7] shrink-0" /> Mis Estrategias
             </h2>
             <button onClick={() => setShowStrategyEditor(true)}
-              className="text-xs text-[var(--text-dim)] hover:text-[#A855F7] transition-colors flex items-center gap-1">
+              className="text-xs text-[var(--text-dim)] hover:text-[#A855F7] transition-colors flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg hover:bg-[#A855F7]/10">
               <Plus size={12} /> Nueva
             </button>
           </div>

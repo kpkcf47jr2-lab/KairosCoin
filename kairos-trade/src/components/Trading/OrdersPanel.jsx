@@ -52,23 +52,23 @@ export default function OrdersPanel() {
       }}
     >
       {/* Tab bar */}
-      <div className="flex items-center shrink-0 px-2 gap-0.5" style={{ borderBottom: '1px solid rgba(30,34,45,0.4)' }}>
-        {tabs.map(t => (
+      <div className="flex items-center shrink-0 px-3 gap-1" style={{ borderBottom: '1px solid rgba(30,34,45,0.4)' }}>
+        {tabs.map((t, idx) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-2.5 py-2 text-[11px] font-semibold transition-colors relative whitespace-nowrap
+            className={`px-3 py-2.5 text-[11px] font-semibold transition-colors relative whitespace-nowrap
               ${tab === t.id ? 'text-[var(--text)]' : 'text-[var(--text-dim)] hover:text-[var(--text-secondary)]'}`}
           >
             {t.label}
             {t.count > 0 && (
-              <span className={`ml-1 text-[9px] px-1 py-0.5 rounded-full font-bold
+              <span className={`ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full font-bold
                 ${tab === t.id ? 'bg-[var(--gold)]/15 text-[var(--gold)]' : 'bg-white/5 text-[var(--text-dim)]'}`}>
                 {t.count}
               </span>
             )}
             {tab === t.id && (
-              <div className="absolute bottom-0 left-0.5 right-0.5 h-[2px] rounded-t-full bg-[var(--gold)]" />
+              <div className="absolute bottom-0 left-1 right-1 h-[2px] rounded-t-full bg-[var(--gold)]" />
             )}
           </button>
         ))}

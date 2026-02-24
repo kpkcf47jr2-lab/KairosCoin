@@ -93,7 +93,7 @@ function CodeEditor({ code, onChange, error }) {
           onKeyDown={handleKeyDown}
           spellCheck={false}
           className="flex-1 p-4 font-mono text-[12px] leading-6 resize-none outline-none"
-          style={{ background: '#0d1117', color: '#c9d1d9', caretColor: '#D4AF37', minHeight: 260 }}
+          style={{ background: '#0d1117', color: '#c9d1d9', caretColor: '#3B82F6', minHeight: 260 }}
           placeholder="// Pega o escribe tu código aquí..."
         />
       </div>
@@ -224,10 +224,10 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
       className="rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
 
       {/* ═══ HEADER ═══ */}
-      <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(212,175,55,0.03)' }}>
+      <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--border)', background: 'rgba(59,130,246,0.03)' }}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.25)' }}>
-            <Code2 size={20} style={{ color: '#D4AF37' }} />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.25)' }}>
+            <Code2 size={20} style={{ color: '#3B82F6' }} />
           </div>
           <div>
             <h3 className="text-base font-bold" style={{ color: '#c9d1d9' }}>{editMode ? 'Editar Estrategia' : 'Crear Estrategia'}</h3>
@@ -255,8 +255,8 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
               className="flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-xs font-semibold transition-all"
               style={{
                 background: active ? 'var(--surface-2)' : 'transparent',
-                color: active ? '#D4AF37' : '#8b949e',
-                borderBottom: active ? '2px solid #D4AF37' : '2px solid transparent',
+                color: active ? '#3B82F6' : '#8b949e',
+                borderBottom: active ? '2px solid #3B82F6' : '2px solid transparent',
               }}>
               <tab.icon size={13} />
               {tab.label}
@@ -297,24 +297,21 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
               </button>
             </div>
 
-            {/* ChatGPT prompt */}
-            <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.15)' }}>
-              <div className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles size={15} style={{ color: '#D4AF37' }} />
-                  <span className="text-xs font-bold" style={{ color: '#D4AF37' }}>¿No sabes programar?</span>
-                  <span className="text-xs hidden sm:inline" style={{ color: '#8b949e' }}>Usa ChatGPT para generar tu estrategia</span>
-                </div>
-                <button onClick={handleCopyPrompt}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all hover:brightness-110"
-                  style={{ background: 'rgba(212,175,55,0.12)', border: '1px solid rgba(212,175,55,0.25)', color: '#D4AF37' }}>
-                  {copied ? <><CheckCircle size={12} /> Copiado!</> : <><Copy size={12} /> Copiar Prompt</>}
-                </button>
-              </div>
-            </div>
-
             {/* Code editor */}
             <CodeEditor code={code} onChange={(c) => { setCode(c); setBacktestResults(null); }} error={error} />
+
+            {/* ChatGPT hint — minimal line below editor */}
+            <div className="flex items-center justify-between px-1">
+              <p className="text-[10px]" style={{ color: '#6b7280' }}>
+                <Sparkles size={10} className="inline mr-1" style={{ color: '#3B82F6' }} />
+                ¿No sabes programar? Copia el prompt para ChatGPT y pega el resultado aquí.
+              </p>
+              <button onClick={handleCopyPrompt}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all hover:brightness-110 shrink-0 ml-3"
+                style={{ background: 'rgba(59,130,246,0.08)', color: '#3B82F6' }}>
+                {copied ? <><CheckCircle size={10} /> Copiado</> : <><Copy size={10} /> Prompt</>}
+              </button>
+            </div>
 
             {/* Backtest bar */}
             <div className="flex items-center gap-2 flex-wrap">
@@ -337,7 +334,7 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
               <div className="flex-1" />
               <button onClick={handleSave} disabled={!!error || !code?.trim() || !name?.trim()}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all hover:brightness-110 disabled:opacity-40"
-                style={{ background: saved ? 'rgba(0,220,130,0.15)' : 'linear-gradient(135deg, #D4AF37 0%, #B8960C 100%)', color: saved ? '#00DC82' : '#000', border: 'none' }}>
+                style={{ background: saved ? 'rgba(0,220,130,0.15)' : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', color: saved ? '#00DC82' : '#fff', border: 'none' }}>
                 {saved ? <><CheckCircle size={14} /> Guardada!</> : <><Save size={14} /> Guardar</>}
               </button>
             </div>
@@ -360,8 +357,8 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
                   className="flex items-center gap-4 p-4 rounded-xl text-left transition-all hover:brightness-110"
                   style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
-                    <Zap size={18} style={{ color: '#D4AF37' }} />
+                    style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
+                    <Zap size={18} style={{ color: '#3B82F6' }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-bold" style={{ color: '#c9d1d9' }}>{t.name}</h4>
@@ -369,8 +366,8 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
                   </div>
                   <span className="text-[10px] px-2 py-1 rounded-lg font-bold shrink-0"
                     style={{
-                      color: t.difficulty === 'Principiante' ? '#00DC82' : t.difficulty === 'Intermedio' ? '#D4AF37' : '#A855F7',
-                      background: t.difficulty === 'Principiante' ? 'rgba(0,220,130,0.1)' : t.difficulty === 'Intermedio' ? 'rgba(212,175,55,0.1)' : 'rgba(168,85,247,0.1)',
+                      color: t.difficulty === 'Principiante' ? '#00DC82' : t.difficulty === 'Intermedio' ? '#3B82F6' : '#A855F7',
+                      background: t.difficulty === 'Principiante' ? 'rgba(0,220,130,0.1)' : t.difficulty === 'Intermedio' ? 'rgba(59,130,246,0.1)' : 'rgba(168,85,247,0.1)',
                     }}>
                     {t.difficulty}
                   </span>
@@ -455,7 +452,7 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
 
             <button onClick={() => setView('editor')}
               className="w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all hover:brightness-110"
-              style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)', color: '#D4AF37' }}>
+              style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', color: '#3B82F6' }}>
               <Code2 size={14} /> Volver al Editor
             </button>
           </div>
