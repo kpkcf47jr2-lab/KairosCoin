@@ -27,8 +27,9 @@ class TradingEngine {
       if (!this.activeBots.get(bot.id)?.running) return;
 
       try {
-        // Get candles
-        const candles = await marketData.getCandles(bot.pair, bot.timeframe, 100);
+        // Get candles (convert KAIROS pair → API pair for Binance)
+        const apiPair = toApiPair(bot.pair);
+        const candles = await marketData.getCandles(apiPair, bot.timeframe, 100);
         const closes = candles.map(c => c.close);
         const currentPrice = closes[closes.length - 1];
 

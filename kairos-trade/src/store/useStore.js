@@ -143,6 +143,87 @@ const useStore = create((set, get) => ({
   // ─── Strategies ───
   strategies: loadJSON(STORAGE_KEYS.STRATEGIES, []),
 
+  seedDefaultStrategies: () => {
+    const existing = get().strategies;
+    if (existing.some(s => s.isFactory)) return; // Already seeded
+
+    const defaults = [
+      {
+        id: 'factory_scalper',
+        name: 'Kairos Scalper RSI+EMA',
+        type: 'custom_script',
+        isFactory: true,
+        description: 'Scalper agresivo: compra en sobreventa RSI con EMA confirmación, vende en sobrecompra',
+        code: `// Kairos Scalper — RSI + EMA rápida
+config({ stopLoss: 1.5, takeProfit: 2.5 });
+
+const rsiVal = rsi(14);
+const emaFast = ema(9);
+const emaSlow = ema(21);
+const macdInd = macd(12, 26, 9);
+
+log("RSI: " + rsiVal.toFixed(1) + " | EMA9: " + emaFast.toFixed(0) + " | EMA21: " + emaSlow.toFixed(0));
+
+// BUY: RSI < 35 + EMA9 cruza encima de EMA21 + MACD positivo
+if (rsiVal < 35 && crossover(emaFast, emaSlow)) {
+  log("🟢 Señal de COMPRA — RSI sobreventa + EMA cross alcista");
+  buy();
+}
+
+// SELL: RSI > 65 + EMA9 cruza debajo de EMA21
+if (rsiVal > 65 && crossunder(emaFast, emaSlow)) {
+  log("🔴 Señal de VENTA — RSI sobrecompra + EMA cross bajista");
+  sell();
+}
+
+// Extra: sell fuerte cuando RSI extremo
+if (rsiVal > 78) {
+  log("🔴 RSI extremo — Venta de protección");
+  sell();
+}
+
+// Extra: buy fuerte cuando RSI extremo bajo
+if (rsiVal < 22) {
+  log("🟢 RSI extremo bajo — Compra agresiva");
+  buy();
+}`,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'factory_momentum',
+        name: 'Momentum MACD+BB',
+        type: 'custom_script',
+        isFactory: true,
+        description: 'Momentum trading con MACD y Bandas de Bollinger',
+        code: `// Momentum MACD + Bollinger Bands
+config({ stopLoss: 2, takeProfit: 3 });
+
+const macdInd = macd(12, 26, 9);
+const bands = bb(20, 2);
+const rsiVal = rsi(14);
+
+log("MACD: " + macdInd.histogram.toFixed(2) + " | BB: " + bands.lower.toFixed(0) + "-" + bands.upper.toFixed(0));
+
+// BUY: precio toca BB inferior + MACD cruce alcista + RSI < 40
+if (price < bands.lower && crossover(macdInd.line, macdInd.signal) && rsiVal < 40) {
+  log("🟢 COMPRA — Precio en BB inferior + MACD alcista");
+  buy();
+}
+
+// SELL: precio toca BB superior + MACD cruce bajista + RSI > 60
+if (price > bands.upper && crossunder(macdInd.line, macdInd.signal) && rsiVal > 60) {
+  log("🔴 VENTA — Precio en BB superior + MACD bajista");
+  sell();
+}`,
+        createdAt: new Date().toISOString(),
+      },
+    ];
+
+    const updated = [...existing, ...defaults];
+    saveJSON(STORAGE_KEYS.STRATEGIES, updated);
+    set({ strategies: updated });
+  },
+
   addStrategy: (strategy) => {
     const newStrat = { ...strategy, id: Date.now().toString(36), createdAt: new Date().toISOString() };
     const updated = [...get().strategies, newStrat];

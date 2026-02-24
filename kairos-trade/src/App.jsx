@@ -1,4 +1,5 @@
 // Kairos Trade — Main Application (Premium v2)
+import { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import useStore from './store/useStore';
@@ -59,7 +60,10 @@ function TradingView() {
 }
 
 function App() {
-  const { isAuthenticated, currentPage, aiPanelOpen } = useStore();
+  const { isAuthenticated, currentPage, aiPanelOpen, seedDefaultStrategies } = useStore();
+
+  // Seed factory strategies on first load
+  useEffect(() => { seedDefaultStrategies(); }, []);
 
   if (!isAuthenticated) {
     return <AuthScreen />;
