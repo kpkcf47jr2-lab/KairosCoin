@@ -56,13 +56,12 @@ const BROKER_CATALOG = [
     id: 'coinbase', name: 'Coinbase', logo: '🔵',
     color: '#0052FF', desc: 'Exchange público regulado en USA',
     features: ['Spot', 'Advanced Trade'], users: '110M+',
-    apiUrl: 'https://www.coinbase.com/settings/api',
-    needsPassphrase: true,
+    apiUrl: 'https://portal.cdp.coinbase.com/access/api',
     steps: [
-      { title: 'Inicia sesión en Coinbase', desc: 'Ve a coinbase.com → Settings → API.' },
-      { title: 'Crea nueva API Key', desc: 'Haz clic en "New API Key".' },
-      { title: 'Configura permisos y Passphrase', desc: 'Selecciona "Trade" y "View". Crea un passphrase seguro.' },
-      { title: 'Copia tus claves', desc: 'Necesitarás: API Key, API Secret y Passphrase.' },
+      { title: 'Inicia sesión en Coinbase', desc: 'Ve a portal.cdp.coinbase.com e inicia sesión.' },
+      { title: 'Crea nueva API Key', desc: 'Haz clic en "Create API Key". Coinbase te dará un API Key Name y una EC Private Key.' },
+      { title: 'Configura permisos', desc: 'Selecciona "View" y "Trade". NO actives "Transfer".' },
+      { title: 'Copia tus 2 claves', desc: 'Copia el API Key Name (va en API KEY) y la EC Private Key completa (va en API SECRET). No necesitas Passphrase.' },
     ],
   },
   {

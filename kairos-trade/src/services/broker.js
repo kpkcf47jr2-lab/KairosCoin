@@ -1,5 +1,5 @@
-// Kairos Trade — Broker Service (Elite v3)
-// Real execution on Binance via HMAC-SHA256 signed requests
+// Kairos Trade — Broker Service (Elite v4)
+// Real execution on Binance (HMAC-SHA256) + Coinbase CDP (JWT/EC)
 // Uses Web Crypto API (no external dependencies)
 import { BROKERS } from '../constants';
 
@@ -16,6 +16,73 @@ class BrokerService {
       apiSecret: atob(broker.apiSecret),
       passphrase: broker.passphrase ? atob(broker.passphrase) : undefined,
     };
+  }
+
+  // ─── Coinbase CDP: Build JWT from EC Private Key ───
+  async _coinbaseJWT(creds) {
+    const keyName = creds.apiKey;
+    const privateKeyPem = creds.apiSecret;
+
+    // JWT Header
+    const header = { alg: 'ES256', kid: keyName, nonce: crypto.randomUUID(), typ: 'JWT' };
+
+    // JWT Payload
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      sub: keyName,
+      iss: 'coinbase-cloud',
+      aud: ['cdp_service'],
+      nbf: now,
+      exp: now + 120,
+    };
+
+    const b64url = (obj) => btoa(JSON.stringify(obj)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    const headerB64 = b64url(header);
+    const payloadB64 = b64url(payload);
+    const signingInput = `${headerB64}.${payloadB64}`;
+
+    // Parse PEM → CryptoKey
+    const pemClean = privateKeyPem
+      .replace(/-----BEGIN EC PRIVATE KEY-----/, '')
+      .replace(/-----END EC PRIVATE KEY-----/, '')
+      .replace(/\\n/g, '')
+      .replace(/\n/g, '')
+      .replace(/\s/g, '');
+    const binaryDer = Uint8Array.from(atob(pemClean), c => c.charCodeAt(0));
+
+    const key = await crypto.subtle.importKey(
+      'pkcs8', binaryDer,
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false, ['sign']
+    );
+
+    // Sign
+    const sig = await crypto.subtle.sign(
+      { name: 'ECDSA', hash: 'SHA-256' },
+      key,
+      new TextEncoder().encode(signingInput)
+    );
+
+    const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
+      .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+    return `${signingInput}.${sigB64}`;
+  }
+
+  // ─── Coinbase CDP Signed Request ───
+  async _coinbaseRequest(creds, method, path) {
+    const jwt = await this._coinbaseJWT(creds);
+    const url = `https://api.coinbase.com${path}`;
+    const res = await fetch(url, {
+      method,
+      headers: {
+        'Authorization': `Bearer ${jwt}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || data.error || res.statusText);
+    return data;
   }
 
   // ─── HMAC-SHA256 Signing (Web Crypto API) ───
@@ -91,7 +158,6 @@ class BrokerService {
         case 'binance': {
           // Real test: Ping + account info to verify API key
           await this._binancePublicRequest('/api/v3/ping');
-          // Test signed endpoint
           const account = await this._binanceSignedRequest(creds, 'GET', '/api/v3/account');
           this.connections.set(broker.id, {
             creds, config, connected: true,
@@ -104,10 +170,24 @@ class BrokerService {
             permissions: account.permissions,
           };
         }
+        case 'coinbase': {
+          // Real test: list accounts via Coinbase CDP API
+          const accounts = await this._coinbaseRequest(creds, 'GET', '/api/v3/brokerage/accounts');
+          this.connections.set(broker.id, {
+            creds, config, connected: true,
+            permissions: ['read', 'trade'],
+            accounts: accounts.accounts || [],
+          });
+          return {
+            success: true,
+            message: `Connected to Coinbase (${(accounts.accounts || []).length} accounts)`,
+            permissions: ['read', 'trade'],
+          };
+        }
         default: {
           await fetch(config.baseUrl);
           this.connections.set(broker.id, { creds, config, connected: true, permissions: [] });
-          return { success: true, message: `Connected to ${config.name} (simulated)` };
+          return { success: true, message: `Connected to ${config.name}` };
         }
       }
     } catch (err) {
@@ -133,6 +213,23 @@ class BrokerService {
           }));
       } catch (err) {
         console.error('Binance getBalances error:', err);
+        throw err;
+      }
+    }
+
+    if (conn.config.id === 'coinbase') {
+      try {
+        const data = await this._coinbaseRequest(conn.creds, 'GET', '/api/v3/brokerage/accounts');
+        return (data.accounts || [])
+          .filter(a => parseFloat(a.available_balance?.value || 0) > 0 || parseFloat(a.hold?.value || 0) > 0)
+          .map(a => ({
+            asset: a.currency,
+            free: a.available_balance?.value || '0',
+            locked: a.hold?.value || '0',
+            total: (parseFloat(a.available_balance?.value || 0) + parseFloat(a.hold?.value || 0)).toString(),
+          }));
+      } catch (err) {
+        console.error('Coinbase getBalances error:', err);
         throw err;
       }
     }

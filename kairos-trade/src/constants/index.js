@@ -38,7 +38,7 @@ export const BROKERS = {
     baseUrl: 'https://api.coinbase.com',
     wsUrl: 'wss://ws-feed.exchange.coinbase.com',
     supportedMarkets: ['spot'],
-    requiredFields: ['apiKey', 'apiSecret', 'passphrase'],
+    requiredFields: ['apiKey', 'apiSecret'],
   },
   kucoin: {
     id: 'kucoin',
