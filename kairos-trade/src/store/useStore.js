@@ -144,7 +144,7 @@ const useStore = create((set, get) => ({
   strategies: loadJSON(STORAGE_KEYS.STRATEGIES, []),
 
   seedDefaultStrategies: () => {
-    const FACTORY_VERSION = 2; // bump to force refresh
+    const FACTORY_VERSION = 3; // bump to force refresh
     const existing = get().strategies;
     const prevVer = parseInt(localStorage.getItem('kairos_factory_ver') || '0');
     if (prevVer >= FACTORY_VERSION && existing.some(s => s.isFactory)) return;
@@ -272,6 +272,75 @@ if (price < bands.lower && crossover(m.line, m.signal) && r < 40) {
 }
 if (price > bands.upper && crossunder(m.line, m.signal) && r > 60) {
   log("🔴 VENTA — BB superior + MACD bajista"); sell();
+}`,
+        createdAt: new Date().toISOString(),
+      },
+      {
+        id: 'factory_sniper',
+        name: 'Kairos Sniper 1m',
+        type: 'custom_script',
+        isFactory: true,
+        description: 'Bot ultra-rápido para 1m — detecta micro-reversiones con RSI extremo + volumen. Genera señales frecuentes.',
+        code: `// ═══════════════════════════════════════════
+// KAIROS SNIPER — Ultra-Fast 1m Scalper
+// Diseñado para timeframe 1m / 5m
+// Genera señales frecuentes para trading activo
+// ═══════════════════════════════════════════
+
+config({ stopLoss: 0.8, takeProfit: 1.2 })
+
+const r = rsi(7)
+const r14 = rsi(14)
+const fast = ema(5)
+const mid = ema(13)
+const slow = ema(34)
+const m = macd(8, 21, 5)
+const bands = bb(15, 2)
+
+const volNow = volume.value
+const volAvg5 = avg(volume, 5)
+const volAvg20 = avg(volume, 20)
+const momentum = percentChange(close, 3)
+const momentum5 = percentChange(close, 5)
+
+const trendUp = fast > mid && mid > slow
+const trendDown = fast < mid && mid < slow
+
+let go = "none"
+
+// RSI EXTREMO — señal rápida
+if (r < 25) go = "buy"
+if (r > 75) go = "sell"
+
+// MICRO-REVERSAL — RSI rebota desde extremo
+if (r.prev(1) < 20 && r > 25 && momentum > 0) go = "buy"
+if (r.prev(1) > 80 && r < 75 && momentum < 0) go = "sell"
+
+// EMA CROSS rápido con confirmación
+if (crossover(fast, mid) && r < 55 && r14 < 50) go = "buy"
+if (crossunder(fast, mid) && r > 45 && r14 > 50) go = "sell"
+
+// BB SQUEEZE + momentum
+if (price < bands.lower && momentum5 < -0.15) go = "buy"
+if (price > bands.upper && momentum5 > 0.15) go = "sell"
+
+// MACD cross con volumen
+if (crossover(m.line, m.signal) && volNow > volAvg5) go = "buy"
+if (crossunder(m.line, m.signal) && volNow > volAvg5) go = "sell"
+
+// FILTRO: no operar contra tendencia fuerte
+if (go === "buy" && trendDown && r > 40) go = "none"
+if (go === "sell" && trendUp && r < 60) go = "none"
+
+log("⚡ RSI7:" + r.toFixed(0) + " EMA:" + (trendUp ? "↑" : trendDown ? "↓" : "→") + " Mom:" + momentum.toFixed(2) + "% Vol:" + (volNow > volAvg20 * 1.3 ? "🔥" : "·"))
+
+if (go === "buy") {
+  log("🟢 SNIPER BUY — RSI:" + r.toFixed(0) + " Price:$" + price.toFixed(2))
+  buy()
+}
+if (go === "sell") {
+  log("🔴 SNIPER SELL — RSI:" + r.toFixed(0) + " Price:$" + price.toFixed(2))
+  sell()
 }`,
         createdAt: new Date().toISOString(),
       },
