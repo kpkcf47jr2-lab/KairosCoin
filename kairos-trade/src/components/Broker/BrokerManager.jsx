@@ -202,11 +202,11 @@ export default function BrokerManager() {
         setTimeout(() => { setModalOpen(false); setStep(FLOW.SELECT); }, 2500);
       } else {
         setStep(FLOW.KEYS);
-        setKeyError('No se pudo conectar. Verifica que tus claves sean correctas y tengan los permisos adecuados.');
+        setKeyError(result.message || 'No se pudo conectar. Verifica que tus claves sean correctas y tengan los permisos adecuados.');
       }
     } catch (err) {
       setStep(FLOW.KEYS);
-      setKeyError(`Error de conexión: ${err.message}`);
+      setKeyError(err.message || 'Error de conexión desconocido');
     }
   };
 

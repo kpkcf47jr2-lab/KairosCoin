@@ -37,52 +37,112 @@ class BrokerService {
     };
 
     const b64url = (obj) => btoa(JSON.stringify(obj)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    const bufToB64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
     const headerB64 = b64url(header);
     const payloadB64 = b64url(payload);
     const signingInput = `${headerB64}.${payloadB64}`;
 
-    // Parse PEM → CryptoKey
+    // Parse PEM → DER bytes (handle literal \n from Coinbase)
     const pemClean = privateKeyPem
       .replace(/-----BEGIN EC PRIVATE KEY-----/, '')
       .replace(/-----END EC PRIVATE KEY-----/, '')
+      .replace(/-----BEGIN PRIVATE KEY-----/, '')
+      .replace(/-----END PRIVATE KEY-----/, '')
       .replace(/\\n/g, '')
       .replace(/\n/g, '')
+      .replace(/\r/g, '')
       .replace(/\s/g, '');
-    const binaryDer = Uint8Array.from(atob(pemClean), c => c.charCodeAt(0));
+    const derBytes = Uint8Array.from(atob(pemClean), c => c.charCodeAt(0));
+
+    // Detect format: SEC1 (EC PRIVATE KEY) needs wrapping to PKCS8
+    let pkcs8Buffer;
+    if (privateKeyPem.includes('EC PRIVATE KEY')) {
+      pkcs8Buffer = this._sec1ToPkcs8(derBytes);
+    } else {
+      pkcs8Buffer = derBytes.buffer;
+    }
 
     const key = await crypto.subtle.importKey(
-      'pkcs8', binaryDer,
+      'pkcs8', pkcs8Buffer,
       { name: 'ECDSA', namedCurve: 'P-256' },
       false, ['sign']
     );
 
-    // Sign
+    // Sign (Web Crypto returns IEEE P1363 format = raw r||s, which is what JWT ES256 needs)
     const sig = await crypto.subtle.sign(
       { name: 'ECDSA', hash: 'SHA-256' },
       key,
       new TextEncoder().encode(signingInput)
     );
 
-    const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)))
-      .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    return `${signingInput}.${bufToB64url(sig)}`;
+  }
 
-    return `${signingInput}.${sigB64}`;
+  // Convert SEC1 (BEGIN EC PRIVATE KEY) DER to PKCS8 format for Web Crypto
+  _sec1ToPkcs8(sec1Der) {
+    // AlgorithmIdentifier for EC P-256
+    const algoId = new Uint8Array([
+      0x30, 0x13,
+      0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
+      0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07,
+    ]);
+    const version = new Uint8Array([0x02, 0x01, 0x00]);
+
+    // OCTET STRING wrapping the SEC1 key
+    let octetHeader;
+    if (sec1Der.length < 128) {
+      octetHeader = new Uint8Array([0x04, sec1Der.length]);
+    } else if (sec1Der.length < 256) {
+      octetHeader = new Uint8Array([0x04, 0x81, sec1Der.length]);
+    } else {
+      octetHeader = new Uint8Array([0x04, 0x82, (sec1Der.length >> 8) & 0xff, sec1Der.length & 0xff]);
+    }
+
+    const innerLen = version.length + algoId.length + octetHeader.length + sec1Der.length;
+
+    // Outer SEQUENCE
+    let seqHeader;
+    if (innerLen < 128) {
+      seqHeader = new Uint8Array([0x30, innerLen]);
+    } else if (innerLen < 256) {
+      seqHeader = new Uint8Array([0x30, 0x81, innerLen]);
+    } else {
+      seqHeader = new Uint8Array([0x30, 0x82, (innerLen >> 8) & 0xff, innerLen & 0xff]);
+    }
+
+    const pkcs8 = new Uint8Array(seqHeader.length + innerLen);
+    let off = 0;
+    pkcs8.set(seqHeader, off); off += seqHeader.length;
+    pkcs8.set(version, off); off += version.length;
+    pkcs8.set(algoId, off); off += algoId.length;
+    pkcs8.set(octetHeader, off); off += octetHeader.length;
+    pkcs8.set(sec1Der, off);
+
+    return pkcs8.buffer;
   }
 
   // ─── Coinbase CDP Signed Request ───
   async _coinbaseRequest(creds, method, path) {
     const jwt = await this._coinbaseJWT(creds);
     const url = `https://api.coinbase.com${path}`;
-    const res = await fetch(url, {
-      method,
-      headers: {
-        'Authorization': `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || data.error || res.statusText);
-    return data;
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${jwt}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || `HTTP ${res.status}`);
+      return data;
+    } catch (err) {
+      // CORS or network error
+      if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+        throw new Error('CORS bloqueado: la API de Coinbase no permite llamadas desde el navegador. Necesitas conectar desde la app de escritorio o usaremos un proxy.');
+      }
+      throw err;
+    }
   }
 
   // ─── HMAC-SHA256 Signing (Web Crypto API) ───
