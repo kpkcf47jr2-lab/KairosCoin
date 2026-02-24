@@ -1,6 +1,7 @@
 // Kairos Trade — Trading Engine (Bot Execution Core)
 // Real-time WebSocket monitoring + REAL trade execution via connected broker
 // Each bot gets a dedicated WebSocket for instant price updates
+// Callbacks are stored in a registry so they survive component remounts
 
 import { calculateEMA, calculateRSI, calculateMACD, detectCrossover } from './indicators';
 import { marketData } from './marketData';
@@ -16,10 +17,46 @@ const WS_ENDPOINTS = [
 class TradingEngine {
   constructor() {
     this.activeBots = new Map();
-    this.streams = new Map();       // WebSocket per bot
+    this.streams = new Map();       // WebSocket or interval per bot
     this.positions = new Map();     // Open positions: botId -> { side, entryPrice, quantity, entryTime }
     this.candles = new Map();       // Candle arrays per bot for indicator calculation
     this.lastHeartbeat = new Map(); // Throttle heartbeat logs
+    this.logs = new Map();          // Internal log buffer per bot (survives navigation)
+    this.callbacks = new Map();     // Callback registry per bot { onTrade, onLog }
+  }
+
+  // ─── Internal log: stores + forwards to UI ───
+  _log(botId, msg) {
+    const logs = this.logs.get(botId) || [];
+    const botData = this.activeBots.get(botId);
+    logs.push({ message: msg, time: Date.now(), botName: botData?.bot?.name || 'Bot' });
+    if (logs.length > 150) logs.splice(0, 50);
+    this.logs.set(botId, logs);
+    try { this.callbacks.get(botId)?.onLog?.(msg); } catch (e) { /* stale callback */ }
+  }
+
+  // ─── Internal trade forward ───
+  _onTrade(botId, trade) {
+    try { this.callbacks.get(botId)?.onTrade?.(trade); } catch (e) { /* stale callback */ }
+  }
+
+  // ─── Update callbacks (call when component remounts) ───
+  setCallbacks(botId, onTrade, onLog) {
+    this.callbacks.set(botId, { onTrade, onLog });
+  }
+
+  // ─── Get stored logs for a bot ───
+  getLogs(botId) {
+    return this.logs.get(botId) || [];
+  }
+
+  // ─── Get all logs across all bots ───
+  getAllLogs() {
+    const all = [];
+    for (const [botId, logs] of this.logs) {
+      all.push(...logs.map(l => ({ ...l, botId })));
+    }
+    return all.sort((a, b) => a.time - b.time).slice(-100);
   }
 
   // ─── Auto-reconnect broker if needed ───
@@ -44,17 +81,21 @@ class TradingEngine {
   async startBot(bot, onTrade, onLog) {
     if (this.activeBots.has(bot.id)) return;
 
-    onLog?.(`🤖 Bot "${bot.name}" iniciado en ${bot.pair}`);
+    // Register callbacks in registry (looked up dynamically, never stale)
+    this.callbacks.set(bot.id, { onTrade, onLog });
+    this.activeBots.set(bot.id, { bot, running: true });
+
+    this._log(bot.id, `🤖 Bot "${bot.name}" iniciado en ${bot.pair}`);
 
     // Auto-reconnect broker
     const brokerReady = await this._ensureBrokerConnected(bot);
     if (bot.brokerId) {
-      onLog?.(brokerReady
+      this._log(bot.id, brokerReady
         ? `🔗 Broker conectado — modo REAL activado`
         : `⚠️ Broker no disponible — modo DEMO`);
+    } else {
+      this._log(bot.id, `📋 Modo DEMO — Conecta un broker para operar en real`);
     }
-
-    this.activeBots.set(bot.id, { bot, running: true });
 
     // Fetch initial candles for indicator calculation
     const apiPair = toApiPair(bot.pair);
@@ -63,10 +104,11 @@ class TradingEngine {
       initialCandles = await marketData.getCandles(apiPair, bot.timeframe, 100);
       this.candles.set(bot.id, initialCandles);
       const lastPrice = initialCandles[initialCandles.length - 1]?.close;
-      onLog?.(`📊 ${initialCandles.length} velas cargadas | Precio actual: $${lastPrice?.toFixed(2)}`);
+      this._log(bot.id, `📊 ${initialCandles.length} velas cargadas | Precio: $${lastPrice?.toFixed(2)} | TF: ${bot.timeframe}`);
     } catch (err) {
-      onLog?.(`❌ Error cargando datos: ${err.message} — Intentando modo polling...`);
-      this._startPollingFallback(bot, apiPair, onTrade, onLog);
+      this._log(bot.id, `❌ Error cargando datos: ${err.message}`);
+      this._log(bot.id, `⏱️ Cambiando a modo polling...`);
+      this._startPollingFallback(bot, apiPair);
       return;
     }
 
@@ -75,18 +117,52 @@ class TradingEngine {
     const currentPrice = closes[closes.length - 1];
     const signal = this._evaluateStrategy(bot.strategy, initialCandles, closes);
     if (signal) {
-      onLog?.(`📊 Señal inicial: ${signal.type.toUpperCase()} a $${currentPrice.toFixed(2)}`);
-      await this._handleSignal(bot, signal, currentPrice, onTrade, onLog);
+      this._log(bot.id, `📊 Señal inicial: ${signal.type.toUpperCase()} a $${currentPrice.toFixed(2)}`);
+      await this._handleSignal(bot, signal, currentPrice);
     } else {
-      onLog?.(`👀 Sin señal aún — Monitoreando en tiempo real...`);
+      // Log current indicator values so user sees the bot is analyzing
+      this._logIndicatorStatus(bot, closes);
     }
 
     // Connect real-time WebSocket
-    this._connectBotStream(bot, apiPair, onTrade, onLog);
+    this._connectBotStream(bot, apiPair);
+  }
+
+  // ─── Log indicator status (no signal, but show what the bot sees) ───
+  _logIndicatorStatus(bot, closes) {
+    const len = closes.length;
+    const ind = bot.strategy?.entry?.indicator;
+    try {
+      if (ind === 'ema_cross' || ind === 'ema_cross_rsi') {
+        const fast = bot.strategy.entry.params?.fastEma || bot.strategy.entry.params?.fast || 20;
+        const slow = bot.strategy.entry.params?.slowEma || bot.strategy.entry.params?.slow || 50;
+        const emaFast = calculateEMA(closes, fast);
+        const emaSlow = calculateEMA(closes, slow);
+        const diff = ((emaFast[len - 1] - emaSlow[len - 1]) / emaSlow[len - 1] * 100).toFixed(3);
+        let info = `📈 EMA${fast}: $${emaFast[len - 1]?.toFixed(2)} | EMA${slow}: $${emaSlow[len - 1]?.toFixed(2)} | Diff: ${diff}%`;
+        if (ind === 'ema_cross_rsi') {
+          const rsi = calculateRSI(closes, bot.strategy.entry.params?.rsiPeriod || 14);
+          info += ` | RSI: ${rsi[len - 1]?.toFixed(1)}`;
+        }
+        this._log(bot.id, `${info} — Sin señal, monitoreando...`);
+      } else if (ind === 'rsi') {
+        const rsi = calculateRSI(closes, bot.strategy.entry.params?.period || 14);
+        this._log(bot.id, `📈 RSI: ${rsi[len - 1]?.toFixed(1)} — Sin señal, monitoreando...`);
+      } else if (ind === 'macd_cross') {
+        const { macd, signal } = calculateMACD(closes);
+        this._log(bot.id, `📈 MACD: ${macd[len - 1]?.toFixed(2)} | Signal: ${signal[len - 1]?.toFixed(2)} — Sin señal, monitoreando...`);
+      } else {
+        this._log(bot.id, `👀 Sin señal — Monitoreando en tiempo real...`);
+      }
+    } catch {
+      this._log(bot.id, `👀 Sin señal — Monitoreando en tiempo real...`);
+    }
   }
 
   // ─── Create dedicated WebSocket per bot ───
-  _connectBotStream(bot, apiPair, onTrade, onLog, retries = 0) {
+  _connectBotStream(bot, apiPair, retries = 0) {
+    if (!this.activeBots.get(bot.id)?.running) return;
+
     const pair = apiPair.toLowerCase();
     const tf = bot.timeframe || '1m';
 
@@ -94,13 +170,21 @@ class TradingEngine {
     const wsBase = marketData._wsBase || WS_ENDPOINTS[0];
     const url = `${wsBase}/${pair}@ticker/${pair}@kline_${tf}`;
 
-    onLog?.(`🔌 Conectando stream tiempo real: ${apiPair} [${tf}]...`);
+    this._log(bot.id, `🔌 Conectando stream: ${apiPair} @ ${tf}${retries > 0 ? ` (intento ${retries + 1})` : ''}...`);
 
-    const ws = new WebSocket(url);
+    let ws;
+    try {
+      ws = new WebSocket(url);
+    } catch (err) {
+      this._log(bot.id, `❌ Error WebSocket: ${err.message} — Cambiando a polling`);
+      this._startPollingFallback(bot, apiPair);
+      return;
+    }
+
     let reconnectTimeout = null;
 
     ws.onopen = () => {
-      onLog?.(`⚡ Stream EN VIVO — Actualización instantánea activa`);
+      this._log(bot.id, `⚡ Stream EN VIVO conectado — Datos instantáneos activos`);
       retries = 0;
     };
 
@@ -113,7 +197,7 @@ class TradingEngine {
         // Real-time ticker — check SL/TP and heartbeat
         if (data.e === '24hrTicker') {
           const currentPrice = parseFloat(data.c);
-          this._handleTick(bot, currentPrice, onTrade, onLog);
+          this._handleTick(bot, currentPrice);
         }
 
         // Kline — evaluate strategy on candle close
@@ -130,20 +214,23 @@ class TradingEngine {
 
           if (k.x) {
             // Candle CLOSED — update array and evaluate strategy
-            this._handleCandleClose(bot, candle, onTrade, onLog);
+            this._handleCandleClose(bot, candle);
           }
         }
       } catch (e) {
-        console.error(`[Bot ${bot.id}] WS parse error:`, e);
+        console.error(`[Bot ${bot.id}] WS parse:`, e);
       }
     };
 
     ws.onerror = (err) => {
-      console.error(`[Bot ${bot.id}] WS error:`, err);
+      console.error(`[Bot ${bot.id}] WS error`, err);
       // Try alternate endpoint on first error
-      if (retries === 0 && wsBase === WS_ENDPOINTS[0]) {
-        marketData._wsBase = WS_ENDPOINTS[1];
-        this._connectBotStream(bot, apiPair, onTrade, onLog, 1);
+      if (retries === 0) {
+        const altBase = wsBase === WS_ENDPOINTS[0] ? WS_ENDPOINTS[1] : WS_ENDPOINTS[0];
+        marketData._wsBase = altBase;
+        this._log(bot.id, `🔄 Probando endpoint alternativo...`);
+        try { ws.close(); } catch {}
+        this._connectBotStream(bot, apiPair, 1);
         return;
       }
     };
@@ -153,13 +240,13 @@ class TradingEngine {
 
       if (retries < 5) {
         const delay = Math.min(2000 * (retries + 1), 10000);
-        onLog?.(`🔄 Reconectando stream en ${delay / 1000}s...`);
+        this._log(bot.id, `🔄 Reconectando en ${delay / 1000}s...`);
         reconnectTimeout = setTimeout(() => {
-          this._connectBotStream(bot, apiPair, onTrade, onLog, retries + 1);
+          this._connectBotStream(bot, apiPair, retries + 1);
         }, delay);
       } else {
-        onLog?.(`⚠️ WebSocket no disponible — Cambiando a modo polling`);
-        this._startPollingFallback(bot, apiPair, onTrade, onLog);
+        this._log(bot.id, `⚠️ WebSocket no disponible — Modo polling activado`);
+        this._startPollingFallback(bot, apiPair);
       }
     };
 
@@ -168,7 +255,7 @@ class TradingEngine {
   }
 
   // ─── Handle real-time price tick ───
-  _handleTick(bot, currentPrice, onTrade, onLog) {
+  _handleTick(bot, currentPrice) {
     // Heartbeat every 10 seconds
     const now = Date.now();
     const lastHB = this.lastHeartbeat.get(bot.id) || 0;
@@ -179,18 +266,18 @@ class TradingEngine {
         const unrealizedPnl = pos.side === 'buy'
           ? (currentPrice - pos.entryPrice) * pos.quantity
           : (pos.entryPrice - currentPrice) * pos.quantity;
-        onLog?.(`💓 $${currentPrice.toFixed(2)} | ${pos.side.toUpperCase()} @ $${pos.entryPrice.toFixed(2)} | P&L: ${unrealizedPnl >= 0 ? '+' : ''}$${unrealizedPnl.toFixed(2)}`);
+        this._log(bot.id, `💓 $${currentPrice.toFixed(2)} | ${pos.side.toUpperCase()} @ $${pos.entryPrice.toFixed(2)} | P&L: ${unrealizedPnl >= 0 ? '+' : ''}$${unrealizedPnl.toFixed(2)}`);
       } else {
-        onLog?.(`💓 $${currentPrice.toFixed(2)} — Esperando señal...`);
+        this._log(bot.id, `💓 $${currentPrice.toFixed(2)} — Esperando señal...`);
       }
     }
 
     // Check SL/TP on EVERY tick (instant reaction)
-    this._checkStopLossTakeProfit(bot, currentPrice, onTrade, onLog);
+    this._checkStopLossTakeProfit(bot, currentPrice);
   }
 
   // ─── Handle closed candle — evaluate strategy ───
-  async _handleCandleClose(bot, candle, onTrade, onLog) {
+  async _handleCandleClose(bot, candle) {
     const botCandles = this.candles.get(bot.id) || [];
 
     // Append or update last candle
@@ -205,39 +292,42 @@ class TradingEngine {
     const closes = botCandles.map(c => c.close);
     const currentPrice = candle.close;
 
-    onLog?.(`🕯️ Vela cerrada: O:${candle.open.toFixed(2)} H:${candle.high.toFixed(2)} L:${candle.low.toFixed(2)} C:${candle.close.toFixed(2)} V:${candle.volume.toFixed(0)}`);
+    this._log(bot.id, `🕯️ Vela cerrada: O:${candle.open.toFixed(2)} H:${candle.high.toFixed(2)} L:${candle.low.toFixed(2)} C:${candle.close.toFixed(2)}`);
 
     // Evaluate strategy
     const signal = this._evaluateStrategy(bot.strategy, botCandles, closes);
     if (signal) {
-      await this._handleSignal(bot, signal, currentPrice, onTrade, onLog);
+      await this._handleSignal(bot, signal, currentPrice);
+    } else {
+      // Show indicator values so user knows bot is analyzing
+      this._logIndicatorStatus(bot, closes);
     }
   }
 
   // ─── Handle trade signal (open/close positions) ───
-  async _handleSignal(bot, signal, currentPrice, onTrade, onLog) {
+  async _handleSignal(bot, signal, currentPrice) {
     const openPosition = this.positions.get(bot.id);
 
     // Close existing position if signal is opposite
     if (openPosition && openPosition.side !== signal.type) {
-      await this._closePosition(bot, openPosition, currentPrice, signal.type, onTrade, onLog);
+      await this._closePosition(bot, openPosition, currentPrice, signal.type);
     }
 
     // Open NEW position
     if (!this.positions.has(bot.id)) {
-      await this._openPosition(bot, signal, currentPrice, onTrade, onLog);
+      await this._openPosition(bot, signal, currentPrice);
     }
   }
 
   // ─── Close position ───
-  async _closePosition(bot, position, currentPrice, exitSide, onTrade, onLog) {
+  async _closePosition(bot, position, currentPrice, exitSide, reason) {
     const entryPrice = position.entryPrice;
     const qty = position.quantity;
     const profit = position.side === 'buy'
       ? (currentPrice - entryPrice) * qty
       : (entryPrice - currentPrice) * qty;
 
-    onLog?.(`📊 Cerrando: ${position.side.toUpperCase()} → ${exitSide.toUpperCase()} | $${entryPrice.toFixed(2)} → $${currentPrice.toFixed(2)} | P&L: ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`);
+    this._log(bot.id, `📊 Cerrando: ${position.side.toUpperCase()} → ${exitSide.toUpperCase()} | $${entryPrice.toFixed(2)} → $${currentPrice.toFixed(2)} | P&L: ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`);
 
     const closeOrder = {
       symbol: toApiPair(bot.pair),
@@ -249,32 +339,34 @@ class TradingEngine {
 
     if (bot.brokerId && brokerService.connections.has(bot.brokerId)) {
       try {
-        onLog?.(`🔄 Cerrando posición REAL en broker...`);
+        this._log(bot.id, `🔄 Cerrando posición REAL en broker...`);
         const result = await brokerService.placeOrder(bot.brokerId, closeOrder);
         const realProfit = result.filledPrice
           ? (position.side === 'buy'
             ? (result.filledPrice - entryPrice) * qty
             : (entryPrice - result.filledPrice) * qty)
           : profit;
-        onLog?.(`✅ Posición cerrada: P&L real ${realProfit >= 0 ? '+' : ''}$${realProfit.toFixed(2)}`);
-        onTrade?.({ ...closeOrder, ...result, profit: realProfit, real: true, action: 'close' });
+        this._log(bot.id, `✅ Cerrada: P&L real ${realProfit >= 0 ? '+' : ''}$${realProfit.toFixed(2)}`);
+        this._onTrade(bot.id, { ...closeOrder, ...result, profit: realProfit, real: true, action: 'close', reason });
       } catch (err) {
-        onLog?.(`❌ Error cerrando posición: ${err.message}`);
-        onTrade?.({ ...closeOrder, profit, status: 'error', error: err.message, action: 'close' });
+        this._log(bot.id, `❌ Error cerrando: ${err.message}`);
+        this._onTrade(bot.id, { ...closeOrder, profit, status: 'error', error: err.message, action: 'close' });
       }
     } else {
-      onLog?.(`📝 [DEMO] Posición cerrada: P&L ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`);
-      onTrade?.({ ...closeOrder, profit, status: 'filled', simulated: true, action: 'close' });
+      this._log(bot.id, `📝 [DEMO] Cerrada: P&L ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`);
+      this._onTrade(bot.id, { ...closeOrder, profit, status: 'filled', simulated: true, action: 'close', reason });
     }
 
     this.positions.delete(bot.id);
   }
 
   // ─── Open position ───
-  async _openPosition(bot, signal, currentPrice, onTrade, onLog) {
-    onLog?.(`📊 Señal: ${signal.type.toUpperCase()} a $${currentPrice.toFixed(2)}`);
+  async _openPosition(bot, signal, currentPrice) {
+    this._log(bot.id, `📊 Señal: ${signal.type.toUpperCase()} a $${currentPrice.toFixed(2)}`);
 
     const positionSize = this._calculatePositionSize(bot, currentPrice);
+    const slPct = parseFloat(bot.strategy?.stopLoss || 2) / 100;
+    const tpPct = parseFloat(bot.strategy?.takeProfit || 4) / 100;
 
     const order = {
       symbol: toApiPair(bot.pair),
@@ -283,19 +375,19 @@ class TradingEngine {
       quantity: positionSize,
       price: currentPrice,
       stopLoss: signal.type === 'buy'
-        ? currentPrice * (1 - parseFloat(bot.strategy?.stopLoss || 2) / 100)
-        : currentPrice * (1 + parseFloat(bot.strategy?.stopLoss || 2) / 100),
+        ? currentPrice * (1 - slPct)
+        : currentPrice * (1 + slPct),
       takeProfit: signal.type === 'buy'
-        ? currentPrice * (1 + parseFloat(bot.strategy?.takeProfit || 4) / 100)
-        : currentPrice * (1 - parseFloat(bot.strategy?.takeProfit || 4) / 100),
+        ? currentPrice * (1 + tpPct)
+        : currentPrice * (1 - tpPct),
     };
 
     if (bot.brokerId && brokerService.connections.has(bot.brokerId)) {
       try {
-        onLog?.(`🔄 Ejecutando orden REAL en broker...`);
+        this._log(bot.id, `🔄 Ejecutando orden REAL en broker...`);
         const result = await brokerService.placeOrder(bot.brokerId, order);
         const fillPrice = result.filledPrice || currentPrice;
-        onLog?.(`✅ ORDEN REAL: ${result.side?.toUpperCase()} ${result.filledQty || positionSize} @ $${fillPrice} [${result.status}]`);
+        this._log(bot.id, `✅ REAL: ${result.side?.toUpperCase()} ${result.filledQty || positionSize} @ $${fillPrice} [${result.status}]`);
 
         this.positions.set(bot.id, {
           side: signal.type,
@@ -304,13 +396,13 @@ class TradingEngine {
           entryTime: Date.now(),
           orderId: result.id,
         });
-        onTrade?.({ ...order, ...result, real: true, action: 'open' });
+        this._onTrade(bot.id, { ...order, ...result, real: true, action: 'open' });
       } catch (err) {
-        onLog?.(`❌ Error ejecutando orden: ${err.message}`);
-        onTrade?.({ ...order, status: 'error', error: err.message });
+        this._log(bot.id, `❌ Error orden: ${err.message}`);
+        this._onTrade(bot.id, { ...order, status: 'error', error: err.message });
       }
     } else {
-      onLog?.(`📝 [DEMO] ${signal.type.toUpperCase()} ${positionSize} @ $${currentPrice.toFixed(2)}`);
+      this._log(bot.id, `📝 [DEMO] ${signal.type.toUpperCase()} ${positionSize} @ $${currentPrice.toFixed(2)}`);
       this.positions.set(bot.id, {
         side: signal.type,
         entryPrice: currentPrice,
@@ -318,12 +410,12 @@ class TradingEngine {
         entryTime: Date.now(),
         simulated: true,
       });
-      onTrade?.({ ...order, status: 'filled', simulated: true, action: 'open' });
+      this._onTrade(bot.id, { ...order, status: 'filled', simulated: true, action: 'open' });
     }
   }
 
   // ─── Check SL/TP on every tick (real-time) ───
-  async _checkStopLossTakeProfit(bot, currentPrice, onTrade, onLog) {
+  async _checkStopLossTakeProfit(bot, currentPrice) {
     const pos = this.positions.get(bot.id);
     if (!pos) return;
 
@@ -344,18 +436,15 @@ class TradingEngine {
       const exitSide = pos.side === 'buy' ? 'sell' : 'buy';
       const reason = hitSL ? 'stop_loss' : 'take_profit';
 
-      onLog?.(`${hitSL ? '🛑 STOP-LOSS' : '🎯 TAKE-PROFIT'} a $${currentPrice.toFixed(2)}`);
-      await this._closePosition(bot, pos, currentPrice, exitSide,
-        (trade) => onTrade?.({ ...trade, reason }),
-        onLog
-      );
+      this._log(bot.id, `${hitSL ? '🛑 STOP-LOSS' : '🎯 TAKE-PROFIT'} a $${currentPrice.toFixed(2)}`);
+      await this._closePosition(bot, pos, currentPrice, exitSide, reason);
     }
   }
 
   // ─── Polling fallback if WebSocket fails ───
-  _startPollingFallback(bot, apiPair, onTrade, onLog) {
+  _startPollingFallback(bot, apiPair) {
     const checkInterval = this._getCheckInterval(bot.timeframe);
-    onLog?.(`⏱️ Modo polling — revisión cada ${checkInterval / 1000}s`);
+    this._log(bot.id, `⏱️ Polling cada ${checkInterval / 1000}s`);
 
     const monitor = async () => {
       if (!this.activeBots.get(bot.id)?.running) return;
@@ -372,21 +461,23 @@ class TradingEngine {
           const pnl = pos.side === 'buy'
             ? (currentPrice - pos.entryPrice) * pos.quantity
             : (pos.entryPrice - currentPrice) * pos.quantity;
-          onLog?.(`💓 $${currentPrice.toFixed(2)} | ${pos.side.toUpperCase()} @ $${pos.entryPrice.toFixed(2)} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
+          this._log(bot.id, `💓 $${currentPrice.toFixed(2)} | ${pos.side.toUpperCase()} @ $${pos.entryPrice.toFixed(2)} | P&L: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
         } else {
-          onLog?.(`💓 $${currentPrice.toFixed(2)} — Esperando señal...`);
+          this._log(bot.id, `💓 $${currentPrice.toFixed(2)} — Esperando señal...`);
         }
 
         // Evaluate
         const signal = this._evaluateStrategy(bot.strategy, candles, closes);
         if (signal) {
-          await this._handleSignal(bot, signal, currentPrice, onTrade, onLog);
+          await this._handleSignal(bot, signal, currentPrice);
+        } else {
+          this._logIndicatorStatus(bot, closes);
         }
 
         // Check SL/TP
-        this._checkStopLossTakeProfit(bot, currentPrice, onTrade, onLog);
+        await this._checkStopLossTakeProfit(bot, currentPrice);
       } catch (err) {
-        onLog?.(`❌ Error: ${err.message}`);
+        this._log(bot.id, `❌ Error: ${err.message}`);
       }
     };
 
@@ -414,10 +505,11 @@ class TradingEngine {
       this.streams.delete(botId);
     }
 
-    // Clear data
+    // Clear runtime data (keep logs for review)
     this.positions.delete(botId);
     this.candles.delete(botId);
     this.lastHeartbeat.delete(botId);
+    this.callbacks.delete(botId);
   }
 
   // ─── Evaluate strategy rules ───
@@ -435,13 +527,14 @@ class TradingEngine {
     if (!strategy?.entry?.indicator) return null;
 
     const len = closes.length;
+    if (len < 50) return null; // Need enough data for indicators
     const indicator = strategy.entry.indicator;
 
     switch (indicator) {
       case 'ema_cross':
       case 'ema_cross_rsi': {
-        const fast = strategy.entry.params?.fastEma || strategy.entry.params?.fast || 20;
-        const slow = strategy.entry.params?.slowEma || strategy.entry.params?.slow || 50;
+        const fast = strategy.entry.params?.fastEma || strategy.entry.params?.fast || 9;
+        const slow = strategy.entry.params?.slowEma || strategy.entry.params?.slow || 21;
         const emaFast = calculateEMA(closes, fast);
         const emaSlow = calculateEMA(closes, slow);
         const cross = detectCrossover(emaFast, emaSlow, len - 1);
@@ -450,8 +543,8 @@ class TradingEngine {
           const rsiPeriod = strategy.entry.params?.rsiPeriod || 14;
           const rsi = calculateRSI(closes, rsiPeriod);
           const currentRSI = rsi[len - 1];
-          const oversold = strategy.entry.params?.rsiOversold || 30;
-          const overbought = strategy.exit?.params?.rsiOverbought || 70;
+          const oversold = strategy.entry.params?.rsiOversold || 35;
+          const overbought = strategy.exit?.params?.rsiOverbought || 65;
 
           if (cross === 'bullish_cross' && currentRSI < oversold) return { type: 'buy' };
           if (cross === 'bearish_cross' && currentRSI > overbought) return { type: 'sell' };

@@ -63,6 +63,61 @@ export default function BotManager() {
     return () => clearInterval(interval);
   }, [fetchBrokerBalances]);
 
+  // Auto-restart active bots on mount (survives navigation + page refresh)
+  useEffect(() => {
+    const currentBots = useStore.getState().bots;
+    const activeBotsList = currentBots.filter(b => b.status === 'active');
+
+    for (const bot of activeBotsList) {
+      if (tradingEngine.activeBots.has(bot.id)) {
+        // Bot is already running — re-attach fresh callbacks
+        tradingEngine.setCallbacks(bot.id,
+          (trade) => addTrade(bot, trade),
+          (msg) => addLog(bot, msg),
+        );
+      } else {
+        // Bot shows active but engine lost it (page refresh) — restart
+        const type = bot.botType || 'signal';
+        if (type === 'signal' || type === 'script') {
+          tradingEngine.startBot(
+            { ...bot, status: 'active' },
+            (trade) => addTrade(bot, trade),
+            (msg) => addLog(bot, msg),
+          );
+        } else if (type === 'grid') {
+          gridBotEngine.start({
+            id: bot.id, pair: bot.pair,
+            upperPrice: bot.upperPrice, lowerPrice: bot.lowerPrice,
+            gridLines: bot.gridLines, investment: bot.balance,
+            onLog: (msg) => addLog(bot, msg),
+            onTrade: (trade) => addTrade(bot, trade),
+          });
+        } else if (type === 'dca') {
+          dcaBotEngine.start({
+            id: bot.id, pair: bot.pair,
+            investmentPerOrder: bot.investmentPerOrder,
+            intervalMinutes: bot.intervalMinutes, maxOrders: bot.maxOrders,
+            onLog: (msg) => addLog(bot, msg),
+            onTrade: (trade) => addTrade(bot, trade),
+          });
+        }
+      }
+    }
+
+    // Load existing logs from engine buffer (survived navigation)
+    const allLogs = tradingEngine.getAllLogs();
+    if (allLogs.length > 0) {
+      setLogs(prev => {
+        if (prev.length > 0) return prev; // Don't double-add
+        return allLogs.map(l => ({
+          type: 'log', bot: l.botName, message: l.message,
+          time: new Date(l.time).toLocaleTimeString(),
+        }));
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Helper: get broker info for a bot
   const getBrokerForBot = (bot) => brokers.find(b => b.id === bot.brokerId);
   const getBrokerBalance = (brokerId) => brokerBalances[brokerId] || null;
@@ -93,9 +148,9 @@ export default function BotManager() {
 
     if (botType === 'signal') {
       const strategy = strategies.find(s => s.id === form.strategyId) || {
-        name: 'EMA Cross + RSI',
-        entry: { condition: 'EMA 20 cruza EMA 50 + RSI < 30', indicator: 'ema_cross_rsi', params: { fastEma: 20, slowEma: 50, rsiPeriod: 14, rsiOversold: 30 } },
-        exit: { condition: 'RSI > 70', indicator: 'rsi', params: { rsiOverbought: 70 } },
+        name: 'EMA Cross 9/21',
+        entry: { condition: 'EMA 9 cruza EMA 21', indicator: 'ema_cross', params: { fastEma: 9, slowEma: 21 } },
+        exit: { condition: 'Cruce opuesto', indicator: 'ema_cross', params: { fastEma: 9, slowEma: 21 } },
         stopLoss: '2', takeProfit: '4',
       };
       Object.assign(botData, {
