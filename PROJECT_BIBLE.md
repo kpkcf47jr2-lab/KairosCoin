@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 23, 2026 (Session 8 — Stripe + Redemption System)
+#  Last Updated: February 24, 2026 (Session 9 — Real Trading Engine + WebSocket Bots)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -66,13 +66,14 @@
 - **Tech:** React 18 + Vite 6 + Tailwind 4 + Zustand + lightweight-charts v4.1 + Framer Motion + Lucide Icons
 - **Purpose:** AI-powered automated trading platform with real-time charts, bots, paper trading, technical alerts
 - **Data Source:** Binance public WebSocket + REST API (no key needed)
-- **Status:** v2.0 Premium UI (commit `abf4b27`)
+- **Status:** v3.0 Real Trading Engine (commit `37a0f5f`)
+- **Bot Execution:** Real-time WebSocket per bot, Coinbase real order execution, position tracking + P&L
 - **Deploy:** `npx netlify deploy --prod --dir=kairos-trade/dist --site=b7b3fd54-863a-4e6f-a334-460b1092045b --auth=nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93`
 
 ### GitHub Repository
 - **Repo:** `kpkcf47jr2-lab/KairosCoin`
 - **Branch:** main
-- **Latest Commit:** `abf4b27` (Feb 23, 2026)
+- **Latest Commit:** `37a0f5f` (Feb 24, 2026)
 
 ### PancakeSwap Liquidity
 - **Pair Address:** `0xfCb17119D559E47803105581A28584813FAffb49`
@@ -391,6 +392,32 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 
 ## 14. HISTORY / CHANGELOG
 
+### Feb 24, 2026 — Session 9 (Real Trading Engine + WebSocket Bots)
+- **Real Order Execution on Coinbase** — `broker.js` `placeOrder()` implemented for Coinbase Advanced Trade API
+  - Market orders: `market_market_ioc` with `quote_size` (buy) / `base_size` (sell)
+  - Symbol conversion: `BTCUSDT` → `BTC-USDT` for Coinbase product IDs
+  - JWT/ES256 auth via Netlify proxy at `/api/coinbase-proxy`
+- **Real-Time WebSocket Bot Monitoring** — Each bot gets dedicated WebSocket to Binance
+  - Ticker stream for instant SL/TP checking on every price tick
+  - Kline stream for strategy evaluation when candles close
+  - Heartbeat logs every 10s showing price + P&L
+  - Auto-fallback to polling if WebSocket fails after 5 retries
+- **Position Tracking + Dynamic P&L** — `this.positions` Map tracks open positions per bot
+  - Entry price, quantity, entry time stored
+  - Unrealized P&L computed on every tick
+  - Closed trade P&L tracked in bot stats (trades, pnl, winRate)
+- **Bot Balance = Initial Capital + P&L** — Dynamic balance display (green if winning, red if losing)
+- **Callback Registry** — `this.callbacks` Map stores onTrade/onLog per bot
+  - Survives component unmount/navigation (callbacks re-attached on mount)
+  - Internal `this.logs` buffer stores all bot logs in engine (survives page navigation)
+- **Auto-Restart on Mount** — When BotManager mounts, restarts any bots marked 'active' in Zustand
+- **Auto-Reconnect Broker** — `_ensureBrokerConnected()` restores broker connections from Zustand on bot start
+- **Strategy Default Changed** — EMA 20/50 + RSI (too restrictive) → EMA 9/21 (more frequent signals)
+- **Indicator Status Logging** — When no signal found, logs current indicator values (EMA diff%, RSI, MACD)
+- **UI Fixes** — Sidebar 300px, overflow-x-hidden, bigger buttons/text, bot cards with broker info
+- **Commits:** `5053d16`, `011309a`, `395d6eb`, `37a0f5f`
+- **Status:** Bot running live on Coinbase (USDT), stream EN VIVO connected, awaiting first trade signal
+
 ### Feb 23, 2026 — Session 8 (Stripe Integration + KAIROS Redemption System)
 - **Stripe Buy Flow (LIVE)** — Users buy KAIROS with card via Stripe Checkout → auto-mint to wallet
 - **Stripe Connect Redemption (LIVE)** — Users burn KAIROS → receive USD in bank via Stripe Connect
@@ -482,12 +509,16 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 
 ### Kairos Trade — Next Features
 - [x] Real Coinbase CDP connection (JWT/ES256 + Netlify proxy) ✅ DONE Feb 23, 2026
+- [x] Real order execution (Coinbase + Binance) ✅ DONE Feb 24, 2026
+- [x] Real-time WebSocket bot monitoring ✅ DONE Feb 24, 2026
+- [x] Position tracking + dynamic P&L ✅ DONE Feb 24, 2026
+- [x] Bot auto-restart on page reload ✅ DONE Feb 24, 2026
+- [ ] Test multi-broker execution (Binance, Bybit, OKX)
 - [ ] Strategy marketplace (share/import strategies)
 - [ ] Wallet integration (connect Kairos Wallet with trading platform)
 - [ ] Advanced order types (OCO, trailing stop, iceberg)
 - [ ] Portfolio analytics dashboard with P&L charts
 - [ ] Social trading / copy trading features
-- [ ] Multi-exchange support (Binance, Bybit, OKX live trading)
 - [ ] Mobile responsive optimization
 - [ ] Real backend auth (replace localStorage simulation)
 
@@ -538,8 +569,8 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 - **marketData.js** — Binance WebSocket (`wss://stream.binance.com:9443/ws`) for live prices, REST for candles/orderbook/24hr tickers, symbol search
 - **indicators.js** — EMA, SMA, RSI, MACD, Bollinger Bands, VWAP, crossover/divergence detection
 - **ai.js** — Local market analysis + OpenAI GPT-4 chat integration
-- **broker.js** — Broker API key management with base64 encryption
-- **tradingEngine.js** — Order execution, position management, P&L calculation
+- **broker.js** — Broker connections (Binance HMAC + Coinbase JWT/ES256), `placeOrder()` for both exchanges, `getBalances()`, auto-reconnect, base64 encryption
+- **tradingEngine.js** — Real-time WebSocket bot engine, per-bot streams, position tracking, SL/TP, callback registry, auto-restart, auto-reconnect broker, heartbeat logging, indicator status
 - **simulator.js** — Paper trading engine with virtual balance tracking
 - **alerts.js** — Price alerts (above/below) + technical signals (EMA cross, RSI, MACD, volume spike), 15s monitoring interval, browser notifications
 
@@ -551,7 +582,7 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 - Transak widget uses placeholder API key until production key is received
 - Render free tier may sleep after 15 min inactivity (first request after sleep takes ~30s)
 - Kairos Trade auth is simulated (localStorage only, no real backend auth)
-- Kairos Trade broker connections are UI-only (API keys stored but not used for live trading yet)
+- Kairos Trade Coinbase broker is LIVE (real orders execute with USDT). Binance/Bybit/OKX untested in production.
 - CSS variable names in kairos-trade say `--gold` but values are blue — intentional to avoid refactoring 100+ references
 
 ---

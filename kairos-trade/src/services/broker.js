@@ -417,6 +417,7 @@ class BrokerService {
       try {
         // Coinbase Advanced Trade API — Create Order
         // https://docs.cdp.coinbase.com/advanced-trade/reference/retailbrokerageapi_postorder
+        // Convert symbol: BTCUSDT → BTC-USDT (Coinbase format)
         const productId = symbol.replace(/([A-Z]+)(USDT|USDC|USD|BTC|ETH)$/i, '$1-$2').toUpperCase();
 
         const orderConfig = {};
