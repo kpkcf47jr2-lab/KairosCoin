@@ -23,8 +23,9 @@ import TradeHistory from './components/Trading/TradeHistory';
 import SimulatorScreen from './components/Trading/SimulatorScreen';
 import SettingsPanel from './components/Settings/SettingsPanel';
 import AlertPanel from './components/Alerts/AlertPanel';
+import OrdersPanel from './components/Trading/OrdersPanel';
 
-// Sub-component: Trading view with chart/depth toggle
+// Sub-component: Trading view with chart/depth toggle + orders panel
 import { useState as useStateTrade } from 'react';
 function TradingView() {
   const [chartTab, setChartTab] = useStateTrade('chart');
@@ -32,20 +33,25 @@ function TradingView() {
   return (
     <div className="flex flex-1 overflow-hidden">
       <div className="flex-1 overflow-hidden flex flex-col min-w-0">
-        <div className="flex gap-1 px-3 pt-2 shrink-0" style={{ background: 'var(--surface)' }}>
-          {[['chart', 'Chart'], ['depth', 'Depth']].map(([id, label]) => (
-            <button key={id} onClick={() => setChartTab(id)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-t-lg transition-colors ${chartTab === id ? 'text-[var(--gold)]' : 'text-[var(--text-dim)] hover:text-[var(--text-secondary)]'}`}
-              style={chartTab === id ? { background: 'var(--dark)', borderTop: '2px solid var(--gold)' } : {}}>
-              {label}
-            </button>
-          ))}
+        {/* Chart area */}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="flex gap-1 px-3 pt-2 shrink-0" style={{ background: 'var(--surface)' }}>
+            {[['chart', 'Chart'], ['depth', 'Depth']].map(([id, label]) => (
+              <button key={id} onClick={() => setChartTab(id)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-t-lg transition-colors ${chartTab === id ? 'text-[var(--gold)]' : 'text-[var(--text-dim)] hover:text-[var(--text-secondary)]'}`}
+                style={chartTab === id ? { background: 'var(--dark)', borderTop: '2px solid var(--gold)' } : {}}>
+                {label}
+              </button>
+            ))}
+          </div>
+          {chartTab === 'chart' ? (
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><TradingChart /></div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><DepthChart pair={selectedPair || 'BTCUSDT'} height={500} /></div>
+          )}
         </div>
-        {chartTab === 'chart' ? (
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><TradingChart /></div>
-        ) : (
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><DepthChart pair={selectedPair || 'BTCUSDT'} height={500} /></div>
-        )}
+        {/* Orders panel below chart */}
+        <OrdersPanel />
       </div>
       <TradingPanel />
     </div>

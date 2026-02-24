@@ -75,8 +75,7 @@ export default function Sidebar() {
         >
           {/* Active background */}
           {isActive && (
-            <motion.div
-              layoutId="navBg"
+            <div
               className="absolute inset-0 rounded-xl"
               style={{
                 background: item.accent
@@ -84,17 +83,14 @@ export default function Sidebar() {
                   : 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(59,130,246,0.02))',
                 border: '1px solid rgba(59,130,246,0.1)',
               }}
-              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
             />
           )}
 
           {/* Active left bar */}
           {isActive && (
-            <motion.div
-              layoutId="activeBar"
+            <div
               className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full"
               style={{ background: 'linear-gradient(180deg, #60A5FA, #3B82F6)' }}
-              transition={{ type: 'spring', stiffness: 350, damping: 30 }}
             />
           )}
 
