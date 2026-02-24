@@ -36,39 +36,16 @@ class BrokerService {
       exp: now + 120,
     };
 
-    const b64url = (obj) => btoa(JSON.stringify(obj)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-    const bufToB64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-    const headerB64 = b64url(header);
-    const payloadB64 = b64url(payload);
+    const toB64url = (str) => btoa(str).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+    const objToB64url = (obj) => toB64url(JSON.stringify(obj));
+    const bufToB64url = (buf) => toB64url(String.fromCharCode(...new Uint8Array(buf)));
+    const headerB64 = objToB64url(header);
+    const payloadB64 = objToB64url(payload);
     const signingInput = `${headerB64}.${payloadB64}`;
 
-    // Parse PEM → DER bytes (handle literal \n from Coinbase)
-    const pemClean = privateKeyPem
-      .replace(/-----BEGIN EC PRIVATE KEY-----/, '')
-      .replace(/-----END EC PRIVATE KEY-----/, '')
-      .replace(/-----BEGIN PRIVATE KEY-----/, '')
-      .replace(/-----END PRIVATE KEY-----/, '')
-      .replace(/\\n/g, '')
-      .replace(/\n/g, '')
-      .replace(/\r/g, '')
-      .replace(/\s/g, '');
-    const derBytes = Uint8Array.from(atob(pemClean), c => c.charCodeAt(0));
+    // Import EC key and sign
+    const key = await this._importECKey(privateKeyPem);
 
-    // Detect format: SEC1 (EC PRIVATE KEY) needs wrapping to PKCS8
-    let pkcs8Buffer;
-    if (privateKeyPem.includes('EC PRIVATE KEY')) {
-      pkcs8Buffer = this._sec1ToPkcs8(derBytes);
-    } else {
-      pkcs8Buffer = derBytes.buffer;
-    }
-
-    const key = await crypto.subtle.importKey(
-      'pkcs8', pkcs8Buffer,
-      { name: 'ECDSA', namedCurve: 'P-256' },
-      false, ['sign']
-    );
-
-    // Sign (Web Crypto returns IEEE P1363 format = raw r||s, which is what JWT ES256 needs)
     const sig = await crypto.subtle.sign(
       { name: 'ECDSA', hash: 'SHA-256' },
       key,
@@ -78,47 +55,121 @@ class BrokerService {
     return `${signingInput}.${bufToB64url(sig)}`;
   }
 
-  // Convert SEC1 (BEGIN EC PRIVATE KEY) DER to PKCS8 format for Web Crypto
-  _sec1ToPkcs8(sec1Der) {
-    // AlgorithmIdentifier for EC P-256
+  // Parse SEC1 PEM (BEGIN EC PRIVATE KEY) → extract d, x, y → import as JWK
+  async _importECKey(pem) {
+    // Clean PEM: remove headers and all literal \n
+    const pemClean = pem
+      .replace(/-----BEGIN (?:EC )?PRIVATE KEY-----/g, '')
+      .replace(/-----END (?:EC )?PRIVATE KEY-----/g, '')
+      .replace(/\\n/g, '')
+      .replace(/\n/g, '')
+      .replace(/\r/g, '')
+      .replace(/\s/g, '');
+
+    const der = Uint8Array.from(atob(pemClean), c => c.charCodeAt(0));
+
+    // If it's PKCS8 format (BEGIN PRIVATE KEY), import directly
+    if (pem.includes('BEGIN PRIVATE KEY') && !pem.includes('EC PRIVATE KEY')) {
+      return crypto.subtle.importKey(
+        'pkcs8', der.buffer,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        false, ['sign']
+      );
+    }
+
+    // SEC1 EC format: parse ASN.1 to extract raw key material
+    // Structure: SEQUENCE { version(1), d(32 bytes), [0]curveOid, [1]publicKey(65 bytes) }
+    const d = this._extractEC_d(der);
+    const pubPoint = this._extractEC_pub(der);
+
+    if (!d || d.length !== 32) {
+      throw new Error(`Clave EC inválida: se esperaban 32 bytes para d, se encontraron ${d?.length || 0}`);
+    }
+
+    const bytesToB64url = (bytes) =>
+      btoa(String.fromCharCode(...bytes)).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+    const jwk = {
+      kty: 'EC',
+      crv: 'P-256',
+      d: bytesToB64url(d),
+    };
+
+    // If public key present (65 bytes: 04 || x(32) || y(32))
+    if (pubPoint && pubPoint.length === 65 && pubPoint[0] === 0x04) {
+      jwk.x = bytesToB64url(pubPoint.slice(1, 33));
+      jwk.y = bytesToB64url(pubPoint.slice(33, 65));
+    } else {
+      // Without public key, Web Crypto can't import. Derive it.
+      // Try PKCS8 wrapping as fallback
+      return this._importECKeyPkcs8Wrap(der);
+    }
+
+    return crypto.subtle.importKey(
+      'jwk', jwk,
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false, ['sign']
+    );
+  }
+
+  // Extract 32-byte private key 'd' from SEC1 DER
+  _extractEC_d(der) {
+    // Find OCTET STRING (tag 0x04) after version INTEGER (02 01 01)
+    // Typical: 30 77 02 01 01 04 20 <32 bytes d>
+    for (let i = 0; i < der.length - 34; i++) {
+      if (der[i] === 0x02 && der[i + 1] === 0x01 && der[i + 2] === 0x01 &&
+          der[i + 3] === 0x04 && der[i + 4] === 0x20) {
+        return der.slice(i + 5, i + 5 + 32);
+      }
+    }
+    return null;
+  }
+
+  // Extract public key point from SEC1 DER
+  _extractEC_pub(der) {
+    // Look for context tag [1] (0xA1) followed by BIT STRING (0x03)
+    for (let i = 0; i < der.length - 67; i++) {
+      if (der[i] === 0xA1 && der[i + 2] === 0x03 && der[i + 3] === 0x42 && der[i + 4] === 0x00) {
+        return der.slice(i + 5, i + 5 + 65);
+      }
+    }
+    return null;
+  }
+
+  // Fallback: wrap SEC1 DER in PKCS8 envelope
+  async _importECKeyPkcs8Wrap(sec1Der) {
+    // PKCS8 = SEQUENCE { version(0), AlgorithmIdentifier(EC P-256), OCTET STRING(SEC1) }
+    const octetLen = sec1Der.length;
     const algoId = new Uint8Array([
       0x30, 0x13,
       0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
       0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07,
     ]);
-    const version = new Uint8Array([0x02, 0x01, 0x00]);
+    const ver = new Uint8Array([0x02, 0x01, 0x00]);
+    const octetHeader = this._asn1Len(0x04, octetLen);
+    const totalInner = ver.length + algoId.length + octetHeader.length + octetLen;
+    const seqHeader = this._asn1Len(0x30, totalInner);
 
-    // OCTET STRING wrapping the SEC1 key
-    let octetHeader;
-    if (sec1Der.length < 128) {
-      octetHeader = new Uint8Array([0x04, sec1Der.length]);
-    } else if (sec1Der.length < 256) {
-      octetHeader = new Uint8Array([0x04, 0x81, sec1Der.length]);
-    } else {
-      octetHeader = new Uint8Array([0x04, 0x82, (sec1Der.length >> 8) & 0xff, sec1Der.length & 0xff]);
-    }
-
-    const innerLen = version.length + algoId.length + octetHeader.length + sec1Der.length;
-
-    // Outer SEQUENCE
-    let seqHeader;
-    if (innerLen < 128) {
-      seqHeader = new Uint8Array([0x30, innerLen]);
-    } else if (innerLen < 256) {
-      seqHeader = new Uint8Array([0x30, 0x81, innerLen]);
-    } else {
-      seqHeader = new Uint8Array([0x30, 0x82, (innerLen >> 8) & 0xff, innerLen & 0xff]);
-    }
-
-    const pkcs8 = new Uint8Array(seqHeader.length + innerLen);
+    const pkcs8 = new Uint8Array(seqHeader.length + totalInner);
     let off = 0;
     pkcs8.set(seqHeader, off); off += seqHeader.length;
-    pkcs8.set(version, off); off += version.length;
+    pkcs8.set(ver, off); off += ver.length;
     pkcs8.set(algoId, off); off += algoId.length;
     pkcs8.set(octetHeader, off); off += octetHeader.length;
     pkcs8.set(sec1Der, off);
 
-    return pkcs8.buffer;
+    return crypto.subtle.importKey(
+      'pkcs8', pkcs8.buffer,
+      { name: 'ECDSA', namedCurve: 'P-256' },
+      false, ['sign']
+    );
+  }
+
+  // ASN.1 tag + length header
+  _asn1Len(tag, len) {
+    if (len < 128) return new Uint8Array([tag, len]);
+    if (len < 256) return new Uint8Array([tag, 0x81, len]);
+    return new Uint8Array([tag, 0x82, (len >> 8) & 0xff, len & 0xff]);
   }
 
   // ─── Coinbase CDP Signed Request ───
