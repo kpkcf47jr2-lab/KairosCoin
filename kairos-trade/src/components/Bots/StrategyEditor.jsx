@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Code2, Play, Save, Copy, Clipboard, X, Zap, TrendingUp,
   AlertTriangle, CheckCircle, BarChart3, Trophy, ArrowDownRight,
-  Target, BookOpen, Sparkles, RotateCcw, ChevronRight, Info,
+  Target, BookOpen, RotateCcw, ChevronRight, Info,
 } from 'lucide-react';
-import { executeScript, validateScript, backtestScript, SCRIPT_TEMPLATES, CHATGPT_PROMPT } from '../../services/kairosScript';
+import { executeScript, validateScript, backtestScript, SCRIPT_TEMPLATES } from '../../services/kairosScript';
 import { marketData } from '../../services/marketData';
 
 // ─── Smart code extraction from clipboard ───
@@ -175,7 +175,6 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
   const [testPair, setTestPair] = useState('BTCUSDT');
   const [testTimeframe, setTestTimeframe] = useState('1h');
   const [saved, setSaved] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -211,12 +210,6 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
       const text = await navigator.clipboard?.readText();
       if (text) { setCode(extractCodeFromText(text)); setBacktestResults(null); }
     } catch { /* denied */ }
-  };
-
-  const handleCopyPrompt = () => {
-    navigator.clipboard?.writeText(CHATGPT_PROMPT);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -300,42 +293,28 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
             {/* Code editor */}
             <CodeEditor code={code} onChange={(c) => { setCode(c); setBacktestResults(null); }} error={error} />
 
-            {/* ChatGPT hint — minimal line below editor */}
-            <div className="flex items-center justify-between px-1">
-              <p className="text-[10px]" style={{ color: '#6b7280' }}>
-                <Sparkles size={10} className="inline mr-1" style={{ color: '#3B82F6' }} />
-                ¿No sabes programar? Copia el prompt para ChatGPT y pega el resultado aquí.
-              </p>
-              <button onClick={handleCopyPrompt}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all hover:brightness-110 shrink-0 ml-3"
-                style={{ background: 'rgba(59,130,246,0.08)', color: '#3B82F6' }}>
-                {copied ? <><CheckCircle size={10} /> Copiado</> : <><Copy size={10} /> Prompt</>}
-              </button>
-            </div>
-
-            {/* Backtest bar */}
+            {/* Backtest bar — two rows for clean layout */}
             <div className="flex items-center gap-2 flex-wrap">
               <select value={testPair} onChange={(e) => setTestPair(e.target.value)}
-                className="px-3 py-2.5 rounded-xl text-xs font-semibold outline-none"
+                className="px-3 py-2 rounded-xl text-xs font-semibold outline-none"
                 style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: '#c9d1d9' }}>
                 {['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT'].map(p => <option key={p} value={p}>{p}</option>)}
               </select>
               <select value={testTimeframe} onChange={(e) => setTestTimeframe(e.target.value)}
-                className="px-3 py-2.5 rounded-xl text-xs font-semibold outline-none"
+                className="px-3 py-2 rounded-xl text-xs font-semibold outline-none"
                 style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: '#c9d1d9' }}>
                 {['1m', '5m', '15m', '1h', '4h', '1d'].map(tf => <option key={tf} value={tf}>{tf}</option>)}
               </select>
               <button onClick={handleBacktest} disabled={testing || !!error || !code?.trim()}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all hover:brightness-110 disabled:opacity-40"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all hover:brightness-110 disabled:opacity-40"
                 style={{ background: 'rgba(0,220,130,0.1)', border: '1px solid rgba(0,220,130,0.25)', color: '#00DC82' }}>
-                {testing ? <RotateCcw size={14} className="animate-spin" /> : <Play size={14} />}
+                {testing ? <RotateCcw size={13} className="animate-spin" /> : <Play size={13} />}
                 {testing ? 'Probando...' : 'Probar'}
               </button>
-              <div className="flex-1" />
               <button onClick={handleSave} disabled={!!error || !code?.trim() || !name?.trim()}
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold transition-all hover:brightness-110 disabled:opacity-40"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all hover:brightness-110 disabled:opacity-40 ml-auto"
                 style={{ background: saved ? 'rgba(0,220,130,0.15)' : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', color: saved ? '#00DC82' : '#fff', border: 'none' }}>
-                {saved ? <><CheckCircle size={14} /> Guardada!</> : <><Save size={14} /> Guardar</>}
+                {saved ? <><CheckCircle size={13} /> Guardada!</> : <><Save size={13} /> Guardar</>}
               </button>
             </div>
 

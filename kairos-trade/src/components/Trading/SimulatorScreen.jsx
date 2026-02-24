@@ -174,15 +174,15 @@ export default function SimulatorScreen() {
   const returnPct = perf.returnPct || 0;
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+    <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Play size={20} className="text-[var(--gold)]" />
-            Paper Trading Simulator
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-lg font-bold flex items-center gap-2">
+            <Play size={18} className="text-[var(--gold)] shrink-0" />
+            Paper Trading
           </h1>
-          <p className="text-sm text-[var(--text-dim)]">Practica con datos reales, sin arriesgar dinero real</p>
+          <p className="text-xs text-[var(--text-dim)]">Practica con datos reales, sin arriesgar dinero</p>
         </div>
         <div className="flex gap-2">
           <button onClick={refresh} className="px-3 py-1.5 bg-[var(--dark-3)] text-[var(--text-dim)] rounded-lg text-xs hover:text-[var(--text)] transition-colors">
@@ -211,7 +211,7 @@ export default function SimulatorScreen() {
       </AnimatePresence>
 
       {/* Performance grid */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
         {[
           { label: 'Balance', value: `$${perf.balance?.toFixed(2)}`, icon: DollarSign, color: 'var(--gold)' },
           { label: 'Equity', value: `$${perf.equity?.toFixed(2)}`, icon: BarChart3, color: 'var(--blue)' },
@@ -237,7 +237,7 @@ export default function SimulatorScreen() {
       </div>
 
       {/* Additional stats */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
           { label: 'P&L Total', value: `${perf.totalPnl >= 0 ? '+' : ''}$${(perf.totalPnl || 0).toFixed(2)}`, color: (perf.totalPnl || 0) >= 0 ? 'var(--green)' : 'var(--red)' },
           { label: 'Mejor Trade', value: `+$${(perf.bestTrade || 0).toFixed(2)}`, color: 'var(--green)' },
@@ -264,7 +264,7 @@ export default function SimulatorScreen() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Open position form */}
         <div className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl p-4 space-y-3">
           <h3 className="text-sm font-bold">Abrir Posición (Demo)</h3>

@@ -64,25 +64,25 @@ export default function AlertPanel() {
   const inactiveAlerts = alerts.filter(a => !a.active);
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+    <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[22px] font-bold tracking-tight flex items-center gap-2">
-            <Bell size={22} className="text-[var(--gold)]" />
+        className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-lg font-bold flex items-center gap-2">
+            <Bell size={18} className="text-[var(--gold)] shrink-0" />
             Alertas
           </h1>
-          <p className="text-sm text-[var(--text-dim)] mt-0.5">
+          <p className="text-xs text-[var(--text-dim)] mt-0.5">
             {activeAlerts.length} alerta{activeAlerts.length !== 1 ? 's' : ''} activa{activeAlerts.length !== 1 ? 's' : ''}
           </p>
         </div>
         <button
           onClick={() => setTab('create')}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-          style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 15px rgba(59,130,246,0.25)' }}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 shrink-0"
+          style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}
         >
-          <Plus size={16} />
+          <Plus size={14} />
           Nueva Alerta
         </button>
       </motion.div>

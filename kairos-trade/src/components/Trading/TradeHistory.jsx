@@ -13,11 +13,11 @@ export default function TradeHistory() {
   const winRate = tradeHistory.length > 0 ? (wins / tradeHistory.length * 100) : 0;
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Historial de Trading</h1>
-          <p className="text-sm text-[var(--text-dim)]">
+    <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-lg font-bold">Historial de Trading</h1>
+          <p className="text-xs text-[var(--text-dim)]">
             {tradeHistory.length} trades cerrados • {positions.length} posiciones abiertas
           </p>
         </div>
@@ -47,7 +47,7 @@ export default function TradeHistory() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl p-3 text-center">
           <p className="text-xs text-[var(--text-dim)]">Total Trades</p>
           <p className="text-lg font-bold">{tradeHistory.length}</p>
@@ -85,8 +85,8 @@ export default function TradeHistory() {
       </div>
 
       {/* Trade list */}
-      <div className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl overflow-x-auto">
+        <table className="w-full text-sm min-w-[600px]">
           <thead>
             <tr className="border-b border-[var(--border)] text-[var(--text-dim)] text-xs">
               <th className="text-left p-3">Par</th>

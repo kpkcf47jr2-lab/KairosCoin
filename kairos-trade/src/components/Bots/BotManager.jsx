@@ -186,7 +186,7 @@ export default function BotManager() {
               <h3 className="text-sm font-bold text-[var(--text)]">Nuevo Bot de Trading</h3>
 
               {/* Bot type selector */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {BOT_TYPES.map(t => {
                   const Icon = t.icon;
                   return (
@@ -419,21 +419,21 @@ export default function BotManager() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   {bot.status !== 'active' ? (
-                    <button onClick={() => handleStart(bot)} className="flex items-center gap-1 px-3 py-1.5 bg-[var(--green)]/10 text-[var(--green)] rounded-lg text-xs font-bold hover:bg-[var(--green)]/20 transition-colors border border-[var(--green)]/20">
-                      <Play size={12} /> Iniciar
+                    <button onClick={() => handleStart(bot)} className="flex items-center gap-1 px-3 py-1.5 bg-[var(--green)]/10 text-[var(--green)] rounded-lg text-[11px] font-bold hover:bg-[var(--green)]/20 transition-colors border border-[var(--green)]/20">
+                      <Play size={11} /> Iniciar
                     </button>
                   ) : (
-                    <button onClick={() => handlePause(bot)} className="flex items-center gap-1 px-3 py-1.5 bg-[var(--gold)]/10 text-[var(--gold)] rounded-lg text-xs font-bold hover:bg-[var(--gold)]/20 transition-colors border border-[var(--gold)]/20">
-                      <Pause size={12} /> Pausar
+                    <button onClick={() => handlePause(bot)} className="flex items-center gap-1 px-3 py-1.5 bg-[var(--gold)]/10 text-[var(--gold)] rounded-lg text-[11px] font-bold hover:bg-[var(--gold)]/20 transition-colors border border-[var(--gold)]/20">
+                      <Pause size={11} /> Pausar
                     </button>
                   )}
-                  <button onClick={() => handleStop(bot)} className="flex items-center gap-1 px-3 py-1.5 text-[var(--text-dim)] rounded-lg text-xs hover:text-[var(--text)] transition-colors" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-                    <Square size={12} /> Detener
+                  <button onClick={() => handleStop(bot)} className="flex items-center gap-1 px-3 py-1.5 text-[var(--text-dim)] rounded-lg text-[11px] hover:text-[var(--text)] transition-colors" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                    <Square size={11} /> Detener
                   </button>
-                  <button onClick={() => handleDelete(bot)} className="ml-auto flex items-center gap-1 px-3 py-1.5 text-[var(--text-dim)] hover:text-[var(--red)] rounded-lg text-xs transition-colors">
-                    <Trash2 size={12} />
+                  <button onClick={() => handleDelete(bot)} className="ml-auto flex items-center gap-1 px-2 py-1.5 text-[var(--text-dim)] hover:text-[var(--red)] rounded-lg text-[11px] transition-colors">
+                    <Trash2 size={11} />
                   </button>
                 </div>
               </motion.div>

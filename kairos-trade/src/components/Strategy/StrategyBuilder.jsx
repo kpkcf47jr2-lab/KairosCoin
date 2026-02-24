@@ -104,24 +104,16 @@ export default function StrategyBuilder() {
               Escribe tu propia estrategia con código simple, o pídele a ChatGPT que la genere por ti.
               Más fácil que Pine Script, más potente que MQL.
             </p>
-            <div className="flex gap-3 justify-center">
+            <div className="flex gap-3 justify-center flex-wrap">
               <button onClick={() => { setEditingStrategy(null); setShowEditor(true); }}
                 className="flex items-center gap-2 px-5 py-2.5 btn-gold rounded-xl text-sm font-bold">
                 <Code2 size={14} /> Crear Estrategia
-              </button>
-              <button onClick={() => {
-                const prompt = "Crea una estrategia de trading que use EMA, RSI y MACD para detectar entradas de alta probabilidad";
-                navigator.clipboard?.writeText(prompt);
-              }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-colors"
-                style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.2)', color: '#A855F7' }}>
-                <Copy size={14} /> Copiar Prompt para ChatGPT
               </button>
             </div>
           </div>
 
           {/* How it works */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {[
               { step: '1', title: 'Pide a ChatGPT', desc: 'Dile qué estrategia quieres con nuestro prompt optimizado', color: '#A855F7' },
               { step: '2', title: 'Pega el Código', desc: 'Copia el código que te generó y pégalo en el editor', color: '#3B82F6' },
@@ -162,7 +154,7 @@ export default function StrategyBuilder() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button onClick={() => handleEditStrategy(strat)}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
                       style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.2)', color: '#A855F7' }}>
@@ -228,7 +220,7 @@ export default function StrategyBuilder() {
                       {strat.entry?.condition} | SL: {strat.stopLoss}% | TP: {strat.takeProfit}%
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button onClick={() => setPage('bots')}
                       className="px-3 py-1.5 bg-[var(--green)]/20 text-[var(--green)] rounded-lg text-xs font-bold">
                       <Play size={12} className="inline mr-1" /> Usar en Bot

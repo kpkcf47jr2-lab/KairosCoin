@@ -63,10 +63,10 @@ export default function Dashboard() {
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
+        className="flex items-center justify-between gap-3"
       >
-        <div>
-          <h1 className="text-[22px] font-bold tracking-tight">
+        <div className="min-w-0">
+          <h1 className="text-[22px] font-bold tracking-tight truncate">
             Bienvenido, <span className="text-[var(--gold)]">{user?.name || 'Trader'}</span>
           </h1>
           <p className="text-sm text-[var(--text-dim)] mt-0.5">Tu centro de control de trading automatizado</p>
@@ -164,7 +164,7 @@ export default function Dashboard() {
         </div>
 
         {/* Table header */}
-        <div className="grid grid-cols-4 gap-3 px-4 py-2 text-[10px] font-bold text-[var(--text-dim)]/50 uppercase tracking-wider">
+        <div className="grid grid-cols-4 gap-2 px-4 py-2 text-[10px] font-bold text-[var(--text-dim)]/50 uppercase tracking-wider">
           <span>Par</span>
           <span className="text-right">Precio</span>
           <span className="text-right">Cambio 24h</span>
@@ -181,7 +181,7 @@ export default function Dashboard() {
               animate={{ opacity: 1 }}
               transition={{ delay: i * 0.05 }}
               onClick={() => { useStore.getState().setSelectedPair(toDisplayPair(ticker.symbol)); setPage('chart'); }}
-              className="group w-full grid grid-cols-4 gap-3 items-center px-4 py-3 hover:bg-white/[0.02] transition-colors"
+              className="group w-full grid grid-cols-4 gap-2 items-center px-4 py-3 hover:bg-white/[0.02] transition-colors"
             >
               {/* Pair */}
               <div className="flex items-center gap-3">

@@ -20,8 +20,8 @@ export default function Header() {
       }}
     >
       {/* Left: Pair info */}
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 min-w-0 flex-1 overflow-hidden">
+        <div className="flex items-center gap-3">
           {/* Pair badge */}
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold"
@@ -66,7 +66,7 @@ export default function Header() {
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0 ml-3">
         {/* Connection status + broker name */}
         <div className={`flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg transition-all
           ${connected
@@ -74,7 +74,7 @@ export default function Header() {
             : 'text-[var(--text-dim)] bg-white/[0.02] border border-[var(--border)]/50'
           }`}>
           {connected ? <Wifi size={12} /> : <WifiOff size={12} />}
-          <span className="font-semibold">{connected && connectedBroker ? connectedBroker.name || connectedBroker.broker : 'Demo'}</span>
+          <span className="font-semibold truncate max-w-[100px]">{connected && connectedBroker ? connectedBroker.name || connectedBroker.broker : 'Demo'}</span>
           {connected && <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] animate-pulse" />}
         </div>
 

@@ -82,7 +82,7 @@ export default function OrdersPanel() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+      <div className="flex-1 overflow-auto" style={{ scrollbarWidth: 'thin' }}>
         {/* ── Positions ── */}
         {tab === 'positions' && (
           <table className="w-full text-[11px]">
@@ -195,14 +195,14 @@ export default function OrdersPanel() {
           <div>
             {/* Active bots summary */}
             {activeBots.length > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5" style={{ borderBottom: '1px solid rgba(30,34,45,0.3)' }}>
-                <Bot size={12} className="text-[var(--gold)]" />
-                <span className="text-[10px] text-[var(--text-dim)]">
+              <div className="flex items-center gap-2 px-3 py-1.5 flex-wrap overflow-hidden" style={{ borderBottom: '1px solid rgba(30,34,45,0.3)' }}>
+                <Bot size={12} className="text-[var(--gold)] shrink-0" />
+                <span className="text-[10px] text-[var(--text-dim)] shrink-0">
                   {activeBots.length} bot{activeBots.length > 1 ? 's' : ''} activo{activeBots.length > 1 ? 's' : ''}
                 </span>
                 {activeBots.map(bot => (
-                  <span key={bot.id} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--green)]/10 text-[var(--green)] font-semibold">
-                    {bot.name} • {bot.trades || 0} trades • P&L: {(bot.pnl || 0) >= 0 ? '+' : ''}${(bot.pnl || 0).toFixed(2)}
+                  <span key={bot.id} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--green)]/10 text-[var(--green)] font-semibold truncate max-w-[200px]">
+                    {bot.name} • {bot.trades || 0} trades
                   </span>
                 ))}
               </div>

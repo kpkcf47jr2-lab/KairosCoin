@@ -228,12 +228,12 @@ export default function BrokerManager() {
   const closeModal = () => { setModalOpen(false); setStep(FLOW.SELECT); };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 space-y-6">
+    <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
       {/* ─── Header ─── */}
       <div>
-        <h1 className="text-xl font-bold">Conectar Exchange</h1>
-        <p className="text-sm text-[var(--text-dim)] mt-1">
-          Conecta tu cuenta en 3 simples pasos. Te guiamos durante todo el proceso.
+        <h1 className="text-lg font-bold">Conectar Exchange</h1>
+        <p className="text-xs text-[var(--text-dim)] mt-1">
+          Conecta tu cuenta en 3 simples pasos.
         </p>
       </div>
 
@@ -249,7 +249,7 @@ export default function BrokerManager() {
       </div>
 
       {/* ─── How it works — 3 steps ─── */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         {[
           { num: '1', title: 'Elige tu Exchange', desc: 'Selecciona de la lista', icon: Zap },
           { num: '2', title: 'Sigue la guía', desc: 'Te mostramos paso a paso', icon: Info },
@@ -279,7 +279,7 @@ export default function BrokerManager() {
             return (
               <div key={broker.id} className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
                 <div className="p-4 flex items-center justify-between cursor-pointer" onClick={() => setExpandedBroker(isExpanded ? null : broker.id)}>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
                       style={{ background: `${catalog?.color || '#333'}15`, border: `1px solid ${catalog?.color || '#333'}30` }}>
                       {catalog?.logo || '📊'}
