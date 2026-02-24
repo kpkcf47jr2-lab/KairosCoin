@@ -67,7 +67,7 @@ export default function Sidebar() {
           onMouseLeave={() => setHoveredItem(null)}
           title={!sidebarOpen ? item.label : undefined}
           className={`w-full flex items-center rounded-xl transition-all duration-200 relative group
-            ${sidebarOpen ? 'px-3 py-3 gap-3' : 'px-0 py-3 justify-center'}
+            ${sidebarOpen ? 'px-3.5 py-3.5 gap-3.5' : 'px-0 py-3 justify-center'}
             ${isActive
               ? 'text-white'
               : 'text-[var(--text-dim)] hover:text-[var(--text)]'
@@ -118,7 +118,7 @@ export default function Sidebar() {
           {sidebarOpen && (
             <div className="relative z-10 flex-1 min-w-0 text-left">
               <div className="flex items-center gap-2">
-                <span className={`text-[13px] truncate leading-tight ${isActive ? 'font-semibold' : 'font-medium'}`}>
+                <span className={`text-[14px] truncate leading-tight ${isActive ? 'font-bold' : 'font-medium'}`}>
                   {item.label}
                 </span>
                 {item.accent && (
@@ -133,7 +133,7 @@ export default function Sidebar() {
                 )}
               </div>
               {!compact && item.desc && (
-                <span className={`text-[10px] leading-tight truncate block mt-0.5 transition-colors
+                <span className={`text-[11px] leading-tight truncate block mt-0.5 transition-colors
                   ${isActive ? 'text-[var(--text-dim)]' : 'text-[var(--text-dim)]/50'}`}>
                   {item.desc}
                 </span>
@@ -165,8 +165,8 @@ export default function Sidebar() {
 
   const SectionLabel = ({ label }) => (
     sidebarOpen ? (
-      <div className="flex items-center gap-2 px-3 mb-2 mt-1">
-        <p className="text-[10px] font-bold text-[var(--text-dim)]/40 uppercase tracking-[0.12em]">
+      <div className="flex items-center gap-2 px-2 mb-2.5 mt-1">
+        <p className="text-[11px] font-bold text-[var(--text-dim)]/60 uppercase tracking-[0.14em] whitespace-nowrap">
           {label}
         </p>
         <div className="flex-1 h-px bg-[var(--border)]/50" />
@@ -178,7 +178,7 @@ export default function Sidebar() {
 
   return (
     <motion.aside
-      animate={{ width: sidebarOpen ? 260 : 72 }}
+      animate={{ width: sidebarOpen ? 280 : 72 }}
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
       className="h-full flex flex-col relative shrink-0"
       style={{
@@ -188,22 +188,22 @@ export default function Sidebar() {
     >
       {/* Logo area */}
       <div
-        className={`flex items-center shrink-0 ${sidebarOpen ? 'px-5 gap-3 h-[60px]' : 'justify-center h-[60px]'}`}
+        className={`flex items-center shrink-0 ${sidebarOpen ? 'px-6 gap-3.5 h-[68px]' : 'justify-center h-[68px]'}`}
         style={{ borderBottom: '1px solid rgba(30,34,45,0.6)' }}
       >
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 relative"
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 relative"
           style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
-          <span className="text-white font-extrabold text-sm">K</span>
+          <span className="text-white font-extrabold text-base">K</span>
           <div className="absolute inset-0 rounded-xl" style={{ boxShadow: '0 0 20px rgba(59,130,246,0.2)' }} />
         </div>
         {sidebarOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1, duration: 0.2 }}>
             <div className="flex flex-col">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-[15px] font-bold text-[var(--text)] tracking-wide">KAIROS</span>
-                <span className="text-[10px] font-bold text-[var(--gold)] tracking-widest">TRADE</span>
+              <div className="flex items-baseline gap-2">
+                <span className="text-[17px] font-bold text-[var(--text)] tracking-wide">KAIROS</span>
+                <span className="text-[11px] font-bold text-[var(--gold)] tracking-widest">TRADE</span>
               </div>
-              <span className="text-[9px] text-[var(--text-dim)]/60 font-medium tracking-wider">BY KAIROS 777</span>
+              <span className="text-[10px] text-[var(--text-dim)]/60 font-medium tracking-wider">BY KAIROS 777</span>
             </div>
           </motion.div>
         )}
@@ -214,21 +214,21 @@ export default function Sidebar() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mx-3 mt-4 mb-2 p-3 rounded-xl"
+          className="mx-4 mt-4 mb-2 p-3.5 rounded-xl"
           style={{
             background: 'linear-gradient(135deg, rgba(59,130,246,0.04), rgba(26,29,38,0.5))',
             border: '1px solid rgba(59,130,246,0.06)',
           }}
         >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[var(--dark-4)] flex items-center justify-center">
-              <User size={14} className="text-[var(--text-dim)]" />
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-[var(--dark-4)] flex items-center justify-center">
+              <User size={16} className="text-[var(--text-dim)]" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-[var(--text)] truncate">{user?.name || 'Trader'}</p>
-              <div className="flex items-center gap-1 mt-0.5">
-                <Crown size={9} className="text-[var(--gold)]" />
-                <span className="text-[9px] font-bold text-[var(--gold)] uppercase tracking-wider">Free Plan</span>
+              <p className="text-sm font-semibold text-[var(--text)] truncate">{user?.name || 'Trader'}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Crown size={10} className="text-[var(--gold)]" />
+                <span className="text-[10px] font-bold text-[var(--gold)] uppercase tracking-wider">Free Plan</span>
               </div>
             </div>
           </div>
@@ -236,12 +236,12 @@ export default function Sidebar() {
       )}
 
       {/* Main Navigation */}
-      <nav className={`flex-1 overflow-y-auto py-2 ${sidebarOpen ? 'px-3' : 'px-2'}`}
+      <nav className={`flex-1 overflow-y-auto py-3 ${sidebarOpen ? 'px-4' : 'px-2'}`}
         style={{ scrollbarWidth: 'none' }}>
         {SECTIONS.map((section, si) => (
-          <div key={section.label} className={si > 0 ? 'mt-5' : 'mt-1'}>
+          <div key={section.label} className={si > 0 ? 'mt-6' : 'mt-1'}>
             <SectionLabel label={section.label} />
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               {section.items.map(item => <NavItem key={item.id} item={item} />)}
             </div>
           </div>
@@ -250,7 +250,7 @@ export default function Sidebar() {
 
       {/* Bottom section */}
       <div
-        className={`py-3 ${sidebarOpen ? 'px-3' : 'px-2'}`}
+        className={`py-3 ${sidebarOpen ? 'px-4' : 'px-2'}`}
         style={{ borderTop: '1px solid rgba(30,34,45,0.6)' }}
       >
         <div className="space-y-0.5">
@@ -270,7 +270,7 @@ export default function Sidebar() {
           <div className={`flex items-center justify-center shrink-0 rounded-lg ${sidebarOpen ? 'w-8 h-8' : 'w-9 h-9'}`}>
             <LogOut size={sidebarOpen ? 16 : 18} strokeWidth={1.5} />
           </div>
-          {sidebarOpen && <span className="text-[13px] font-medium">Cerrar Sesión</span>}
+          {sidebarOpen && <span className="text-[14px] font-medium">Cerrar Sesión</span>}
 
           {/* Logout tooltip */}
           <AnimatePresence>

@@ -145,7 +145,10 @@ export default function BrokerManager() {
     setLoadingBalances(prev => ({ ...prev, [broker.id]: true }));
     try {
       const result = await brokerService.getBalances(broker.id);
-      if (result.success) {
+      // getBalances returns array directly, not { success, balances }
+      if (Array.isArray(result)) {
+        setBalances(prev => ({ ...prev, [broker.id]: result }));
+      } else if (result?.success) {
         setBalances(prev => ({ ...prev, [broker.id]: result.balances }));
       }
     } catch {}

@@ -1,11 +1,12 @@
 // Kairos Trade — Bot Management Panel (Elite v3)
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Plus, Play, Pause, Square, Trash2, Settings, TrendingUp, TrendingDown, AlertCircle, Grid3x3, DollarSign, Zap, Code2, Edit3 } from 'lucide-react';
+import { Bot, Plus, Play, Pause, Square, Trash2, Settings, TrendingUp, TrendingDown, AlertCircle, Grid3x3, DollarSign, Zap, Code2, Edit3, BarChart3, Link2, ArrowRight } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { tradingEngine } from '../../services/tradingEngine';
 import gridBotEngine from '../../services/gridBot';
 import dcaBotEngine from '../../services/dcaBot';
+import { brokerService } from '../../services/broker';
 import { POPULAR_PAIRS, TIMEFRAMES } from '../../constants';
 import { formatPair } from '../../utils/pairUtils';
 import StrategyEditor from './StrategyEditor';
@@ -18,13 +19,14 @@ const BOT_TYPES = [
 ];
 
 export default function BotManager() {
-  const { bots, addBot, updateBot, removeBot, strategies, addStrategy, brokers } = useStore();
+  const { bots, addBot, updateBot, removeBot, strategies, addStrategy, brokers, setPage, setSelectedPair } = useStore();
   const [showCreate, setShowCreate] = useState(false);
   const [showStrategyEditor, setShowStrategyEditor] = useState(false);
   const [editingStrategy, setEditingStrategy] = useState(null);
   const [botType, setBotType] = useState('signal');
   const [logs, setLogs] = useState([]);
   const [createError, setCreateError] = useState('');
+  const [brokerBalances, setBrokerBalances] = useState({});
   const [form, setForm] = useState({
     name: '', pair: 'BTCKAIROS', timeframe: '1h', strategyId: '', brokerId: '',
     balance: '1000', riskPercent: '2', maxTrades: '10',
@@ -36,6 +38,34 @@ export default function BotManager() {
     // Script bot fields
     scriptCode: '', scriptStrategyId: '',
   });
+
+  // Fetch real balances from connected brokers
+  const fetchBrokerBalances = useCallback(async () => {
+    for (const broker of brokers.filter(b => b.connected)) {
+      try {
+        const result = await brokerService.getBalances(broker.id);
+        const balArr = Array.isArray(result) ? result : result?.balances || [];
+        const totalUsd = balArr.reduce((sum, b) => sum + parseFloat(b.total || 0), 0);
+        setBrokerBalances(prev => ({ ...prev, [broker.id]: { balances: balArr, totalUsd } }));
+      } catch {}
+    }
+  }, [brokers]);
+
+  useEffect(() => {
+    fetchBrokerBalances();
+    const interval = setInterval(fetchBrokerBalances, 30000);
+    return () => clearInterval(interval);
+  }, [fetchBrokerBalances]);
+
+  // Helper: get broker info for a bot
+  const getBrokerForBot = (bot) => brokers.find(b => b.id === bot.brokerId);
+  const getBrokerBalance = (brokerId) => brokerBalances[brokerId] || null;
+
+  // Navigate to chart with bot's pair
+  const goToChart = (bot) => {
+    setSelectedPair(bot.pair);
+    setPage('chart');
+  };
 
   const handleCreate = () => {
     setCreateError('');
@@ -384,80 +414,132 @@ export default function BotManager() {
 
       {/* Bot list */}
       {bots.length === 0 ? (
-        <div className="rounded-xl p-12 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <Bot size={48} className="text-[var(--text-dim)]/20 mx-auto mb-4" />
-          <p className="text-[var(--text-dim)]">No hay bots creados</p>
-          <p className="text-xs text-[var(--text-dim)] mt-1">Crea tu primer bot para automatizar tu trading</p>
+        <div className="rounded-2xl p-16 text-center" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <Bot size={56} className="text-[var(--text-dim)]/20 mx-auto mb-5" />
+          <p className="text-lg text-[var(--text-dim)] font-semibold">No hay bots creados</p>
+          <p className="text-sm text-[var(--text-dim)] mt-2">Crea tu primer bot para automatizar tu trading</p>
+          <button onClick={() => setShowCreate(true)} className="mt-5 px-6 py-3 btn-gold rounded-xl text-sm font-bold inline-flex items-center gap-2">
+            <Plus size={16} /> Crear Bot
+          </button>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {bots.map(bot => {
             const typeInfo = getTypeInfo(bot.botType || 'signal');
             const TypeIcon = typeInfo.icon;
+            const broker = getBrokerForBot(bot);
+            const balanceData = bot.brokerId ? getBrokerBalance(bot.brokerId) : null;
+            const strategyName = bot.scriptName || bot.strategy?.name || 'Default';
+
             return (
-              <motion.div key={bot.id} layout className="rounded-xl p-4 min-w-0" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="flex items-center justify-between mb-3 gap-2">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                      style={{ background: `${typeInfo.color}12`, border: `1px solid ${typeInfo.color}20` }}>
-                      <TypeIcon size={20} style={{ color: typeInfo.color }} />
+              <motion.div key={bot.id} layout className="rounded-2xl overflow-hidden min-w-0"
+                style={{ background: 'var(--surface)', border: `1px solid ${bot.status === 'active' ? 'rgba(0,220,130,0.2)' : 'var(--border)'}` }}>
+
+                {/* Bot header — clickable to go to chart */}
+                <div className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors"
+                  onClick={() => goToChart(bot)}>
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div className="flex items-center gap-4 min-w-0 flex-1">
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: `${typeInfo.color}12`, border: `1px solid ${typeInfo.color}25` }}>
+                        <TypeIcon size={24} style={{ color: typeInfo.color }} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <p className="text-base font-bold truncate">{bot.name}</p>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg uppercase tracking-wider shrink-0"
+                            style={{ background: `${typeInfo.color}15`, color: typeInfo.color }}>
+                            {typeInfo.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 text-sm text-[var(--text-dim)] flex-wrap">
+                          <span className="font-semibold text-[var(--text-secondary)]">{formatPair(bot.pair)}</span>
+                          {bot.timeframe && <span>• {bot.timeframe}</span>}
+                          <span>• {strategyName}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-bold truncate">{bot.name}</p>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0"
-                          style={{ background: `${typeInfo.color}15`, color: typeInfo.color }}>
-                          {typeInfo.label}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
+                        style={{ color: getStatusColor(bot.status), background: `${getStatusColor(bot.status)}15`, border: `1px solid ${getStatusColor(bot.status)}20` }}>
+                        {bot.status === 'active' ? '● Activo' : bot.status === 'paused' ? '❚❚ Pausado' : '■ Detenido'}
+                      </span>
+                      <ArrowRight size={16} className="text-[var(--text-dim)]" />
+                    </div>
+                  </div>
+
+                  {/* Broker + Balance info */}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {broker ? (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                        <Link2 size={13} className="text-[var(--green)] shrink-0" />
+                        <span className="font-semibold text-[var(--text)]">{broker.label || broker.name || broker.broker}</span>
+                        <span className="text-[var(--green)] font-bold">• Conectado</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                        <span className="text-[var(--text-dim)]">📋 Modo Demo</span>
+                      </div>
+                    )}
+                    {balanceData && balanceData.balances.length > 0 && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                        <DollarSign size={13} className="text-[var(--gold)] shrink-0" />
+                        <span className="font-semibold text-[var(--text)]">
+                          Saldo: {balanceData.balances.slice(0, 3).map(b => `${parseFloat(b.free).toFixed(4)} ${b.asset}`).join(' • ')}
                         </span>
                       </div>
-                      <p className="text-xs text-[var(--text-dim)] truncate">
-                        {formatPair(bot.pair)}{bot.timeframe ? ` • ${bot.timeframe}` : ''}
-                        {bot.brokerId ? ' • 🟢 REAL' : ' • Demo'}
-                      </p>
-                    </div>
+                    )}
                   </div>
-                  <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold shrink-0 whitespace-nowrap"
-                    style={{ color: getStatusColor(bot.status), background: `${getStatusColor(bot.status)}15` }}>
-                    {bot.status === 'active' ? '● Activo' : bot.status === 'paused' ? '❚❚ Pausado' : '■ Detenido'}
-                  </span>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2 mb-3">
-                  <div className="rounded-lg p-2 text-center min-w-0" style={{ background: 'var(--surface-2)' }}>
-                    <p className="text-[10px] text-[var(--text-dim)] truncate">Trades</p>
-                    <p className="text-sm font-bold truncate">{bot.trades || 0}</p>
+                {/* Stats row */}
+                <div className="grid grid-cols-4 gap-px" style={{ background: 'var(--border)', borderTop: '1px solid var(--border)' }}>
+                  <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
+                    <p className="text-xs text-[var(--text-dim)] mb-1">Trades</p>
+                    <p className="text-lg font-bold">{bot.trades || 0}</p>
                   </div>
-                  <div className="rounded-lg p-2 text-center min-w-0" style={{ background: 'var(--surface-2)' }}>
-                    <p className="text-[10px] text-[var(--text-dim)] truncate">P&L</p>
-                    <p className={`text-sm font-bold truncate ${(bot.pnl || 0) >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
+                  <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
+                    <p className="text-xs text-[var(--text-dim)] mb-1">P&L</p>
+                    <p className={`text-lg font-bold ${(bot.pnl || 0) >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
                       {(bot.pnl || 0) >= 0 ? '+' : ''}${(bot.pnl || 0).toFixed(2)}
                     </p>
                   </div>
-                  <div className="rounded-lg p-2 text-center min-w-0" style={{ background: 'var(--surface-2)' }}>
-                    <p className="text-[10px] text-[var(--text-dim)] truncate">Win Rate</p>
-                    <p className="text-sm font-bold text-[var(--gold)] truncate">{(bot.winRate || 0).toFixed(0)}%</p>
+                  <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
+                    <p className="text-xs text-[var(--text-dim)] mb-1">Win Rate</p>
+                    <p className="text-lg font-bold text-[var(--gold)]">{(bot.winRate || 0).toFixed(0)}%</p>
                   </div>
-                  <div className="rounded-lg p-2 text-center min-w-0" style={{ background: 'var(--surface-2)' }}>
-                    <p className="text-[10px] text-[var(--text-dim)] truncate">Balance</p>
-                    <p className="text-sm font-bold truncate">${bot.balance?.toLocaleString() || '0'}</p>
+                  <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
+                    <p className="text-xs text-[var(--text-dim)] mb-1">Balance Bot</p>
+                    <p className="text-lg font-bold">${bot.balance?.toLocaleString() || '0'}</p>
                   </div>
                 </div>
 
-                <div className="flex gap-2 flex-wrap items-center">
+                {/* Action buttons — bigger */}
+                <div className="flex gap-3 p-4 flex-wrap items-center" style={{ borderTop: '1px solid var(--border)' }}>
                   {bot.status !== 'active' ? (
-                    <button onClick={() => handleStart(bot)} className="inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-[var(--green)]/10 text-[var(--green)] rounded-lg text-[11px] font-bold hover:bg-[var(--green)]/20 transition-colors border border-[var(--green)]/20">
-                      <Play size={11} className="shrink-0" /> <span>Iniciar</span>
+                    <button onClick={(e) => { e.stopPropagation(); handleStart(bot); }}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--green)]/10 text-[var(--green)] rounded-xl text-sm font-bold hover:bg-[var(--green)]/20 transition-colors border border-[var(--green)]/20">
+                      <Play size={15} className="shrink-0" /> Iniciar
                     </button>
                   ) : (
-                    <button onClick={() => handlePause(bot)} className="inline-flex items-center justify-center gap-1 px-3 py-1.5 bg-[var(--gold)]/10 text-[var(--gold)] rounded-lg text-[11px] font-bold hover:bg-[var(--gold)]/20 transition-colors border border-[var(--gold)]/20">
-                      <Pause size={11} className="shrink-0" /> <span>Pausar</span>
+                    <button onClick={(e) => { e.stopPropagation(); handlePause(bot); }}
+                      className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--gold)]/10 text-[var(--gold)] rounded-xl text-sm font-bold hover:bg-[var(--gold)]/20 transition-colors border border-[var(--gold)]/20">
+                      <Pause size={15} className="shrink-0" /> Pausar
                     </button>
                   )}
-                  <button onClick={() => handleStop(bot)} className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-[var(--text-dim)] rounded-lg text-[11px] hover:text-[var(--text)] transition-colors" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-                    <Square size={11} className="shrink-0" /> <span>Detener</span>
+                  <button onClick={(e) => { e.stopPropagation(); handleStop(bot); }}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-[var(--text-dim)] rounded-xl text-sm hover:text-[var(--text)] transition-colors"
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                    <Square size={15} className="shrink-0" /> Detener
                   </button>
-                  <button onClick={() => handleDelete(bot)} className="ml-auto inline-flex items-center justify-center gap-1 px-2 py-1.5 text-[var(--text-dim)] hover:text-[var(--red)] rounded-lg text-[11px] transition-colors">
-                    <Trash2 size={11} className="shrink-0" />
+                  <button onClick={(e) => { e.stopPropagation(); goToChart(bot); }}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-[var(--gold)] rounded-xl text-sm font-semibold hover:bg-[var(--gold)]/10 transition-colors"
+                    style={{ background: 'var(--surface-2)', border: '1px solid var(--gold)/20' }}>
+                    <BarChart3 size={15} className="shrink-0" /> Ver Gráfico
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); handleDelete(bot); }}
+                    className="ml-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-[var(--text-dim)] hover:text-[var(--red)] hover:bg-[var(--red)]/10 rounded-xl text-sm transition-colors">
+                    <Trash2 size={14} className="shrink-0" /> Eliminar
                   </button>
                 </div>
               </motion.div>
@@ -468,15 +550,15 @@ export default function BotManager() {
 
       {/* Live logs */}
       {logs.length > 0 && (
-        <div className="rounded-xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <div className="flex items-center justify-between p-3" style={{ borderBottom: '1px solid var(--border)' }}>
-            <h3 className="text-sm font-bold flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[var(--green)] animate-pulse" />
+        <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+          <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--border)' }}>
+            <h3 className="text-base font-bold flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full bg-[var(--green)] animate-pulse" />
               Actividad en Vivo
             </h3>
-            <button onClick={() => setLogs([])} className="text-xs text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors">Limpiar</button>
+            <button onClick={() => setLogs([])} className="text-sm text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors px-3 py-1 rounded-lg hover:bg-[var(--gold)]/10">Limpiar</button>
           </div>
-          <div className="max-h-48 overflow-y-auto p-3 space-y-1 font-mono text-[11px]">
+          <div className="max-h-56 overflow-y-auto p-4 space-y-1.5 font-mono text-xs">
             {logs.slice(-50).reverse().map((log, i) => (
               <div key={i} className="flex items-start gap-2 py-0.5">
                 <span className="text-[var(--text-dim)] shrink-0">{log.time}</span>
@@ -490,33 +572,33 @@ export default function BotManager() {
 
       {/* Mis Estrategias Custom */}
       {strategies.filter(s => s.type === 'custom_script').length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-sm font-bold flex items-center gap-2 min-w-0">
-              <Code2 size={14} className="text-[#A855F7] shrink-0" /> Mis Estrategias
+            <h2 className="text-base font-bold flex items-center gap-2.5 min-w-0">
+              <Code2 size={18} className="text-[#A855F7] shrink-0" /> Mis Estrategias
             </h2>
             <button onClick={() => setShowStrategyEditor(true)}
-              className="text-xs text-[var(--text-dim)] hover:text-[#A855F7] transition-colors flex items-center gap-1 shrink-0 px-2 py-1 rounded-lg hover:bg-[#A855F7]/10">
-              <Plus size={12} /> Nueva
+              className="text-sm text-[var(--text-dim)] hover:text-[#A855F7] transition-colors flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-xl hover:bg-[#A855F7]/10">
+              <Plus size={14} /> Nueva
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             {strategies.filter(s => s.type === 'custom_script').map(s => (
-              <div key={s.id} className="rounded-lg p-3 transition-colors hover:bg-[var(--dark-3)] min-w-0"
+              <div key={s.id} className="rounded-xl p-4 transition-colors hover:bg-[var(--dark-3)] min-w-0"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-                <div className="flex items-center justify-between mb-1 gap-2">
-                  <span className="text-xs font-bold text-[var(--text)] flex items-center gap-1.5 min-w-0 truncate">
-                    <Code2 size={12} className="text-[#A855F7] shrink-0" /> <span className="truncate">{s.name}</span>
+                <div className="flex items-center justify-between mb-2 gap-2">
+                  <span className="text-sm font-bold text-[var(--text)] flex items-center gap-2 min-w-0 truncate">
+                    <Code2 size={14} className="text-[#A855F7] shrink-0" /> <span className="truncate">{s.name}</span>
                   </span>
                   <button onClick={() => { setEditingStrategy(s); setShowStrategyEditor(true); }}
-                    className="text-[var(--text-dim)] hover:text-[#A855F7] transition-colors shrink-0">
-                    <Edit3 size={12} />
+                    className="text-[var(--text-dim)] hover:text-[#A855F7] transition-colors shrink-0 p-1.5 rounded-lg hover:bg-[#A855F7]/10">
+                    <Edit3 size={14} />
                   </button>
                 </div>
-                <p className="text-[10px] text-[var(--text-dim)] truncate">
+                <p className="text-xs text-[var(--text-dim)] truncate">
                   {s.code?.split('\n').filter(l => l.trim() && !l.trim().startsWith('//')).length || 0} líneas de lógica
                 </p>
-                <p className="text-[9px] text-[var(--text-dim)] mt-1 truncate">
+                <p className="text-[11px] text-[var(--text-dim)] mt-1.5 truncate">
                   Creada: {new Date(s.createdAt).toLocaleDateString('es')}
                 </p>
               </div>
