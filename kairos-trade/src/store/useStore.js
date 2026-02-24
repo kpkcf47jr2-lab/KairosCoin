@@ -93,7 +93,7 @@ const useStore = create((set, get) => ({
   },
 
   // ─── Trading ───
-  selectedPair: 'BTCUSDT',
+  selectedPair: 'BTCKAIROS',
   selectedTimeframe: '1h',
   currentPrice: null,
   priceChange24h: null,

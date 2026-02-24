@@ -4,6 +4,7 @@ import { createChart, ColorType, CrosshairMode } from 'lightweight-charts';
 import { TIMEFRAMES, POPULAR_PAIRS } from '../../constants';
 import { calculateEMA, calculateRSI, calculateBollingerBands, calculateSMA } from '../../services/indicators';
 import marketData from '../../services/marketData';
+import { toApiPair, getBase, QUOTE } from '../../utils/pairUtils';
 import useStore from '../../store/useStore';
 import { Search, TrendingUp } from 'lucide-react';
 
@@ -128,9 +129,10 @@ export default function TradingChart() {
       setError(null);
 
       try {
+        const apiPair = toApiPair(selectedPair);
         const [candles, ticker] = await Promise.all([
-          marketData.getCandles(selectedPair, selectedTimeframe, 500),
-          marketData.get24hrTicker(selectedPair),
+          marketData.getCandles(apiPair, selectedTimeframe, 500),
+          marketData.get24hrTicker(apiPair),
         ]);
 
         if (cancelled) return;
@@ -185,7 +187,7 @@ export default function TradingChart() {
       wsCleanupRef.current();
     }
 
-    wsCleanupRef.current = marketData.connectStream(selectedPair, {
+    wsCleanupRef.current = marketData.connectStream(toApiPair(selectedPair), {
       onTicker: (data) => {
         setCurrentPrice(data.price);
         setPriceChange24h(data.changePercent);
@@ -278,7 +280,7 @@ export default function TradingChart() {
     if (!candleSeriesRef.current) return;
     const load = async () => {
       try {
-        const candles = await marketData.getCandles(selectedPair, selectedTimeframe, 500);
+        const candles = await marketData.getCandles(toApiPair(selectedPair), selectedTimeframe, 500);
         applyIndicators(candles);
       } catch {}
     };

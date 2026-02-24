@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { DollarSign, TrendingUp, TrendingDown, Target, Shield, ChevronDown } from 'lucide-react';
 import useStore from '../../store/useStore';
 import marketData from '../../services/marketData';
+import { toApiPair, getBase, QUOTE } from '../../utils/pairUtils';
 
 export default function TradingPanel() {
   const { selectedPair, currentPrice, positions, orders, addPosition, addOrder, closePosition, cancelOrder } = useStore();
@@ -21,7 +22,7 @@ export default function TradingPanel() {
 
   const loadOrderBook = async () => {
     try {
-      const ob = await marketData.getOrderBook(selectedPair, 10);
+      const ob = await marketData.getOrderBook(toApiPair(selectedPair), 10);
       setOrderBook(ob);
     } catch {}
   };
@@ -212,7 +213,7 @@ export default function TradingPanel() {
               : { background: 'linear-gradient(135deg, #F6465D, #D32F4A)', boxShadow: '0 4px 15px rgba(246,70,93,0.25)' }
             }
           >
-            {side === 'buy' ? 'Comprar' : 'Vender'} {selectedPair.replace('USDT', '')}
+            {side === 'buy' ? 'Comprar' : 'Vender'} {getBase(selectedPair)}
           </button>
 
           {/* Mini order book */}

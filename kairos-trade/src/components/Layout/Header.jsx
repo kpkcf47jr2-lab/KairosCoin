@@ -2,6 +2,7 @@
 import { Search, Bell, Wifi, WifiOff, Brain, TrendingUp, TrendingDown, Globe, Volume2 } from 'lucide-react';
 import { useState } from 'react';
 import useStore from '../../store/useStore';
+import { getBase, QUOTE } from '../../utils/pairUtils';
 
 export default function Header() {
   const { selectedPair, currentPrice, priceChange24h, toggleAiPanel, aiPanelOpen, brokers } = useStore();
@@ -24,7 +25,7 @@ export default function Header() {
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold"
               style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.04))', border: '1px solid rgba(59,130,246,0.1)' }}>
-              <span className="text-[var(--gold)]">{selectedPair?.replace('USDT', '').slice(0, 3)}</span>
+              <span className="text-[var(--gold)]">{getBase(selectedPair).slice(0, 3)}</span>
             </div>
             <div>
               <h2 className="text-[14px] font-bold text-[var(--text)] tracking-wide leading-none">{selectedPair}</h2>

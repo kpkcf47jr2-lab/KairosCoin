@@ -60,11 +60,11 @@ export const BROKERS = {
   },
 };
 
-// Popular trading pairs
+// Popular trading pairs (displayed as KAIROS, mapped to USDT for API calls)
 export const POPULAR_PAIRS = [
-  'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
-  'ADAUSDT', 'DOGEUSDT', 'AVAXUSDT', 'DOTUSDT', 'MATICUSDT',
-  'LINKUSDT', 'ATOMUSDT', 'LTCUSDT', 'UNIUSDT', 'AAVEUSDT',
+  'BTCKAIROS', 'ETHKAIROS', 'BNBKAIROS', 'SOLKAIROS', 'XRPKAIROS',
+  'ADAKAIROS', 'DOGEKAIROS', 'AVAXKAIROS', 'DOTKAIROS', 'MATICKAIROS',
+  'LINKKAIROS', 'ATOMKAIROS', 'LTCKAIROS', 'UNIKAIROS', 'AAVEKAIROS',
 ];
 
 // Timeframes
