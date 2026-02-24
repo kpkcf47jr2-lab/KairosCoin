@@ -20,8 +20,8 @@ export default function Header() {
       }}
     >
       {/* Left: Pair info */}
-      <div className="flex items-center gap-4 min-w-0 flex-1 overflow-hidden">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+        <div className="flex items-center gap-2.5 min-w-0">
           {/* Pair badge */}
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold"
@@ -35,12 +35,12 @@ export default function Header() {
           </div>
 
           {/* Divider */}
-          <div className="w-px h-7 bg-[var(--border)]/50" />
+          <div className="w-px h-7 bg-[var(--border)]/50 shrink-0" />
 
           {/* Price */}
           {currentPrice && (
-            <div>
-              <span className="text-[16px] font-mono font-bold text-[var(--text)] leading-none">
+            <div className="shrink-0">
+              <span className="text-[16px] font-mono font-bold text-[var(--text)] leading-none whitespace-nowrap">
                 ${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
@@ -61,7 +61,7 @@ export default function Header() {
           )}
 
           {/* 24h label */}
-          <span className="text-[10px] text-[var(--text-dim)]/40 font-medium">24h</span>
+          <span className="text-[10px] text-[var(--text-dim)]/40 font-medium shrink-0">24h</span>
         </div>
       </div>
 

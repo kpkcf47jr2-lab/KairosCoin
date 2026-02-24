@@ -104,8 +104,8 @@ export default function Dashboard() {
                 </div>
                 <ChevronRight size={14} className="text-[var(--text-dim)]/30 group-hover:text-[var(--text-dim)] transition-colors" />
               </div>
-              <p className="text-[22px] font-bold leading-none" style={{ color: stat.color }}>{stat.value}</p>
-              <p className="text-[11px] text-[var(--text-dim)] mt-1.5 font-medium">{stat.label}</p>
+              <p className="text-[22px] font-bold leading-none truncate" style={{ color: stat.color }}>{stat.value}</p>
+              <p className="text-[11px] text-[var(--text-dim)] mt-1.5 font-medium truncate">{stat.label}</p>
             </motion.button>
           );
         })}
@@ -139,8 +139,8 @@ export default function Dashboard() {
                   style={{ background: `${action.color}12` }}>
                   <Icon size={20} style={{ color: action.color }} />
                 </div>
-                <p className="text-[13px] font-bold text-[var(--text)]">{action.label}</p>
-                <p className="text-[11px] text-[var(--text-dim)] mt-0.5">{action.desc}</p>
+                <p className="text-[13px] font-bold text-[var(--text)] truncate">{action.label}</p>
+                <p className="text-[11px] text-[var(--text-dim)] mt-0.5 truncate">{action.desc}</p>
               </motion.button>
             );
           })}

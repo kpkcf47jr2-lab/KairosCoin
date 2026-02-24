@@ -293,34 +293,43 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
             {/* Code editor */}
             <CodeEditor code={code} onChange={(c) => { setCode(c); setBacktestResults(null); }} error={error} />
 
-            {/* Backtest bar — two rows for clean layout */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <select value={testPair} onChange={(e) => setTestPair(e.target.value)}
-                className="px-3 py-2 rounded-xl text-xs font-semibold outline-none"
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: '#c9d1d9' }}>
-                {['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT'].map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <select value={testTimeframe} onChange={(e) => setTestTimeframe(e.target.value)}
-                className="px-3 py-2 rounded-xl text-xs font-semibold outline-none"
-                style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: '#c9d1d9' }}>
-                {['1m', '5m', '15m', '1h', '4h', '1d'].map(tf => <option key={tf} value={tf}>{tf}</option>)}
-              </select>
-              <button onClick={handleBacktest} disabled={testing || !!error || !code?.trim()}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all hover:brightness-110 disabled:opacity-40"
-                style={{ background: 'rgba(0,220,130,0.1)', border: '1px solid rgba(0,220,130,0.25)', color: '#00DC82' }}>
-                {testing ? <RotateCcw size={13} className="animate-spin" /> : <Play size={13} />}
-                {testing ? 'Probando...' : 'Probar'}
-              </button>
-              <button onClick={handleSave} disabled={!!error || !code?.trim() || !name?.trim()}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all hover:brightness-110 disabled:opacity-40 ml-auto"
-                style={{ background: saved ? 'rgba(0,220,130,0.15)' : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', color: saved ? '#00DC82' : '#fff', border: 'none' }}>
-                {saved ? <><CheckCircle size={13} /> Guardada!</> : <><Save size={13} /> Guardar</>}
-              </button>
+            {/* ═══ BACKTEST section — separated from Save ═══ */}
+            <div className="rounded-xl p-3 space-y-3" style={{ background: 'rgba(0,220,130,0.03)', border: '1px solid rgba(0,220,130,0.1)' }}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Play size={13} style={{ color: '#00DC82' }} />
+                <span className="text-[11px] font-bold" style={{ color: '#00DC82' }}>Backtest</span>
+                <span className="text-[10px]" style={{ color: '#6b7280' }}>— Prueba tu código con datos reales antes de activar el bot</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <select value={testPair} onChange={(e) => setTestPair(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-semibold outline-none"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: '#c9d1d9' }}>
+                  {['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT'].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <select value={testTimeframe} onChange={(e) => setTestTimeframe(e.target.value)}
+                  className="px-3 py-1.5 rounded-lg text-[11px] font-semibold outline-none"
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: '#c9d1d9' }}>
+                  {['1m', '5m', '15m', '1h', '4h', '1d'].map(tf => <option key={tf} value={tf}>{tf}</option>)}
+                </select>
+                <button onClick={handleBacktest} disabled={testing || !!error || !code?.trim()}
+                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-[11px] font-bold transition-all hover:brightness-110 disabled:opacity-40"
+                  style={{ background: 'rgba(0,220,130,0.12)', border: '1px solid rgba(0,220,130,0.25)', color: '#00DC82' }}>
+                  {testing ? <RotateCcw size={12} className="animate-spin" /> : <Play size={12} />}
+                  {testing ? 'Probando...' : 'Ejecutar Test'}
+                </button>
+              </div>
             </div>
 
             <AnimatePresence>
               {backtestResults && <BacktestResults results={backtestResults} />}
             </AnimatePresence>
+
+            {/* ═══ SAVE button — full width, clearly separated ═══ */}
+            <button onClick={handleSave} disabled={!!error || !code?.trim() || !name?.trim()}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all hover:brightness-110 disabled:opacity-40"
+              style={{ background: saved ? 'rgba(0,220,130,0.15)' : 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', color: saved ? '#00DC82' : '#fff', border: 'none' }}>
+              {saved ? <><CheckCircle size={15} /> Estrategia Guardada</> : <><Save size={15} /> Guardar Estrategia</>}
+            </button>
           </>
         )}
 
