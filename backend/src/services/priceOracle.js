@@ -22,38 +22,110 @@ const SUPPORTED_PAIRS = [
 //                         PRICE FETCHING
 // ═════════════════════════════════════════════════════════════════════════════
 
-async function fetchPrices() {
-  try {
-    const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(SUPPORTED_PAIRS)}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Binance API ${res.status}`);
-    const data = await res.json();
+// Map CoinGecko IDs to our Binance-style symbols
+const COINGECKO_MAP = {
+  bitcoin: 'BTCUSDT', ethereum: 'ETHUSDT', binancecoin: 'BNBUSDT',
+  solana: 'SOLUSDT', ripple: 'XRPUSDT', dogecoin: 'DOGEUSDT',
+  cardano: 'ADAUSDT', 'avalanche-2': 'AVAXUSDT',
+};
+const COINGECKO_IDS = Object.keys(COINGECKO_MAP).join(',');
 
-    for (const ticker of data) {
-      prices[ticker.symbol] = {
-        price: parseFloat(ticker.lastPrice),
-        change24h: parseFloat(ticker.priceChangePercent),
-        high24h: parseFloat(ticker.highPrice),
-        low24h: parseFloat(ticker.lowPrice),
-        volume24h: parseFloat(ticker.volume),
-        quoteVolume24h: parseFloat(ticker.quoteVolume),
-        updated: new Date(),
-      };
-    }
+// ── Primary: Binance.US (no geo restriction from US servers) ─────────────
+async function fetchFromBinanceUS() {
+  const url = `https://api.binance.us/api/v3/ticker/24hr?symbols=${JSON.stringify(SUPPORTED_PAIRS)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Binance.US API ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error('Binance.US returned non-array');
 
-    // KAIROS is always 1 USD
-    prices['KAIROSUSDT'] = {
-      price: 1.00,
-      change24h: 0,
-      high24h: 1.00,
-      low24h: 1.00,
-      volume24h: 0,
-      quoteVolume24h: 0,
+  for (const ticker of data) {
+    prices[ticker.symbol] = {
+      price: parseFloat(ticker.lastPrice),
+      change24h: parseFloat(ticker.priceChangePercent),
+      high24h: parseFloat(ticker.highPrice),
+      low24h: parseFloat(ticker.lowPrice),
+      volume24h: parseFloat(ticker.volume),
+      quoteVolume24h: parseFloat(ticker.quoteVolume),
       updated: new Date(),
     };
-  } catch (err) {
-    logger.warn("Price oracle fetch failed", { error: err.message });
   }
+  return 'binance.us';
+}
+
+// ── Fallback: CoinGecko (free, no restrictions) ─────────────────────────
+async function fetchFromCoinGecko() {
+  const url = `https://api.coingecko.com/api/v3/simple/price?ids=${COINGECKO_IDS}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true&include_high_24hr=true&include_low_24hr=true`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`CoinGecko API ${res.status}`);
+  const data = await res.json();
+
+  for (const [geckoId, symbol] of Object.entries(COINGECKO_MAP)) {
+    const coin = data[geckoId];
+    if (!coin) continue;
+    prices[symbol] = {
+      price: coin.usd,
+      change24h: coin.usd_24h_change || 0,
+      high24h: coin.usd_24h_high || coin.usd,
+      low24h: coin.usd_24h_low || coin.usd,
+      volume24h: coin.usd_24h_vol || 0,
+      quoteVolume24h: coin.usd_24h_vol || 0,
+      updated: new Date(),
+    };
+  }
+  return 'coingecko';
+}
+
+// ── Fallback 2: Binance Global (works from some regions) ────────────────
+async function fetchFromBinanceGlobal() {
+  const url = `https://api.binance.com/api/v3/ticker/24hr?symbols=${JSON.stringify(SUPPORTED_PAIRS)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Binance Global ${res.status}`);
+  const data = await res.json();
+  if (data.code) throw new Error(data.msg || 'Binance blocked');
+
+  for (const ticker of data) {
+    prices[ticker.symbol] = {
+      price: parseFloat(ticker.lastPrice),
+      change24h: parseFloat(ticker.priceChangePercent),
+      high24h: parseFloat(ticker.highPrice),
+      low24h: parseFloat(ticker.lowPrice),
+      volume24h: parseFloat(ticker.volume),
+      quoteVolume24h: parseFloat(ticker.quoteVolume),
+      updated: new Date(),
+    };
+  }
+  return 'binance.com';
+}
+
+async function fetchPrices() {
+  const sources = [fetchFromBinanceUS, fetchFromCoinGecko, fetchFromBinanceGlobal];
+  let source = null;
+
+  for (const fetcher of sources) {
+    try {
+      source = await fetcher();
+      break; // Success — stop trying
+    } catch (err) {
+      logger.debug(`Price source failed: ${err.message}`);
+      continue;
+    }
+  }
+
+  if (!source) {
+    logger.warn("All price sources failed");
+    return;
+  }
+
+  // KAIROS is always 1 USD
+  prices['KAIROSUSDT'] = {
+    price: 1.00,
+    change24h: 0,
+    high24h: 1.00,
+    low24h: 1.00,
+    volume24h: 0,
+    quoteVolume24h: 0,
+    updated: new Date(),
+  };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
