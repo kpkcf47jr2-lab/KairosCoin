@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 25, 2026 (Session 12 — Security System: bcrypt + JWT + 2FA)
+#  Last Updated: February 25, 2026 (Session 13 — Turso Cloud DB + Referral System + Analytics)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -68,8 +68,12 @@
 - **URL:** https://kairos-api-u6k5.onrender.com
 - **Hosting:** Render (free tier, auto-deploy from GitHub)
 - **Config:** render.yaml in repo root
-- **Tech:** Node.js + Express + SQLite (better-sqlite3) + ethers.js v6
+- **Tech:** Node.js + Express + Turso (cloud SQLite via libsql) + ethers.js v6
 - **Health:** https://kairos-api-u6k5.onrender.com/api/health
+- **Database:** Turso cloud SQLite (persistent, not ephemeral)
+  - `kairos-main`: libsql://kairos-main-kairos777.aws-us-east-1.turso.io
+  - `kairos-auth`: libsql://kairos-auth-kairos777.aws-us-east-1.turso.io
+  - Account: `kairos777` (Google auth via Turso CLI)
 
 ### Kairos Wallet (Netlify)
 - **URL:** https://kairos-wallet.netlify.app
@@ -93,7 +97,8 @@
 ### GitHub Repository
 - **Repo:** `kpkcf47jr2-lab/KairosCoin`
 - **Branch:** main
-- **Latest Commit:** `d476f1d` (Feb 25, 2026)
+- **Latest Commit:** `40e41a0` (Feb 25, 2026)
+- **Backup Locations:** iCloud Drive + Desktop
 
 ### PancakeSwap Liquidity
 - **Pair Address:** `0xfCb17119D559E47803105581A28584813FAffb49`
@@ -168,17 +173,25 @@
 
 ---
 
-## 5. DATABASE SCHEMA (SQLite)
+## 5. DATABASE SCHEMA (Turso Cloud SQLite)
 
-Tables in `backend/data/kairos.db`:
+### kairos-main DB (transactions, reserves, business data):
 - **transactions** — Every mint/burn record (id, type, status, address, amount, tx_hash, etc.)
 - **reserves** — USD reserve tracking (deposits, withdrawals, adjustments)
 - **reserve_snapshots** — Periodic proof of reserves snapshots
 - **fee_log** — Every on-chain fee collected
 - **api_log** — Every API call logged
-- **fiat_orders** — Fiat-to-KAIROS purchases via Transak/MoonPay/Changelly (NEW v1.1.0)
-- **redemption_accounts** — Stripe Connect accounts linked to wallets (NEW v1.2.0)
-- **redemptions** — KAIROS burn → USD payout tracking (NEW v1.2.0)
+- **fiat_orders** — Fiat-to-KAIROS purchases via Transak/MoonPay/Changelly
+- **redemption_accounts** — Stripe Connect accounts linked to wallets
+- **redemptions** — KAIROS burn → USD payout tracking
+
+### kairos-auth DB (users, auth, referrals):
+- **users** — User accounts (id, email, name, password_hash, wallet_address, role, plan, 2fa_secret, etc.)
+- **sessions** — Active JWT sessions
+- **auth_log** — Authentication audit log (login, register, failures, lockouts)
+- **referral_codes** — One code per user (KAI-XXXXXXXX), tracks total_referrals + total_earned
+- **referrals** — Who referred whom, reward amounts, status
+- **reward_log** — All bonus/referral credits (signup_bonus: 100 KAIROS, referral_reward: 20 KAIROS)
 
 ---
 
@@ -681,11 +694,120 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 - `a38b6b7` — Rate limit increase
 - `385ce06` — Fix datetime double quotes crash
 
-### New Dependencies
-- `bcryptjs` ^3.0.3 — Password hashing
-- `jsonwebtoken` ^9.0.3 — JWT generation/verification
-- `speakeasy` ^2.0.0 — TOTP 2FA
-- `qrcode` ^1.5.4 — QR code generation
+---
+
+## 19. SESSION 12b — Website Redesign + Social Media (Feb 25, 2026)
+
+### Website Redesign (kairos-777.com)
+- **Complete redesign** of kairos-777.com as Kairos ecosystem hub
+- **Navigation:** Trade · Coin · Wallet (three product tabs)
+- **Original KairosCoin page preserved** as `website/coin.html`
+- **Backup** of old index saved as `website/old-index-backup.html`
+- **New index.html:** Full ecosystem landing page with:
+  - Hero: "The Future of Decentralized Trading" + animated stats
+  - Kairos Trade section: Chart mockup + bot demo + 5 features
+  - Numbers band: 33+ Pairs · 10 Brokers · 150× · 4 Chains · 24/7
+  - Ecosystem grid: 3 product cards (Trade/Coin/Wallet)
+  - How it Works: 4-step onboarding flow
+  - Security: 6 cards (2FA, bcrypt, JWT, contracts, non-custodial, audit)
+  - CTA + full footer with product links
+  - Reveal animations on scroll, responsive design, mobile menu
+  - Brand colors: Blue (#3B82F6), Gold (#D4AF37), Green (#10B981)
+- **Deployed:** https://kairos-777.com
+
+### AuthScreen Updates (Kairos Trade)
+- Replaced logo `<img>` in "O" of KAIROS with inline SVG decentralized network symbol
+- Changed tagline from "100% Real. Zero Simulation." → "Your Edge. Your Rules."
+- Changed stat "100% Real Trading" → "0% Commissions"
+- **Deployed:** https://kairos-trade.netlify.app
+
+### Social Media Content
+- Created X (Twitter) thread: 4 tweets covering ecosystem, trade, coin, security
+- Created Telegram post: Full ecosystem announcement (under 4096 char limit)
+- Generated promo banners (Pillow): `assets/promo/`
+  - `kairos-ecosystem-banner-twitter.png` (1200×675) — for Tweet 1
+  - `kairos-trade-banner.png` (1200×675) — for Tweet 2
+  - `kairos-ecosystem-banner-telegram.png` (1280×720) — for Telegram
+- Created HeyGen video prompt (ES + EN): 2-min professional ecosystem explainer
+
+### Files Created/Modified
+- `website/index.html` — **New** ecosystem hub (complete rewrite)
+- `website/coin.html` — **New** (copy of original KairosCoin page)
+- `website/old-index-backup.html` — **New** (backup of original)
+- `kairos-trade/src/components/Auth/AuthScreen.jsx` — Modified (O symbol + tagline)
+- `scripts/generate_promo_banners.py` — **New** promotional image generator
+- `assets/promo/` — **New** directory with 3 banner images
+
+---
+
+## 20. SESSION 13 — Turso Cloud DB + Referral System + Analytics (Feb 25, 2026)
+
+### Problem Solved: Login Broken on Production
+- **Root cause:** Render free tier uses ephemeral filesystem — SQLite DB destroyed on every restart
+- **Solution:** Migrated from `better-sqlite3` (local file) to `libsql` (Turso cloud SQLite)
+- Turso provides persistent cloud SQLite with same sync API — drop-in replacement
+- Created 2 databases: `kairos-main` (business data) + `kairos-auth` (users/referrals)
+- Region: `aws-us-east-1` (Virginia, same region as Render)
+- Admin account created: `info@kairos-777.com` (admin role)
+
+### Referral System Built
+- **Signup Bonus:** 100 KAIROS per new user
+- **Referral Reward:** 20 KAIROS per successful referral (unlimited)
+- Referral codes auto-generated: `KAI-XXXXXXXX` format
+- Shareable URL: `https://kairos-trade.netlify.app/?ref=KAI-XXXXXXXX`
+- AuthScreen reads `?ref=` parameter and pre-fills referral code field
+- Welcome bonus toast notification on successful registration
+
+### Referral API Endpoints
+| Method | Route | Auth | Description |
+|--------|-------|------|-------------|
+| GET | `/api/referral/validate/:code` | Public | Check if referral code is valid |
+| GET | `/api/referral/stats` | Public | Global referral program stats |
+| GET | `/api/referral/leaderboard` | Public | Top referrers |
+| GET | `/api/referral/my-code` | JWT | Get/create user's referral code |
+| GET | `/api/referral/my-referrals` | JWT | List people you've referred |
+| GET | `/api/referral/my-rewards` | JWT | All rewards earned |
+| GET | `/api/referral/admin/stats` | Master Key | Detailed admin stats |
+
+### Website Updates (kairos-777.com)
+- **Live Analytics section:** 6 cards (Total Supply, Circulating, Burned, Backing Ratio, Fee, Status)
+  - Auto-fetches from `/api/supply` and `/api/reserves` every 60 seconds
+- **Referral Program section:** Gradient card with 3-step process, bonus info cards
+- Both sections added between How-It-Works and Security sections
+
+### Files Modified
+- `backend/src/services/database.js` — Migrated to libsql + Turso cloud
+- `backend/src/services/authService.js` — Migrated to libsql + Turso cloud + forceResetPassword()
+- `backend/src/services/referralService.js` — **New** referral engine
+- `backend/src/routes/referralRoutes.js` — **New** referral API routes
+- `backend/src/routes/authRoutes.js` — Register now processes referral + signup bonus
+- `backend/src/server.js` — Mount referralService + referralRoutes
+- `backend/src/config.js` — Added Turso URL/token env vars
+- `backend/package.json` — Added `libsql` dependency
+- `render.yaml` — Added Turso env var placeholders
+- `website/index.html` — Added Live Analytics + Referral Program sections
+- `kairos-trade/src/components/Auth/AuthScreen.jsx` — Referral code field + ?ref= URL + bonus toast
+
+### Deployment Status
+- Website: ✅ Deployed to https://kairos-777.com
+- Trade App: ✅ Deployed to https://kairos-trade.netlify.app
+- Backend: ✅ Pushed to GitHub (auto-deploy to Render)
+- **⚠️ REQUIRED:** Add Turso env vars to Render Dashboard (see Section 21)
+
+---
+
+## 21. RENDER ENVIRONMENT VARIABLES — ACTION REQUIRED
+
+Add these 4 variables in Render Dashboard → kairos-api → Environment:
+
+```
+TURSO_MAIN_URL=libsql://kairos-main-kairos777.aws-us-east-1.turso.io
+TURSO_MAIN_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzIwNDI5MzYsImlkIjoiMDE5Yzk1ZmItMDgwMS03YzlkLTllOTgtYWQ5NTkwMGRhMWQ2IiwicmlkIjoiOTY1NjFmYjktOTQwYi00ODlhLWJiZGEtMmYxYTFmZTdmOTkzIn0.iN6drIPqzZazu4LZMgLVGTMMrjOxQHR5ItYzSqGsPJeTo5aakFi4d8gmophXR7wNchW5Vf2jSlOH-87bZ6-yCQ
+TURSO_AUTH_URL=libsql://kairos-auth-kairos777.aws-us-east-1.turso.io
+TURSO_AUTH_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzIwNDI5MzcsImlkIjoiMDE5Yzk1ZmItNzgwMS03MjM3LWEzZDUtMzNhZDFlMDA0OGQ3IiwicmlkIjoiMzFkN2JiYTctMzdkYi00MDBjLTkwYTctYmYyZTY0ZmVlYmZlIn0.j5R78pNwzAA8ILA2O5L8njKH_flKlme_xsnkR28MPxIPfQXk3DoZsXkTWH_5OYV9dVKCe4IejV0W7-CW1ByqBg
+```
+
+After adding, click **"Save Changes"** → Render will auto-redeploy.
 
 ---
 
