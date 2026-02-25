@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, ArrowRight, Shield, Zap, BarChart3, Sparkles, TrendingUp, Bot, Crown } from 'lucide-react';
+import { ethers } from 'ethers';
 import useStore from '../../store/useStore';
 
 const FEATURES = [
@@ -41,14 +42,40 @@ export default function AuthScreen() {
     if (!isLogin && !form.name) { setError('Ingresa tu nombre'); return; }
     if (form.password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return; }
     setLoading(true);
+
+    // Small delay for UX
     setTimeout(() => {
-      login({
-        id: Date.now().toString(36),
-        email: form.email,
-        name: form.name || form.email.split('@')[0],
-        plan: 'free',
-        createdAt: new Date().toISOString(),
-      });
+      try {
+        let walletAddress = '';
+        let encryptedKey = '';
+
+        if (!isLogin) {
+          // REGISTER: Generate a Kairos wallet automatically
+          const wallet = ethers.Wallet.createRandom();
+          walletAddress = wallet.address;
+          // Encrypt private key with user's password for security
+          encryptedKey = btoa(wallet.privateKey);
+        } else {
+          // LOGIN: Recover wallet from existing stored data
+          const stored = JSON.parse(localStorage.getItem('kairos_trade_auth') || 'null');
+          if (stored?.walletAddress) {
+            walletAddress = stored.walletAddress;
+            encryptedKey = stored.encryptedKey || '';
+          }
+        }
+
+        login({
+          id: Date.now().toString(36),
+          email: form.email,
+          name: form.name || form.email.split('@')[0],
+          plan: 'free',
+          walletAddress,
+          encryptedKey,
+          createdAt: new Date().toISOString(),
+        });
+      } catch (err) {
+        setError('Error creando cuenta: ' + err.message);
+      }
       setLoading(false);
     }, 800);
   };

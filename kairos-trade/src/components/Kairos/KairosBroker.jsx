@@ -1,0 +1,800 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+//  Kairos Trade — Kairos Broker (Real Leverage Trading)
+//  100% Real — Backend-driven margin trading with KAIROS collateral
+//  All positions are persisted in DB, P&L from live Binance prices,
+//  liquidation engine runs server-side. No simulation.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  TrendingUp, TrendingDown, Shield, Zap, DollarSign, Loader2,
+  AlertTriangle, CheckCircle2, ArrowUpRight, ArrowDownRight,
+  Wallet, Lock, BarChart3, Target, Activity, Crown, History,
+  RefreshCw, Plus, Minus, X, Eye, ChevronDown,
+  ChevronUp, Settings
+} from 'lucide-react';
+import useStore from '../../store/useStore';
+
+// ── Config ───────────────────────────────────────────────────────────────────
+const API_BASE = 'https://kairos-api-u6k5.onrender.com/api/margin';
+const PRICE_POLL_MS = 3000;
+const ACCOUNT_POLL_MS = 5000;
+const LEVERAGE_OPTIONS = [2, 3, 5, 10];
+
+const PAIR_ICONS = {
+  'BTC/USDT': '₿', 'ETH/USDT': 'Ξ', 'BNB/USDT': '◆', 'SOL/USDT': '◎',
+  'XRP/USDT': '✕', 'DOGE/USDT': 'Ð', 'ADA/USDT': '₳', 'AVAX/USDT': 'A',
+  'DOT/USDT': '●', 'LINK/USDT': '⬡', 'UNI/USDT': '🦄', 'LTC/USDT': 'Ł',
+  'ATOM/USDT': '⚛', 'NEAR/USDT': 'N', 'APT/USDT': 'A', 'ARB/USDT': '◇',
+  'SUI/USDT': '💧', 'SEI/USDT': 'S', 'AAVE/USDT': '👻', 'OP/USDT': '🔴',
+  'FIL/USDT': 'F', 'ALGO/USDT': 'A', 'ICP/USDT': '∞', 'XLM/USDT': '✦',
+  'ETC/USDT': 'Ξc', 'HBAR/USDT': 'ℏ', 'TIA/USDT': 'T', 'PEPE/USDT': '🐸',
+  'SHIB/USDT': '🐕', 'BONK/USDT': '🐶', 'RENDER/USDT': 'R', 'ENA/USDT': 'E',
+  'KAIROS/USDT': 'K',
+};
+
+// ── API Helper ───────────────────────────────────────────────────────────────
+async function api(endpoint, options = {}) {
+  const url = `${API_BASE}${endpoint}`;
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || data.details?.join(', ') || `API error ${res.status}`);
+  return data;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export default function KairosBroker() {
+  const { showToast, user } = useStore();
+
+  // ── Wallet from Kairos account (auto-connected) ──
+  const walletAddress = user?.walletAddress || '';
+  const isConnected = !!walletAddress;
+
+  // ── Account state (from backend) ──
+  const [account, setAccount] = useState(null);
+  const [positions, setPositions] = useState([]);
+  const [tradeHistory, setTradeHistory] = useState([]);
+
+  // ── Market data (from backend) ──
+  const [pairs, setPairs] = useState([]);
+  const [prices, setPrices] = useState({});
+  const [leverageTiers, setLeverageTiers] = useState({});
+
+  // ── Trading form ──
+  const [selectedPair, setSelectedPair] = useState('BTC/USDT');
+  const [side, setSide] = useState('LONG');
+  const [leverage, setLeverage] = useState(2);
+  const [collateralInput, setCollateralInput] = useState('');
+  const [stopLoss, setStopLoss] = useState('');
+  const [takeProfit, setTakeProfit] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // ── Deposit/Withdraw ──
+  const [depositAmount, setDepositAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [showDeposit, setShowDeposit] = useState(false);
+
+  // ── UI state ──
+  const [activeTab, setActiveTab] = useState('trade'); // 'trade' | 'positions' | 'history'
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingAccount, setIsLoadingAccount] = useState(false);
+  const [closingPositionId, setClosingPositionId] = useState(null);
+
+  const priceIntervalRef = useRef(null);
+  const accountIntervalRef = useRef(null);
+
+  const numCollateral = parseFloat(collateralInput) || 0;
+  const currentPrice = prices[selectedPair.replace('/', '')]?.price || 0;
+  const positionSizeUsd = numCollateral * leverage;
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  DATA FETCHING — Real backend API calls
+  // ═════════════════════════════════════════════════════════════════════════
+
+  // Fetch prices (no auth needed)
+  const fetchPrices = useCallback(async () => {
+    try {
+      const data = await api('/prices');
+      setPrices(data.data || {});
+    } catch { /* silent — prices may not be ready yet */ }
+  }, []);
+
+  // Fetch pairs + tier info
+  const fetchPairs = useCallback(async () => {
+    try {
+      const data = await api('/pairs');
+      setPairs(data.data?.pairs || []);
+      if (data.data?.leverageTiers) setLeverageTiers(data.data.leverageTiers);
+    } catch { /* silent */ }
+  }, []);
+
+  // Fetch account (requires wallet)
+  const fetchAccount = useCallback(async () => {
+    if (!walletAddress) return;
+    try {
+      const data = await api(`/account?wallet=${walletAddress}`);
+      setAccount(data.data);
+    } catch { /* Account may not exist yet — that's OK */ }
+  }, [walletAddress]);
+
+  // Fetch open positions
+  const fetchPositions = useCallback(async () => {
+    if (!walletAddress) return;
+    try {
+      const data = await api(`/positions?wallet=${walletAddress}`);
+      setPositions(data.data || []);
+    } catch { /* silent */ }
+  }, [walletAddress]);
+
+  // Fetch trade history
+  const fetchHistory = useCallback(async () => {
+    if (!walletAddress) return;
+    try {
+      const data = await api(`/history?wallet=${walletAddress}&limit=30`);
+      setTradeHistory(data.data || []);
+    } catch { /* silent */ }
+  }, [walletAddress]);
+
+  // ── Polling setup ──
+  useEffect(() => {
+    fetchPrices();
+    fetchPairs();
+    priceIntervalRef.current = setInterval(fetchPrices, PRICE_POLL_MS);
+    return () => clearInterval(priceIntervalRef.current);
+  }, [fetchPrices, fetchPairs]);
+
+  useEffect(() => {
+    if (!walletAddress) return;
+    setIsLoadingAccount(true);
+    Promise.all([fetchAccount(), fetchPositions(), fetchHistory()]).finally(() => setIsLoadingAccount(false));
+    accountIntervalRef.current = setInterval(() => {
+      fetchAccount();
+      fetchPositions();
+    }, ACCOUNT_POLL_MS);
+    return () => clearInterval(accountIntervalRef.current);
+  }, [walletAddress, fetchAccount, fetchPositions, fetchHistory]);
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  TRADING ACTIONS — All hit real backend endpoints
+  // ═════════════════════════════════════════════════════════════════════════
+
+  const handleDeposit = useCallback(async () => {
+    const amount = parseFloat(depositAmount);
+    if (!amount || amount <= 0) { showToast('Ingresa una cantidad válida', 'error'); return; }
+    setIsSubmitting(true);
+    try {
+      await api('/deposit', { method: 'POST', body: JSON.stringify({ wallet: walletAddress, amount }) });
+      showToast(`${amount} KAIROS depositados como colateral`, 'success');
+      setDepositAmount('');
+      fetchAccount();
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [depositAmount, walletAddress, showToast, fetchAccount]);
+
+  const handleWithdraw = useCallback(async () => {
+    const amount = parseFloat(withdrawAmount);
+    if (!amount || amount <= 0) { showToast('Ingresa una cantidad válida', 'error'); return; }
+    setIsSubmitting(true);
+    try {
+      await api('/withdraw', { method: 'POST', body: JSON.stringify({ wallet: walletAddress, amount }) });
+      showToast(`${amount} KAIROS retirados del colateral`, 'success');
+      setWithdrawAmount('');
+      fetchAccount();
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [withdrawAmount, walletAddress, showToast, fetchAccount]);
+
+  const handleOpenPosition = useCallback(async () => {
+    if (!numCollateral || numCollateral <= 0) { showToast('Ingresa colateral', 'error'); return; }
+    if (!currentPrice) { showToast('Esperando precios...', 'error'); return; }
+
+    setIsSubmitting(true);
+    try {
+      const body = {
+        wallet: walletAddress,
+        pair: selectedPair,
+        side,
+        leverage,
+        collateral: numCollateral,
+        orderType: 'MARKET',
+        stopLoss: stopLoss ? parseFloat(stopLoss) : null,
+        takeProfit: takeProfit ? parseFloat(takeProfit) : null,
+      };
+      const res = await api('/open', { method: 'POST', body: JSON.stringify(body) });
+      showToast(
+        `${side} ${selectedPair} abierta — ${leverage}x — $${positionSizeUsd.toLocaleString()} posición`,
+        'success'
+      );
+      setCollateralInput('');
+      setStopLoss('');
+      setTakeProfit('');
+      fetchAccount();
+      fetchPositions();
+    } catch (err) {
+      showToast('Error abriendo posición: ' + err.message, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [walletAddress, selectedPair, side, leverage, numCollateral, currentPrice, stopLoss, takeProfit, positionSizeUsd, showToast, fetchAccount, fetchPositions]);
+
+  const handleClosePosition = useCallback(async (positionId) => {
+    setClosingPositionId(positionId);
+    try {
+      const res = await api('/close', { method: 'POST', body: JSON.stringify({ wallet: walletAddress, positionId }) });
+      const pnl = res.data?.realizedPnl || res.data?.pnl || 0;
+      showToast(
+        `Posición cerrada — P&L: ${pnl >= 0 ? '+' : ''}$${parseFloat(pnl).toFixed(2)}`,
+        pnl >= 0 ? 'success' : 'error'
+      );
+      fetchAccount();
+      fetchPositions();
+      fetchHistory();
+    } catch (err) {
+      showToast('Error cerrando posición: ' + err.message, 'error');
+    } finally {
+      setClosingPositionId(null);
+    }
+  }, [walletAddress, showToast, fetchAccount, fetchPositions, fetchHistory]);
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  COMPUTED VALUES
+  // ═════════════════════════════════════════════════════════════════════════
+
+  const totalUnrealizedPnl = useMemo(
+    () => positions.reduce((sum, p) => sum + (parseFloat(p.unrealizedPnl) || 0), 0),
+    [positions]
+  );
+
+  const liquidationPrice = useMemo(() => {
+    if (!numCollateral || !currentPrice) return null;
+    const maintenancePct = (leverageTiers[leverage]?.maintenanceMarginPct || 25) / 100;
+    if (side === 'LONG') {
+      return currentPrice * (1 - (1 / leverage) + maintenancePct / leverage);
+    }
+    return currentPrice * (1 + (1 / leverage) - maintenancePct / leverage);
+  }, [numCollateral, currentPrice, leverage, side, leverageTiers]);
+
+  // ═════════════════════════════════════════════════════════════════════════
+  //  RENDER
+  // ═════════════════════════════════════════════════════════════════════════
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-900/40 to-blue-800/20 border border-blue-500/30 rounded-xl p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+              <Crown className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white flex items-center gap-2">
+                Kairos Broker
+                <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">REAL</span>
+              </h1>
+              <p className="text-sm text-blue-300">Leverage Trading con Reserva Kairos 777</p>
+            </div>
+          </div>
+
+          {/* Wallet auto-connected from Kairos account */}
+          {isConnected && (
+            <div className="flex items-center gap-2">
+              <div className="bg-green-900/30 border border-green-500/30 rounded-lg px-3 py-1.5 flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span className="text-xs text-green-300 font-mono">
+                  {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                </span>
+              </div>
+              <span className="text-[10px] text-blue-400/60 font-medium">Kairos Wallet</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* No wallet — user needs to re-register (legacy accounts) */}
+      {!isConnected && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
+          <Wallet className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+          <h2 className="text-lg font-medium text-white mb-2">Wallet no disponible</h2>
+          <p className="text-zinc-400 text-sm mb-6 max-w-md mx-auto">
+            Tu cuenta no tiene una wallet Kairos asociada. Cierra sesión y crea una nueva cuenta para generar tu wallet automáticamente.
+          </p>
+        </div>
+      )}
+
+      {/* Connected — Main interface */}
+      {isConnected && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+          {/* ── LEFT: Account + Deposit/Withdraw ── */}
+          <div className="space-y-4">
+            {/* Account Summary */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-zinc-300 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-blue-400" /> Cuenta Margin
+                </h3>
+                <button onClick={() => { fetchAccount(); fetchPositions(); }} className="text-zinc-500 hover:text-blue-400 transition-colors">
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {isLoadingAccount && !account ? (
+                <div className="flex items-center justify-center py-6 text-zinc-500">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <AccountRow label="Colateral" value={`${(account?.totalCollateral || 0).toFixed(2)} KAIROS`} icon={<Lock className="w-3.5 h-3.5" />} />
+                  <AccountRow label="Equity" value={`$${(account?.equity || 0).toFixed(2)}`} icon={<DollarSign className="w-3.5 h-3.5" />} />
+                  <AccountRow label="Margen usado" value={`$${(account?.usedMargin || 0).toFixed(2)}`} icon={<BarChart3 className="w-3.5 h-3.5" />} />
+                  <AccountRow label="Margen libre" value={`$${(account?.freeMargin || 0).toFixed(2)}`} icon={<Activity className="w-3.5 h-3.5" />}
+                    color={(account?.freeMargin || 0) > 0 ? 'text-green-400' : 'text-zinc-400'} />
+                  <AccountRow label="P&L no realizado"
+                    value={`${totalUnrealizedPnl >= 0 ? '+' : ''}$${totalUnrealizedPnl.toFixed(2)}`}
+                    icon={totalUnrealizedPnl >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                    color={totalUnrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'} />
+                  {account?.marginLevel != null && account.marginLevel < 999999 && (
+                    <AccountRow label="Nivel de margen" value={`${account.marginLevel.toFixed(1)}%`}
+                      icon={<AlertTriangle className="w-3.5 h-3.5" />}
+                      color={account.marginLevel > 150 ? 'text-green-400' : account.marginLevel > 100 ? 'text-yellow-400' : 'text-red-400'} />
+                  )}
+                  <div className="text-[10px] text-zinc-600 mt-2 flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                    Posiciones: {positions.length} abiertas
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Deposit / Withdraw */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+              <button onClick={() => setShowDeposit(!showDeposit)}
+                className="w-full flex items-center justify-between text-sm font-medium text-zinc-300">
+                <span className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-blue-400" /> Depositar / Retirar Colateral
+                </span>
+                {showDeposit ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              <AnimatePresence>
+                {showDeposit && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                    <div className="pt-3 space-y-3">
+                      {/* Deposit */}
+                      <div>
+                        <label className="text-xs text-zinc-500 mb-1 block">Depositar KAIROS</label>
+                        <div className="flex gap-2">
+                          <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)}
+                            placeholder="Cantidad" min="1" step="1"
+                            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none" />
+                          <button onClick={handleDeposit} disabled={isSubmitting || !depositAmount}
+                            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors">
+                            {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                            Depositar
+                          </button>
+                        </div>
+                      </div>
+                      {/* Withdraw */}
+                      <div>
+                        <label className="text-xs text-zinc-500 mb-1 block">Retirar KAIROS</label>
+                        <div className="flex gap-2">
+                          <input type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)}
+                            placeholder="Cantidad" min="1" step="1"
+                            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none" />
+                          <button onClick={handleWithdraw} disabled={isSubmitting || !withdrawAmount}
+                            className="bg-red-600/80 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors">
+                            {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Minus className="w-3.5 h-3.5" />}
+                            Retirar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Market Prices */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+              <h3 className="text-sm font-medium text-zinc-300 mb-3 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-blue-400" /> Precios en Vivo
+              </h3>
+              <div className="space-y-1.5">
+                {Object.entries(prices).map(([symbol, data]) => (
+                  <button key={symbol}
+                    onClick={() => setSelectedPair(symbol.replace('USDT', '/USDT'))}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                      selectedPair === symbol.replace('USDT', '/USDT')
+                        ? 'bg-blue-900/30 border border-blue-500/30'
+                        : 'hover:bg-zinc-800/50'
+                    }`}>
+                    <span className="flex items-center gap-2">
+                      <span className="text-base">{PAIR_ICONS[symbol.replace('USDT', '/USDT')] || '•'}</span>
+                      <span className="text-zinc-300 font-medium">{symbol.replace('USDT', '/USDT')}</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      <span className="text-white font-mono">${data.price?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                      <span className={`${(data.change24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {(data.change24h || 0) >= 0 ? '+' : ''}{(data.change24h || 0).toFixed(2)}%
+                      </span>
+                    </span>
+                  </button>
+                ))}
+                {Object.keys(prices).length === 0 && (
+                  <div className="text-center py-3 text-zinc-500 text-xs flex items-center justify-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Cargando precios...
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── CENTER: Trading Form ── */}
+          <div className="space-y-4">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+              {/* Pair + Price header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">{PAIR_ICONS[selectedPair] || '•'}</span>
+                  <div>
+                    <h3 className="text-white font-bold">{selectedPair}</h3>
+                    <span className="text-xs text-zinc-500">Mercado</span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-white font-mono">
+                    ${currentPrice ? currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—'}
+                  </div>
+                  {prices[selectedPair.replace('/', '')]?.change24h != null && (
+                    <span className={`text-xs font-mono ${prices[selectedPair.replace('/', '')].change24h >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {prices[selectedPair.replace('/', '')].change24h >= 0 ? '+' : ''}
+                      {prices[selectedPair.replace('/', '')].change24h.toFixed(2)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Side selector */}
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <button onClick={() => setSide('LONG')}
+                  className={`py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all ${
+                    side === 'LONG'
+                      ? 'bg-green-600 text-white shadow-lg shadow-green-600/20'
+                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                  }`}>
+                  <ArrowUpRight className="w-4 h-4" /> LONG
+                </button>
+                <button onClick={() => setSide('SHORT')}
+                  className={`py-2.5 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all ${
+                    side === 'SHORT'
+                      ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
+                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                  }`}>
+                  <ArrowDownRight className="w-4 h-4" /> SHORT
+                </button>
+              </div>
+
+              {/* Leverage selector */}
+              <div className="mb-4">
+                <label className="text-xs text-zinc-500 mb-1.5 block flex items-center gap-1">
+                  <Zap className="w-3 h-3" /> Apalancamiento
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {LEVERAGE_OPTIONS.map(lev => (
+                    <button key={lev} onClick={() => setLeverage(lev)}
+                      className={`py-2 rounded-lg text-sm font-bold transition-all ${
+                        leverage === lev
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                          : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                      }`}>
+                      {lev}x
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Collateral input */}
+              <div className="mb-4">
+                <label className="text-xs text-zinc-500 mb-1.5 block flex items-center justify-between">
+                  <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> Colateral (KAIROS)</span>
+                  {account && (
+                    <button onClick={() => setCollateralInput(String(Math.floor(account.freeMargin || 0)))}
+                      className="text-blue-400 hover:text-blue-300 text-[10px]">
+                      Max: {(account.freeMargin || 0).toFixed(0)}
+                    </button>
+                  )}
+                </label>
+                <input type="number" value={collateralInput} onChange={e => setCollateralInput(e.target.value)}
+                  placeholder="Ej: 100" min="1" step="1"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none text-sm" />
+
+                {/* Position info */}
+                {numCollateral > 0 && currentPrice > 0 && (
+                  <div className="mt-2 space-y-1 text-xs">
+                    <div className="flex justify-between text-zinc-400">
+                      <span>Tamaño posición</span>
+                      <span className="text-white font-mono">${positionSizeUsd.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-zinc-400">
+                      <span>Precio entrada</span>
+                      <span className="text-white font-mono">${currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    </div>
+                    {liquidationPrice && (
+                      <div className="flex justify-between text-zinc-400">
+                        <span>Precio liquidación (est.)</span>
+                        <span className="text-red-400 font-mono">${liquidationPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Advanced: SL / TP */}
+              <div className="mb-4">
+                <button onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+                  <Settings className="w-3 h-3" /> Avanzado
+                  {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </button>
+                <AnimatePresence>
+                  {showAdvanced && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="pt-2 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] text-zinc-500 block mb-1">Stop Loss ($)</label>
+                          <input type="number" value={stopLoss} onChange={e => setStopLoss(e.target.value)}
+                            placeholder="Precio SL"
+                            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 py-2 text-xs text-white placeholder-zinc-600 focus:border-red-500 focus:outline-none" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-zinc-500 block mb-1">Take Profit ($)</label>
+                          <input type="number" value={takeProfit} onChange={e => setTakeProfit(e.target.value)}
+                            placeholder="Precio TP"
+                            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 py-2 text-xs text-white placeholder-zinc-600 focus:border-green-500 focus:outline-none" />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Submit button */}
+              <button
+                onClick={handleOpenPosition}
+                disabled={isSubmitting || !numCollateral || !currentPrice}
+                className={`w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-40 ${
+                  side === 'LONG'
+                    ? 'bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20'
+                    : 'bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20'
+                }`}>
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : side === 'LONG' ? (
+                  <ArrowUpRight className="w-4 h-4" />
+                ) : (
+                  <ArrowDownRight className="w-4 h-4" />
+                )}
+                {isSubmitting ? 'Abriendo...' : `Abrir ${side} ${leverage}x`}
+              </button>
+
+              {/* Risk warning */}
+              <div className="mt-3 bg-yellow-900/10 border border-yellow-500/20 rounded-lg px-3 py-2 text-[10px] text-yellow-500/80 flex items-start gap-1.5">
+                <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                <span>
+                  El trading con apalancamiento conlleva riesgo de pérdida total del colateral.
+                  Liquidación automática cuando el margen cae por debajo del mantenimiento requerido.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── RIGHT: Positions / History ── */}
+          <div className="space-y-4">
+            {/* Tab selector */}
+            <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+              {[
+                { id: 'trade', label: 'Posiciones', icon: TrendingUp, count: positions.length },
+                { id: 'history', label: 'Historial', icon: History },
+              ].map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                    activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-zinc-300'
+                  }`}>
+                  <tab.icon className="w-3.5 h-3.5" />
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-full">{tab.count}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Positions Tab */}
+            {activeTab === 'trade' && (
+              <div className="space-y-2">
+                {positions.length === 0 ? (
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
+                    <Eye className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+                    <p className="text-zinc-500 text-sm">Sin posiciones abiertas</p>
+                    <p className="text-zinc-600 text-xs mt-1">Deposita colateral y abre tu primera operación</p>
+                  </div>
+                ) : (
+                  positions.map(pos => (
+                    <PositionCard key={pos.id} position={pos}
+                      onClose={handleClosePosition}
+                      isClosing={closingPositionId === pos.id}
+                      prices={prices} />
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* History Tab */}
+            {activeTab === 'history' && (
+              <div className="space-y-2">
+                {tradeHistory.length === 0 ? (
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
+                    <History className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+                    <p className="text-zinc-500 text-sm">Sin historial</p>
+                  </div>
+                ) : (
+                  tradeHistory.map(trade => (
+                    <HistoryCard key={trade.id} trade={trade} />
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SUB-COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function AccountRow({ label, value, icon, color = 'text-white' }) {
+  return (
+    <div className="flex items-center justify-between py-1">
+      <span className="text-xs text-zinc-500 flex items-center gap-1.5">{icon} {label}</span>
+      <span className={`text-xs font-mono font-medium ${color}`}>{value}</span>
+    </div>
+  );
+}
+
+function PositionCard({ position, onClose, isClosing, prices }) {
+  const pos = position;
+  const pnl = parseFloat(pos.unrealizedPnl) || 0;
+  const pnlPct = parseFloat(pos.pnlPercent) || (pos.collateral ? (pnl / parseFloat(pos.collateral)) * 100 : 0);
+  const isLong = (pos.side || pos.direction || '').toUpperCase() === 'LONG';
+  const pair = pos.pair || pos.symbol || '';
+  const currentPriceData = prices[pair.replace('/', '')] || {};
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+      className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-base">{PAIR_ICONS[pair] || '•'}</span>
+          <span className="text-sm font-bold text-white">{pair}</span>
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+            isLong ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
+          }`}>
+            {isLong ? 'LONG' : 'SHORT'} {pos.leverage}x
+          </span>
+        </div>
+        <button onClick={() => onClose(pos.id)} disabled={isClosing}
+          className="text-xs bg-zinc-800 hover:bg-red-600/80 text-zinc-400 hover:text-white px-2.5 py-1 rounded-lg transition-all disabled:opacity-50 flex items-center gap-1">
+          {isClosing ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+          Cerrar
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <div className="flex justify-between text-zinc-400">
+          <span>Entrada</span>
+          <span className="text-white font-mono">${parseFloat(pos.entryPrice || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        </div>
+        <div className="flex justify-between text-zinc-400">
+          <span>Actual</span>
+          <span className="text-white font-mono">${(currentPriceData.price || parseFloat(pos.currentPrice || 0)).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        </div>
+        <div className="flex justify-between text-zinc-400">
+          <span>Colateral</span>
+          <span className="text-white font-mono">{parseFloat(pos.collateral || 0).toFixed(2)} K</span>
+        </div>
+        <div className="flex justify-between text-zinc-400">
+          <span>Tamaño</span>
+          <span className="text-white font-mono">${parseFloat(pos.positionSizeUsd || 0).toLocaleString()}</span>
+        </div>
+      </div>
+
+      {/* P&L bar */}
+      <div className={`mt-2 px-2.5 py-1.5 rounded-lg flex items-center justify-between ${
+        pnl >= 0 ? 'bg-green-900/20 border border-green-500/20' : 'bg-red-900/20 border border-red-500/20'
+      }`}>
+        <span className="text-[10px] text-zinc-400">P&L</span>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-bold font-mono ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+            {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+          </span>
+          <span className={`text-[10px] font-mono ${pnlPct >= 0 ? 'text-green-400/70' : 'text-red-400/70'}`}>
+            ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)
+          </span>
+        </div>
+      </div>
+
+      {/* SL/TP indicators */}
+      {(pos.stopLoss || pos.takeProfit) && (
+        <div className="flex gap-2 mt-1.5 text-[10px]">
+          {pos.stopLoss && (
+            <span className="text-red-400/60">SL: ${parseFloat(pos.stopLoss).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+          )}
+          {pos.takeProfit && (
+            <span className="text-green-400/60">TP: ${parseFloat(pos.takeProfit).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+          )}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function HistoryCard({ trade }) {
+  const pnl = parseFloat(trade.realizedPnl || trade.pnl || 0);
+  const isLong = (trade.side || trade.direction || '').toUpperCase() === 'LONG';
+  const pair = trade.pair || trade.symbol || '';
+  const status = (trade.status || trade.closeReason || '').toUpperCase();
+  const isLiquidated = status.includes('LIQUIDAT');
+
+  return (
+    <div className={`bg-zinc-900 border rounded-xl p-3 ${isLiquidated ? 'border-red-500/30' : 'border-zinc-800'}`}>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-2">
+          <span>{PAIR_ICONS[pair] || '•'}</span>
+          <span className="text-sm font-medium text-white">{pair}</span>
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+            isLong ? 'bg-green-900/30 text-green-400/70' : 'bg-red-900/30 text-red-400/70'
+          }`}>
+            {isLong ? 'LONG' : 'SHORT'} {trade.leverage}x
+          </span>
+          {isLiquidated && (
+            <span className="text-[10px] bg-red-900/50 text-red-400 px-1.5 py-0.5 rounded font-bold">LIQUIDADO</span>
+          )}
+        </div>
+        <span className={`text-xs font-bold font-mono ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+          {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+        </span>
+      </div>
+
+      <div className="flex gap-4 text-[10px] text-zinc-500">
+        <span>Entrada: ${parseFloat(trade.entryPrice || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        <span>Salida: ${parseFloat(trade.exitPrice || trade.closePrice || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        <span>Colateral: {parseFloat(trade.collateral || 0).toFixed(2)}</span>
+      </div>
+
+      {trade.closedAt && (
+        <div className="text-[10px] text-zinc-600 mt-1">
+          {new Date(trade.closedAt || trade.closed_at).toLocaleString()}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -12,10 +12,19 @@ let pollInterval = null;
 const POLL_MS = 3000;     // Poll every 3 seconds
 const STALE_MS = 30000;   // Price considered stale after 30s
 
-// Supported pairs for margin trading
+// Supported pairs for margin trading (30+ top pairs available on Binance.US)
 const SUPPORTED_PAIRS = [
-  'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT',
-  'XRPUSDT', 'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT',
+  // Top 10
+  'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
+  'DOGEUSDT', 'ADAUSDT', 'AVAXUSDT', 'DOTUSDT', 'LINKUSDT',
+  // DeFi / Layer 1
+  'UNIUSDT', 'LTCUSDT', 'ATOMUSDT', 'NEARUSDT', 'APTUSDT',
+  'ARBUSDT', 'SUIUSDT', 'SEIUSDT', 'AAVEUSDT', 'OPUSDT',
+  // Mid-cap
+  'FILUSDT', 'ALGOUSDT', 'ICPUSDT', 'XLMUSDT', 'ETCUSDT',
+  'HBARUSDT', 'TIAUSDT', 'PEPEUSDT', 'SHIBUSDT',
+  // Extra popular
+  'BONKUSDT', 'RENDERUSDT', 'ENAUSDT',
 ];
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -26,7 +35,15 @@ const SUPPORTED_PAIRS = [
 const COINGECKO_MAP = {
   bitcoin: 'BTCUSDT', ethereum: 'ETHUSDT', binancecoin: 'BNBUSDT',
   solana: 'SOLUSDT', ripple: 'XRPUSDT', dogecoin: 'DOGEUSDT',
-  cardano: 'ADAUSDT', 'avalanche-2': 'AVAXUSDT',
+  cardano: 'ADAUSDT', 'avalanche-2': 'AVAXUSDT', polkadot: 'DOTUSDT',
+  chainlink: 'LINKUSDT', uniswap: 'UNIUSDT', litecoin: 'LTCUSDT',
+  cosmos: 'ATOMUSDT', 'near': 'NEARUSDT', aptos: 'APTUSDT',
+  arbitrum: 'ARBUSDT', sui: 'SUIUSDT', sei: 'SEIUSDT',
+  aave: 'AAVEUSDT', optimism: 'OPUSDT', filecoin: 'FILUSDT',
+  algorand: 'ALGOUSDT', 'internet-computer': 'ICPUSDT', stellar: 'XLMUSDT',
+  'ethereum-classic': 'ETCUSDT', 'hedera-hashgraph': 'HBARUSDT',
+  celestia: 'TIAUSDT', pepe: 'PEPEUSDT', 'shiba-inu': 'SHIBUSDT',
+  bonk: 'BONKUSDT', 'render-token': 'RENDERUSDT', ethena: 'ENAUSDT',
 };
 const COINGECKO_IDS = Object.keys(COINGECKO_MAP).join(',');
 

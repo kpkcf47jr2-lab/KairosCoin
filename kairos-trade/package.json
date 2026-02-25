@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "ethers": "^6.16.0",
     "framer-motion": "^11.0.0",
     "lightweight-charts": "^4.1.0",
     "lucide-react": "^0.300.0",
