@@ -1,4 +1,4 @@
-// Kairos Trade — Dashboard (Premium v3.0 — Analytics)
+// Kairos Trade — Dashboard (Premium v3.1 — i18n + Analytics)
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -13,6 +13,7 @@ import { tradingEngine } from '../../services/tradingEngine';
 import { feeService } from '../../services/feeService';
 import { isAdmin } from '../../constants';
 import { toDisplayPair, getBase, formatPair } from '../../utils/pairUtils';
+import useTranslation from '../../hooks/useTranslation';
 
 // ─── Mini sparkline (canvas) ───
 function MiniSparkline({ data, color = '#D4AF37', height = 48, width = 140 }) {
@@ -82,6 +83,7 @@ export default function Dashboard() {
   const [marketOverview, setMarketOverview] = useState([]);
   const [loading, setLoading] = useState(true);
   const [liveBotData, setLiveBotData] = useState({});
+  const { t } = useTranslation();
 
   useEffect(() => {
     loadMarketData();
@@ -124,19 +126,19 @@ export default function Dashboard() {
   const connectedBrokers = brokers.filter(b => b.connected);
 
   const stats = [
-    { label: 'Bots Activos', value: activeBots.length, icon: Bot, color: '#3B82F6', gradient: 'linear-gradient(135deg, rgba(59,130,246,0.1), rgba(59,130,246,0.02))', border: 'rgba(59,130,246,0.1)', action: 'bots' },
-    { label: 'Brokers', value: `${connectedBrokers.length}/${brokers.length}`, icon: Link2, color: '#A855F7', gradient: 'linear-gradient(135deg, rgba(168,85,247,0.1), rgba(168,85,247,0.02))', border: 'rgba(168,85,247,0.1)', action: 'brokers' },
-    { label: 'Posiciones', value: positions.length, icon: Activity, color: '#00DC82', gradient: 'linear-gradient(135deg, rgba(0,220,130,0.1), rgba(0,220,130,0.02))', border: 'rgba(0,220,130,0.1)', action: 'history' },
-    { label: 'P&L Total', value: `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`, icon: DollarSign, color: totalPnl >= 0 ? '#00DC82' : '#FF4757', gradient: totalPnl >= 0 ? 'linear-gradient(135deg, rgba(0,220,130,0.1), rgba(0,220,130,0.02))' : 'linear-gradient(135deg, rgba(255,71,87,0.1), rgba(255,71,87,0.02))', border: totalPnl >= 0 ? 'rgba(0,220,130,0.1)' : 'rgba(255,71,87,0.1)', action: 'history' },
+    { label: t('dashboard.activeBots'), value: activeBots.length, icon: Bot, color: '#3B82F6', gradient: 'linear-gradient(135deg, rgba(59,130,246,0.1), rgba(59,130,246,0.02))', border: 'rgba(59,130,246,0.1)', action: 'bots' },
+    { label: t('dashboard.brokers'), value: `${connectedBrokers.length}/${brokers.length}`, icon: Link2, color: '#A855F7', gradient: 'linear-gradient(135deg, rgba(168,85,247,0.1), rgba(168,85,247,0.02))', border: 'rgba(168,85,247,0.1)', action: 'brokers' },
+    { label: t('dashboard.positions'), value: positions.length, icon: Activity, color: '#00DC82', gradient: 'linear-gradient(135deg, rgba(0,220,130,0.1), rgba(0,220,130,0.02))', border: 'rgba(0,220,130,0.1)', action: 'history' },
+    { label: t('dashboard.totalPnl'), value: `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`, icon: DollarSign, color: totalPnl >= 0 ? '#00DC82' : '#FF4757', gradient: totalPnl >= 0 ? 'linear-gradient(135deg, rgba(0,220,130,0.1), rgba(0,220,130,0.02))' : 'linear-gradient(135deg, rgba(255,71,87,0.1), rgba(255,71,87,0.02))', border: totalPnl >= 0 ? 'rgba(0,220,130,0.1)' : 'rgba(255,71,87,0.1)', action: 'history' },
   ];
 
   const quickActions = [
-    { label: 'Trading', icon: BarChart3, page: 'chart', desc: 'Gráficos profesionales', color: '#3B82F6' },
-    { label: 'Simulador', icon: Play, page: 'simulator', desc: 'Paper trading sin riesgo', color: '#00DC82' },
-    { label: 'Kairos AI', icon: Sparkles, page: 'ai', desc: 'Asistente inteligente', color: '#A855F7' },
-    { label: 'Crear Bot', icon: Bot, page: 'bots', desc: 'Automatiza tu trading', color: '#60A5FA' },
-    { label: 'Estrategias', icon: Zap, page: 'strategies', desc: 'Crea y gestiona', color: '#EC4899' },
-    { label: 'Brokers', icon: Shield, page: 'brokers', desc: 'Conecta tu cuenta', color: '#22D3EE' },
+    { label: t('dashboard.trading'), icon: BarChart3, page: 'chart', desc: t('dashboard.tradingDesc'), color: '#3B82F6' },
+    { label: t('dashboard.simulator'), icon: Play, page: 'simulator', desc: t('dashboard.simulatorDesc'), color: '#00DC82' },
+    { label: t('dashboard.kairosAi'), icon: Sparkles, page: 'ai', desc: t('dashboard.kairosAiDesc'), color: '#A855F7' },
+    { label: t('dashboard.createBot'), icon: Bot, page: 'bots', desc: t('dashboard.createBotDesc'), color: '#60A5FA' },
+    { label: t('dashboard.strategies'), icon: Zap, page: 'strategies', desc: t('dashboard.strategiesDesc'), color: '#EC4899' },
+    { label: t('dashboard.brokersAction'), icon: Shield, page: 'brokers', desc: t('dashboard.brokersActionDesc'), color: '#22D3EE' },
   ];
 
   // ─── Portfolio analytics (computed from tradeHistory) ───
@@ -345,11 +347,11 @@ export default function Dashboard() {
               <Bot size={14} className="text-blue-400" />
               Bots Activos
               <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
-                {activeBotsList.length} running
+                {activeBotsList.length} {t('dashboard.running')}
               </span>
             </h2>
             <button onClick={() => setPage('bots')} className="text-[11px] text-[var(--gold)] hover:text-[var(--gold-light)] font-semibold flex items-center gap-1 transition-colors">
-              Ver todos <ChevronRight size={12} />
+              {t('dashboard.viewAll')} <ChevronRight size={12} />
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -538,24 +540,24 @@ export default function Dashboard() {
         <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(30,34,45,0.5)' }}>
           <div className="flex items-center gap-2">
             <Activity size={14} className="text-[var(--gold)]" />
-            <h2 className="text-sm font-bold">Mercado en Tiempo Real</h2>
+            <h2 className="text-sm font-bold">{t('dashboard.realtimeMarket')}</h2>
           </div>
           <button onClick={() => setPage('chart')} className="text-[11px] text-[var(--gold)] hover:text-[var(--gold-light)] font-semibold flex items-center gap-1 transition-colors">
-            Ver gráfico <ChevronRight size={12} />
+            {t('dashboard.viewChart')} <ChevronRight size={12} />
           </button>
         </div>
 
         {/* Table header */}
         <div className="grid grid-cols-4 gap-2 px-4 py-2 text-[10px] font-bold text-[var(--text-dim)]/50 uppercase tracking-wider">
-          <span>Par</span>
-          <span className="text-right">Precio</span>
-          <span className="text-right">Cambio 24h</span>
-          <span className="text-right">Acción</span>
+          <span>{t('dashboard.pair')}</span>
+          <span className="text-right">{t('dashboard.price')}</span>
+          <span className="text-right">{t('dashboard.change24h')}</span>
+          <span className="text-right">{t('dashboard.action')}</span>
         </div>
 
         <div className="divide-y divide-[var(--border)]/30">
           {loading ? (
-            <div className="p-8 text-center text-sm text-[var(--text-dim)] animate-pulse">Cargando mercado...</div>
+            <div className="p-8 text-center text-sm text-[var(--text-dim)] animate-pulse">{t('dashboard.loadingMarket')}</div>
           ) : marketOverview.map((ticker, i) => (
             <motion.button
               key={ticker.symbol}
@@ -598,7 +600,7 @@ export default function Dashboard() {
               {/* Action */}
               <div className="text-right">
                 <span className="text-[10px] font-semibold text-[var(--gold)] opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--gold)]/10 px-2 py-1 rounded-md">
-                  Trading →
+                  {t('dashboard.trade')} →
                 </span>
               </div>
             </motion.button>

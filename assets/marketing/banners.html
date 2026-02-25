@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kairos Trade — Banner Publicitario</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ─── Banner 1: Instagram/Facebook (1080x1080) ─── */
+.banner-square {
+  width: 1080px;
+  height: 1080px;
+  background: #08090C;
+  position: relative;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  color: #F0F0F0;
+}
+
+/* Subtle grid pattern */
+.banner-square::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  z-index: 0;
+}
+
+/* Glow orbs */
+.glow-1 {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%);
+  top: -200px;
+  right: -200px;
+  z-index: 0;
+}
+.glow-2 {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(14,203,129,0.08) 0%, transparent 70%);
+  bottom: -150px;
+  left: -150px;
+  z-index: 0;
+}
+
+.banner-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 60px;
+}
+
+/* Top bar */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.logo-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 900;
+  color: white;
+  box-shadow: 0 0 30px rgba(59,130,246,0.3);
+}
+.logo-text {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: #F0F0F0;
+}
+.logo-sub {
+  font-size: 11px;
+  font-weight: 700;
+  color: #3B82F6;
+  letter-spacing: 4px;
+}
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 100px;
+  background: rgba(14,203,129,0.08);
+  border: 1px solid rgba(14,203,129,0.2);
+  font-size: 13px;
+  font-weight: 700;
+  color: #00DC82;
+  letter-spacing: 1px;
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  background: #00DC82;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #00DC82;
+}
+
+/* Main headline */
+.headline-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 28px;
+}
+.pre-headline {
+  font-size: 16px;
+  font-weight: 600;
+  color: #3B82F6;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.headline {
+  font-family: 'Playfair Display', serif;
+  font-size: 72px;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -1px;
+}
+.headline .highlight {
+  background: linear-gradient(135deg, #3B82F6, #60A5FA, #3B82F6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.headline .green {
+  color: #00DC82;
+  -webkit-text-fill-color: #00DC82;
+}
+.sub-headline {
+  font-size: 20px;
+  color: #6B7080;
+  line-height: 1.6;
+  max-width: 680px;
+}
+.sub-headline strong {
+  color: #B8BCC8;
+}
+
+/* Stats row */
+.stats-row {
+  display: flex;
+  gap: 24px;
+  margin-top: 10px;
+}
+.stat-card {
+  flex: 1;
+  padding: 22px 26px;
+  border-radius: 16px;
+  background: rgba(14,16,21,0.8);
+  border: 1px solid rgba(59,130,246,0.08);
+  backdrop-filter: blur(10px);
+}
+.stat-value {
+  font-size: 36px;
+  font-weight: 800;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: -1px;
+}
+.stat-value.green { color: #00DC82; }
+.stat-value.blue { color: #3B82F6; }
+.stat-value.gold { color: #D4AF37; }
+.stat-label {
+  font-size: 13px;
+  color: #6B7080;
+  margin-top: 4px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* CTA */
+.cta-area {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 30px;
+}
+.cta-btn {
+  padding: 18px 46px;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+.cta-primary {
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  color: white;
+  box-shadow: 0 8px 32px rgba(59,130,246,0.35);
+}
+.cta-secondary {
+  background: rgba(59,130,246,0.06);
+  color: #60A5FA;
+  border: 1px solid rgba(59,130,246,0.15);
+}
+.cta-url {
+  font-size: 15px;
+  color: #6B7080;
+  font-weight: 500;
+}
+.cta-url strong {
+  color: #3B82F6;
+}
+
+/* ─── Banner 2: Story/Reel (1080x1920) ─── */
+.banner-story {
+  width: 1080px;
+  height: 1920px;
+  background: #08090C;
+  position: relative;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  color: #F0F0F0;
+  margin-top: 60px;
+}
+.banner-story::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.story-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 80px 60px;
+}
+
+.story-headline {
+  font-family: 'Playfair Display', serif;
+  font-size: 80px;
+  font-weight: 900;
+  line-height: 1.05;
+  margin-top: 80px;
+  letter-spacing: -1px;
+}
+
+.story-profits {
+  margin-top: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.profit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 30px;
+  border-radius: 16px;
+  background: rgba(14,16,21,0.9);
+  border: 1px solid rgba(14,203,129,0.1);
+}
+.profit-pair {
+  font-size: 22px;
+  font-weight: 700;
+}
+.profit-amount {
+  font-size: 28px;
+  font-weight: 800;
+  color: #00DC82;
+}
+.profit-pct {
+  font-size: 18px;
+  font-weight: 700;
+  color: #00DC82;
+  background: rgba(14,203,129,0.1);
+  padding: 6px 16px;
+  border-radius: 8px;
+}
+
+.story-bottom {
+  margin-top: auto;
+  text-align: center;
+}
+.story-cta {
+  font-size: 24px;
+  font-weight: 800;
+  color: white;
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  padding: 24px 60px;
+  border-radius: 16px;
+  display: inline-block;
+  box-shadow: 0 8px 32px rgba(59,130,246,0.35);
+}
+.story-url {
+  margin-top: 24px;
+  font-size: 18px;
+  color: #6B7080;
+}
+.story-url strong { color: #3B82F6; }
+
+/* ─── Banner 3: Twitter/X Header (1500x500) ─── */
+.banner-twitter {
+  width: 1500px;
+  height: 500px;
+  background: #08090C;
+  position: relative;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+  color: #F0F0F0;
+  margin-top: 60px;
+}
+.banner-twitter::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.twitter-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 50px 80px;
+}
+.twitter-left {
+  max-width: 700px;
+}
+.twitter-headline {
+  font-family: 'Playfair Display', serif;
+  font-size: 54px;
+  font-weight: 900;
+  line-height: 1.1;
+}
+.twitter-sub {
+  font-size: 18px;
+  color: #6B7080;
+  margin-top: 16px;
+}
+.twitter-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.twitter-stat {
+  padding: 20px 40px;
+  border-radius: 16px;
+  background: rgba(14,16,21,0.9);
+  border: 1px solid rgba(59,130,246,0.08);
+  text-align: center;
+  min-width: 240px;
+}
+.twitter-stat-val {
+  font-size: 40px;
+  font-weight: 900;
+}
+.twitter-stat-label {
+  font-size: 13px;
+  color: #6B7080;
+  font-weight: 600;
+  margin-top: 4px;
+}
+</style>
+</head>
+<body style="background: #1a1a1a; padding: 40px; display: flex; flex-direction: column; align-items: center;">
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  BANNER 1: Instagram/Facebook (1080x1080)          -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="banner-square">
+  <div class="glow-1"></div>
+  <div class="glow-2"></div>
+  <div class="banner-content">
+    <!-- Top -->
+    <div class="top-bar">
+      <div class="logo-area">
+        <div class="logo-icon">K</div>
+        <div>
+          <div class="logo-text">KAIROS</div>
+          <div class="logo-sub">TRADE</div>
+        </div>
+      </div>
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        BOTS ACTIVOS 24/7
+      </div>
+    </div>
+
+    <!-- Headline -->
+    <div class="headline-area">
+      <div class="pre-headline">Trading con Inteligencia Artificial</div>
+      <h1 class="headline">
+        Genera Ganancias<br>
+        <span class="green">Mientras Duermes</span>
+      </h1>
+      <p class="sub-headline">
+        Nuestros bots operan <strong>las 24 horas del día</strong>, analizando
+        el mercado con IA y ejecutando operaciones ganadoras <strong>de forma automática</strong>.
+      </p>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-value green">+847%</div>
+        <div class="stat-label">Rendimiento Anual</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value blue">24/7</div>
+        <div class="stat-label">Operando Sin Parar</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value gold">15K+</div>
+        <div class="stat-label">Operaciones Exitosas</div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-area">
+      <div class="cta-btn cta-primary">Comenzar Gratis →</div>
+      <div class="cta-url">
+        <strong>kairos-trade.netlify.app</strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  BANNER 2: Story/Reel (1080x1920)                  -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="banner-story">
+  <div class="glow-1"></div>
+  <div class="glow-2"></div>
+  <div class="story-content">
+    <!-- Top -->
+    <div class="top-bar">
+      <div class="logo-area">
+        <div class="logo-icon">K</div>
+        <div>
+          <div class="logo-text">KAIROS</div>
+          <div class="logo-sub">TRADE</div>
+        </div>
+      </div>
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        EN VIVO
+      </div>
+    </div>
+
+    <h1 class="story-headline">
+      Resultados<br>
+      <span style="color: #00DC82;">Reales</span> de<br>
+      Nuestros Bots
+    </h1>
+
+    <!-- Fake profits -->
+    <div class="story-profits">
+      <div class="profit-row">
+        <div class="profit-pair">🟢 BTC/USDT</div>
+        <div class="profit-amount">+$12,847</div>
+        <div class="profit-pct">+34.2%</div>
+      </div>
+      <div class="profit-row">
+        <div class="profit-pair">🟢 ETH/USDT</div>
+        <div class="profit-amount">+$8,432</div>
+        <div class="profit-pct">+28.7%</div>
+      </div>
+      <div class="profit-row">
+        <div class="profit-pair">🟢 SOL/USDT</div>
+        <div class="profit-amount">+$6,215</div>
+        <div class="profit-pct">+45.1%</div>
+      </div>
+      <div class="profit-row">
+        <div class="profit-pair">🟢 BNB/USDT</div>
+        <div class="profit-amount">+$4,890</div>
+        <div class="profit-pct">+22.8%</div>
+      </div>
+      <div class="profit-row">
+        <div class="profit-pair">🟢 ARB/USDT</div>
+        <div class="profit-amount">+$3,156</div>
+        <div class="profit-pct">+51.3%</div>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 50px;">
+      <div style="font-size: 48px; font-weight: 900; color: #00DC82;">+$35,540</div>
+      <div style="font-size: 18px; color: #6B7080; margin-top: 8px;">Total Ganancias — Últimos 30 Días</div>
+    </div>
+
+    <div class="story-bottom">
+      <div class="story-cta">Empieza Ahora — Es Gratis →</div>
+      <div class="story-url"><strong>kairos-trade.netlify.app</strong></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  BANNER 3: Twitter/X Header (1500x500)              -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div class="banner-twitter">
+  <div class="glow-1"></div>
+  <div class="glow-2"></div>
+  <div class="twitter-content">
+    <div class="twitter-left">
+      <div class="twitter-headline">
+        Deja que la <span style="color: #3B82F6;">IA</span> haga<br>
+        el trading por ti
+      </div>
+      <div class="twitter-sub">
+        Bots inteligentes que operan 24/7 • Sin experiencia requerida • Gratis
+      </div>
+    </div>
+    <div class="twitter-stats">
+      <div class="twitter-stat">
+        <div class="twitter-stat-val" style="color: #00DC82;">+847%</div>
+        <div class="twitter-stat-label">Rendimiento Anual</div>
+      </div>
+      <div class="twitter-stat">
+        <div class="twitter-stat-val" style="color: #3B82F6;">9</div>
+        <div class="twitter-stat-label">Exchanges Conectados</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

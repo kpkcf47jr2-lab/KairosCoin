@@ -1,14 +1,16 @@
-// Kairos Trade — Top Header Bar (Premium v2 — Mobile Responsive)
+// Kairos Trade — Top Header Bar (Premium v2.1 — i18n + Mobile Responsive)
 import { Search, Bell, Wifi, WifiOff, Brain, TrendingUp, TrendingDown, Globe, Volume2, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import useStore from '../../store/useStore';
 import { getBase, formatPair, QUOTE } from '../../utils/pairUtils';
+import useTranslation from '../../hooks/useTranslation';
 
 export default function Header({ onMenuToggle, mobileMenuOpen }) {
   const { selectedPair, currentPrice, priceChange24h, toggleAiPanel, aiPanelOpen, brokers, activeBroker } = useStore();
   const connected = brokers.some(b => b.connected);
   const connectedBroker = activeBroker || brokers.find(b => b.connected);
   const [searchFocused, setSearchFocused] = useState(false);
+  const { t, lang, setLang } = useTranslation();
 
   return (
     <header
@@ -38,7 +40,7 @@ export default function Header({ onMenuToggle, mobileMenuOpen }) {
             </div>
             <div className="min-w-0">
               <h2 className="text-[13px] md:text-[14px] font-bold text-[var(--text)] tracking-wide leading-none truncate">{formatPair(selectedPair)}</h2>
-              <span className="text-[9px] text-[var(--text-dim)]/60 font-medium hidden sm:inline">Spot Trading</span>
+              <span className="text-[9px] text-[var(--text-dim)]/60 font-medium hidden sm:inline">{t('header.spotTrading')}</span>
             </div>
           </div>
 
@@ -86,6 +88,16 @@ export default function Header({ onMenuToggle, mobileMenuOpen }) {
           {connected && <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] animate-pulse" />}
         </div>
 
+        {/* Language toggle */}
+        <button
+          onClick={() => setLang(lang === 'es' ? 'en' : 'es')}
+          className="flex items-center gap-1 px-2 md:px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all border text-[var(--text-dim)] hover:text-[var(--text)] bg-white/[0.02] border-[var(--border)]/50 hover:border-[var(--gold)]/20"
+          title={t('common.language')}
+        >
+          <Globe size={13} />
+          <span className="hidden sm:inline">{lang === 'es' ? 'ES' : 'EN'}</span>
+        </button>
+
         {/* AI toggle */}
         <button
           onClick={toggleAiPanel}
@@ -97,7 +109,7 @@ export default function Header({ onMenuToggle, mobileMenuOpen }) {
           title="Kairos AI"
         >
           <Brain size={13} />
-          <span className="hidden sm:inline">AI</span>
+          <span className="hidden sm:inline">{t('header.ai')}</span>
           {aiPanelOpen && <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />}
         </button>
 

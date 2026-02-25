@@ -1,4 +1,4 @@
-// Kairos Trade — Sidebar Navigation (Premium v2.1 — Kairos First)
+// Kairos Trade — Sidebar Navigation (Premium v2.2 — i18n + Kairos First)
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import {
@@ -9,62 +9,65 @@ import {
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { isAdmin } from '../../constants';
+import useTranslation from '../../hooks/useTranslation';
 
+// Section/item IDs only — labels come from i18n
 const SECTIONS = [
   {
-    label: 'Kairos',
+    labelKey: 'kairos',
     kairos: true,
     items: [
-      { id: 'kairos-broker', icon: TrendingUp, label: 'Kairos Broker', desc: 'Trading con apalancamiento', kairos: true },
-      { id: 'kairos-vault', icon: Landmark, label: 'Kairos Vault', desc: 'Provee liquidez y gana yield', kairos: true },
-      { id: 'kairos-treasury', icon: Crown, label: 'Treasury', desc: 'Ingresos por comisiones', kairos: true, adminOnly: true },
-      { id: 'buy-kairos', icon: CreditCard, label: 'Comprar KAIROS', desc: 'Con tarjeta de crédito', kairos: true },
+      { id: 'kairos-broker', icon: TrendingUp, kairos: true },
+      { id: 'kairos-vault', icon: Landmark, kairos: true },
+      { id: 'kairos-treasury', icon: Crown, kairos: true, adminOnly: true },
+      { id: 'buy-kairos', icon: CreditCard, kairos: true },
     ],
   },
   {
-    label: 'Principal',
+    labelKey: 'principal',
     items: [
-      { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', desc: 'Panel de control' },
-      { id: 'chart', icon: BarChart3, label: 'Trading', desc: 'Gráficos en vivo' },
-      { id: 'multichart', icon: Grid3x3, label: 'Multi-Chart', desc: 'Vista profesional' },
-      { id: 'heatmap', icon: Activity, label: 'Heatmap', desc: 'Mapa de calor del mercado' },
-      { id: 'simulator', icon: Play, label: 'Simulador', desc: 'Paper trading' },
+      { id: 'dashboard', icon: LayoutDashboard },
+      { id: 'chart', icon: BarChart3 },
+      { id: 'multichart', icon: Grid3x3 },
+      { id: 'heatmap', icon: Activity },
+      { id: 'simulator', icon: Play },
     ],
   },
   {
-    label: 'Automatización',
+    labelKey: 'automation',
     items: [
-      { id: 'bots', icon: Bot, label: 'Bots', desc: 'Trading automático' },
-      { id: 'strategies', icon: Zap, label: 'Estrategias', desc: 'Crear y gestionar' },
-      { id: 'ai', icon: Sparkles, label: 'Kairos AI', desc: 'Asistente IA', accent: true },
+      { id: 'bots', icon: Bot },
+      { id: 'strategies', icon: Zap },
+      { id: 'ai', icon: Sparkles, accent: true },
     ],
   },
   {
-    label: 'Analytics',
+    labelKey: 'analytics',
     items: [
-      { id: 'portfolio', icon: Activity, label: 'Portfolio', desc: 'P&L y rendimiento' },
-      { id: 'journal', icon: BookOpen, label: 'Journal', desc: 'Diario de trades' },
-      { id: 'risk', icon: Shield, label: 'Riesgo', desc: 'Gestión de riesgo' },
+      { id: 'portfolio', icon: Activity },
+      { id: 'journal', icon: BookOpen },
+      { id: 'risk', icon: Shield },
     ],
   },
   {
-    label: 'Gestión',
+    labelKey: 'management',
     items: [
-      { id: 'brokers', icon: Link2, label: 'Brokers', desc: 'Conexiones API' },
-      { id: 'history', icon: History, label: 'Historial', desc: 'Trades y reportes' },
-      { id: 'alerts', icon: Bell, label: 'Alertas', desc: 'Notificaciones' },
+      { id: 'brokers', icon: Link2 },
+      { id: 'history', icon: History },
+      { id: 'alerts', icon: Bell },
     ],
   },
 ];
 
 const BOTTOM_ITEMS = [
-  { id: 'wallet', icon: Wallet, label: 'Wallet' },
-  { id: 'settings', icon: Settings, label: 'Ajustes' },
+  { id: 'wallet', icon: Wallet },
+  { id: 'settings', icon: Settings },
 ];
 
 export default function Sidebar({ forceMobileOpen }) {
   const { currentPage, setPage, sidebarOpen, toggleSidebar, bots, brokers, logout, user } = useStore();
   const [hoveredItem, setHoveredItem] = useState(null);
+  const { t, lang } = useTranslation();
 
   // On mobile overlay, always show expanded
   const isExpanded = forceMobileOpen || sidebarOpen;
@@ -85,6 +88,8 @@ export default function Sidebar({ forceMobileOpen }) {
     const badge = getBadge(item.id);
     const isHovered = hoveredItem === item.id;
     const isKairos = item.kairos;
+    const label = t(`nav.${item.id}`);
+    const desc = t(`nav.${item.id}-desc`);
 
     return (
       <div className="relative">
@@ -92,7 +97,7 @@ export default function Sidebar({ forceMobileOpen }) {
           onClick={() => setPage(item.id)}
           onMouseEnter={() => setHoveredItem(item.id)}
           onMouseLeave={() => setHoveredItem(null)}
-          title={!isExpanded ? item.label : undefined}
+          title={!isExpanded ? label : undefined}
           className={`w-full flex items-center rounded-xl transition-all duration-200 relative group
             ${isExpanded ? 'px-3 py-3 gap-3.5' : 'px-0 py-3 justify-center'}
             ${isActive
@@ -173,7 +178,7 @@ export default function Sidebar({ forceMobileOpen }) {
             <div className="relative z-10 flex-1 min-w-0 text-left">
               <div className="flex items-center gap-2">
                 <span className={`text-[14px] truncate leading-tight ${isActive ? 'font-bold' : 'font-medium'} ${isKairos && !isActive ? 'text-blue-300/90' : ''}`}>
-                  {item.label}
+                  {label}
                 </span>
                 {isKairos && (
                   <span className="text-[8px] font-bold bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
@@ -191,13 +196,13 @@ export default function Sidebar({ forceMobileOpen }) {
                   </span>
                 )}
               </div>
-              {!compact && item.desc && (
+              {!compact && desc && !desc.startsWith('nav.') && (
                 <span className={`text-[11px] leading-tight truncate block mt-0.5 transition-colors
                   ${isKairos
                     ? (isActive ? 'text-blue-300/60' : 'text-blue-400/40')
                     : (isActive ? 'text-[var(--text-dim)]' : 'text-[var(--text-dim)]/50')
                   }`}>
-                  {item.desc}
+                  {desc}
                 </span>
               )}
             </div>
@@ -215,8 +220,8 @@ export default function Sidebar({ forceMobileOpen }) {
               className="absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 pointer-events-none"
             >
               <div className="bg-[var(--dark-3)] border border-[var(--border-light)] px-3 py-2 rounded-lg shadow-xl">
-                <p className="text-xs font-semibold text-[var(--text)] whitespace-nowrap">{item.label}</p>
-                {item.desc && <p className="text-[10px] text-[var(--text-dim)] whitespace-nowrap">{item.desc}</p>}
+                <p className="text-xs font-semibold text-[var(--text)] whitespace-nowrap">{label}</p>
+                {desc && !desc.startsWith('nav.') && <p className="text-[10px] text-[var(--text-dim)] whitespace-nowrap">{desc}</p>}
               </div>
             </motion.div>
           )}
@@ -310,8 +315,8 @@ export default function Sidebar({ forceMobileOpen }) {
           const visibleItems = section.items.filter(item => !item.adminOnly || userIsAdmin);
           if (visibleItems.length === 0) return null;
           return (
-            <div key={section.label} className={si > 0 ? 'mt-6' : 'mt-1'}>
-              <SectionLabel label={section.label} kairos={section.kairos} />
+            <div key={section.labelKey} className={si > 0 ? 'mt-6' : 'mt-1'}>
+              <SectionLabel label={t(`sidebar.${section.labelKey}`)} kairos={section.kairos} />
               <div className="space-y-1">
                 {visibleItems.map(item => <NavItem key={item.id} item={item} />)}
               </div>
@@ -334,7 +339,7 @@ export default function Sidebar({ forceMobileOpen }) {
           onClick={logout}
           onMouseEnter={() => setHoveredItem('logout')}
           onMouseLeave={() => setHoveredItem(null)}
-          title={!isExpanded ? 'Salir' : undefined}
+          title={!isExpanded ? t('nav.settings') : undefined}
           className={`w-full flex items-center rounded-xl text-[var(--text-dim)] hover:text-[var(--red)] transition-all duration-200 mt-1 relative
             ${isExpanded ? 'px-3 py-2.5 gap-3' : 'px-0 py-2.5 justify-center'}
             hover:bg-[var(--red)]/[0.06]`}
@@ -342,7 +347,7 @@ export default function Sidebar({ forceMobileOpen }) {
           <div className={`flex items-center justify-center shrink-0 rounded-lg ${isExpanded ? 'w-8 h-8' : 'w-9 h-9'}`}>
             <LogOut size={isExpanded ? 16 : 18} strokeWidth={1.5} />
           </div>
-          {isExpanded && <span className="text-[14px] font-medium">Cerrar Sesión</span>}
+          {isExpanded && <span className="text-[14px] font-medium">{lang === 'es' ? 'Cerrar Sesión' : 'Log Out'}</span>}
 
           {/* Logout tooltip */}
           <AnimatePresence>
@@ -355,7 +360,7 @@ export default function Sidebar({ forceMobileOpen }) {
                 className="absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 pointer-events-none"
               >
                 <div className="bg-[var(--dark-3)] border border-[var(--border-light)] px-3 py-2 rounded-lg shadow-xl">
-                  <p className="text-xs font-semibold text-[var(--red)] whitespace-nowrap">Cerrar Sesión</p>
+                  <p className="text-xs font-semibold text-[var(--red)] whitespace-nowrap">{lang === 'es' ? 'Cerrar Sesión' : 'Log Out'}</p>
                 </div>
               </motion.div>
             )}

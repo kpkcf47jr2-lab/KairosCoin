@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kairos Trade — Dashboard Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --gold: #3B82F6;
+  --dark: #08090C;
+  --surface: #0E1015;
+  --surface-2: #14161C;
+  --border: #1A1D26;
+  --green: #00DC82;
+  --red: #FF4757;
+  --text: #F0F0F0;
+  --text-dim: #6B7080;
+}
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--dark);
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* ─── Full app mockup at 1920x1080 ─── */
+.app-shell {
+  width: 1920px;
+  height: 1080px;
+  display: flex;
+  background: var(--dark);
+}
+
+/* Sidebar */
+.sidebar {
+  width: 280px;
+  background: linear-gradient(180deg, #0E1015, #08090C);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  flex-shrink: 0;
+}
+.sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(30,34,45,0.6);
+  height: 68px;
+}
+.sidebar-logo img { display: none; }
+.logo-k {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3B82F6, #2563EB);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 900;
+  color: white;
+}
+.logo-name { font-size: 17px; font-weight: 800; letter-spacing: 2px; }
+.logo-sub { font-size: 11px; font-weight: 700; color: var(--gold); letter-spacing: 3px; }
+
+.user-card {
+  margin: 16px 20px 8px;
+  padding: 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.04), rgba(26,29,38,0.5));
+  border: 1px solid rgba(59,130,246,0.06);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+.user-name { font-size: 14px; font-weight: 600; }
+.user-badge { font-size: 10px; font-weight: 700; color: #00DC82; letter-spacing: 1px; }
+
+.nav { flex: 1; padding: 12px 20px; overflow: hidden; }
+.nav-section { margin-top: 20px; }
+.nav-section:first-child { margin-top: 0; }
+.nav-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+.nav-item.active {
+  color: white;
+  background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(59,130,246,0.02));
+  border: 1px solid rgba(59,130,246,0.1);
+  font-weight: 700;
+}
+.nav-item.kairos { color: rgba(147,197,253,0.8); }
+.nav-icon { font-size: 16px; width: 20px; text-align: center; }
+.nav-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(59,130,246,0.12);
+  color: var(--gold);
+  padding: 2px 8px;
+  border-radius: 100px;
+}
+
+/* Main Content */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Header */
+.header {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid rgba(26,29,38,0.6);
+  background: linear-gradient(180deg, rgba(14,16,21,0.95), rgba(8,9,12,0.95));
+}
+.pair-info { display: flex; align-items: center; gap: 12px; }
+.pair-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pair-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.04));
+  border: 1px solid rgba(59,130,246,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.pair-name { font-size: 14px; font-weight: 700; }
+.pair-type { font-size: 9px; color: var(--text-dim); }
+.price { font-size: 16px; font-weight: 700; font-family: 'Inter', monospace; }
+.price-change {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Inter', monospace;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+.price-change.up { color: var(--green); background: rgba(0,220,130,0.08); border: 1px solid rgba(0,220,130,0.12); }
+
+.header-right { display: flex; align-items: center; gap: 10px; }
+.connected-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--green);
+  background: rgba(0,220,130,0.06);
+  border: 1px solid rgba(0,220,130,0.1);
+  padding: 6px 14px;
+  border-radius: 8px;
+}
+.connected-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.ai-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--gold);
+  background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.15);
+  padding: 6px 14px;
+  border-radius: 8px;
+}
+.bell-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(26,29,38,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  position: relative;
+}
+.bell-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+/* Dashboard Content */
+.dashboard {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* KPI Cards */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.kpi-card {
+  padding: 20px 22px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+.kpi-card.green::before { background: linear-gradient(90deg, var(--green), transparent); }
+.kpi-card.blue::before { background: linear-gradient(90deg, var(--gold), transparent); }
+.kpi-card.purple::before { background: linear-gradient(90deg, #A855F7, transparent); }
+.kpi-card.gold::before { background: linear-gradient(90deg, #D4AF37, transparent); }
+.kpi-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.kpi-value {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.kpi-change {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Bot Grid */
+.section-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.bot-card {
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.bot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.bot-name-area { display: flex; align-items: center; gap: 10px; }
+.bot-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+.bot-icon.green { background: rgba(0,220,130,0.1); color: var(--green); }
+.bot-icon.blue { background: rgba(59,130,246,0.1); color: var(--gold); }
+.bot-icon.purple { background: rgba(168,85,247,0.1); color: #A855F7; }
+.bot-name { font-size: 14px; font-weight: 700; }
+.bot-pair { font-size: 11px; color: var(--text-dim); }
+.bot-status {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 100px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.bot-status.active { color: var(--green); background: rgba(0,220,130,0.1); }
+.bot-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.bot-stat-label { font-size: 10px; color: var(--text-dim); font-weight: 600; }
+.bot-stat-value { font-size: 16px; font-weight: 700; margin-top: 2px; }
+.bot-mini-chart {
+  margin-top: 12px;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+.bot-chart-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+/* Trade History */
+.trade-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.trade-table th {
+  text-align: left;
+  padding: 10px 14px;
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+.trade-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(26,29,38,0.4);
+  font-weight: 500;
+}
+.trade-table tr:hover { background: rgba(59,130,246,0.02); }
+.trade-side {
+  font-weight: 700;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.trade-side.buy { color: var(--green); background: rgba(0,220,130,0.08); }
+.trade-side.sell { color: var(--red); background: rgba(255,71,87,0.08); }
+.trade-pnl { font-weight: 700; }
+.trade-pnl.pos { color: var(--green); }
+.trade-pnl.neg { color: var(--red); }
+
+/* SVG sparklines for bots */
+.sparkline { width: 100%; height: 40px; }
+</style>
+</head>
+<body style="display: flex; justify-content: center; padding: 20px; background: #111;">
+
+<div class="app-shell">
+  <!-- ═══ SIDEBAR ═══ -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-k">K</div>
+      <div>
+        <div class="logo-name">KAIROS</div>
+        <div class="logo-sub">TRADE</div>
+      </div>
+    </div>
+
+    <div class="user-card">
+      <div class="user-avatar">👤</div>
+      <div>
+        <div class="user-name">Mario Isaac</div>
+        <div class="user-badge">★ ADMIN</div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <div class="nav-section">
+        <div class="nav-label">Kairos</div>
+        <div class="nav-item kairos"><span class="nav-icon">📈</span> Kairos Broker</div>
+        <div class="nav-item kairos"><span class="nav-icon">🏦</span> Kairos Vault</div>
+        <div class="nav-item kairos"><span class="nav-icon">👑</span> Treasury</div>
+        <div class="nav-item kairos"><span class="nav-icon">💳</span> Comprar KAIROS</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Principal</div>
+        <div class="nav-item active"><span class="nav-icon">📊</span> Dashboard</div>
+        <div class="nav-item"><span class="nav-icon">📉</span> Trading</div>
+        <div class="nav-item"><span class="nav-icon">🎯</span> Multi-Chart</div>
+        <div class="nav-item"><span class="nav-icon">🔥</span> Heatmap</div>
+        <div class="nav-item"><span class="nav-icon">▶️</span> Simulador</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Automatización</div>
+        <div class="nav-item"><span class="nav-icon">🤖</span> Bots <span class="nav-badge">6</span></div>
+        <div class="nav-item"><span class="nav-icon">⚡</span> Estrategias</div>
+        <div class="nav-item"><span class="nav-icon">✨</span> Kairos AI</div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Analytics</div>
+        <div class="nav-item"><span class="nav-icon">📊</span> Portfolio</div>
+        <div class="nav-item"><span class="nav-icon">📖</span> Journal</div>
+        <div class="nav-item"><span class="nav-icon">🛡️</span> Riesgo</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MAIN ═══ -->
+  <div class="main">
+    <!-- Header -->
+    <div class="header">
+      <div class="pair-info">
+        <div class="pair-badge">
+          <div class="pair-icon">BTC</div>
+          <div>
+            <div class="pair-name">BTC / USDT</div>
+            <div class="pair-type">Spot Trading</div>
+          </div>
+        </div>
+        <div style="width: 1px; height: 28px; background: var(--border);"></div>
+        <div class="price">$97,234.50</div>
+        <div class="price-change up">▲ +4.28%</div>
+        <span style="font-size: 10px; color: var(--text-dim);">24h</span>
+      </div>
+      <div class="header-right">
+        <div class="connected-badge">
+          <div class="connected-dot"></div>
+          Binance
+        </div>
+        <div class="ai-btn">🧠 AI</div>
+        <div class="bell-btn">🔔<div class="bell-dot"></div></div>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="dashboard">
+      <!-- KPIs -->
+      <div class="kpi-row">
+        <div class="kpi-card green">
+          <div class="kpi-label">💰 Portfolio Total</div>
+          <div class="kpi-value" style="color: var(--text);">$284,532.78</div>
+          <div class="kpi-change" style="color: var(--green);">▲ +$34,891.20 este mes</div>
+        </div>
+        <div class="kpi-card blue">
+          <div class="kpi-label">📈 P&L Hoy</div>
+          <div class="kpi-value" style="color: var(--green);">+$3,847.50</div>
+          <div class="kpi-change" style="color: var(--green);">▲ +1.37%</div>
+        </div>
+        <div class="kpi-card purple">
+          <div class="kpi-label">🤖 Bots Activos</div>
+          <div class="kpi-value" style="color: var(--gold);">6</div>
+          <div class="kpi-change" style="color: var(--green);">142 trades hoy</div>
+        </div>
+        <div class="kpi-card gold">
+          <div class="kpi-label">🎯 Win Rate</div>
+          <div class="kpi-value" style="color: #D4AF37;">87.3%</div>
+          <div class="kpi-change" style="color: var(--green);">▲ +2.1% vs ayer</div>
+        </div>
+      </div>
+
+      <!-- Active Bots -->
+      <div class="section-title">🤖 Bots Activos — Rendimiento en Vivo</div>
+      <div class="bot-grid">
+        <!-- Bot 1 -->
+        <div class="bot-card">
+          <div class="bot-header">
+            <div class="bot-name-area">
+              <div class="bot-icon green">🤖</div>
+              <div>
+                <div class="bot-name">Alpha Scalper Pro</div>
+                <div class="bot-pair">BTC/USDT • Grid</div>
+              </div>
+            </div>
+            <div class="bot-status active">● Activo</div>
+          </div>
+          <div class="bot-stats">
+            <div>
+              <div class="bot-stat-label">P&L Total</div>
+              <div class="bot-stat-value" style="color: var(--green);">+$12,847</div>
+            </div>
+            <div>
+              <div class="bot-stat-label">Win Rate</div>
+              <div class="bot-stat-value">92.1%</div>
+            </div>
+            <div>
+              <div class="bot-stat-label">Trades</div>
+              <div class="bot-stat-value">1,247</div>
+            </div>
+          </div>
+          <div class="bot-mini-chart">
+            <svg class="sparkline" viewBox="0 0 200 40" preserveAspectRatio="none">
+              <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00DC82" stop-opacity="0.3"/><stop offset="100%" stop-color="#00DC82" stop-opacity="0"/></linearGradient></defs>
+              <path d="M0,35 L15,30 L30,32 L45,25 L60,28 L75,20 L90,22 L105,15 L120,18 L135,12 L150,14 L165,8 L180,10 L195,5 L200,3 L200,40 L0,40 Z" fill="url(#g1)"/>
+              <path d="M0,35 L15,30 L30,32 L45,25 L60,28 L75,20 L90,22 L105,15 L120,18 L135,12 L150,14 L165,8 L180,10 L195,5 L200,3" fill="none" stroke="#00DC82" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Bot 2 -->
+        <div class="bot-card">
+          <div class="bot-header">
+            <div class="bot-name-area">
+              <div class="bot-icon blue">🤖</div>
+              <div>
+                <div class="bot-name">ETH Momentum</div>
+                <div class="bot-pair">ETH/USDT • DCA</div>
+              </div>
+            </div>
+            <div class="bot-status active">● Activo</div>
+          </div>
+          <div class="bot-stats">
+            <div>
+              <div class="bot-stat-label">P&L Total</div>
+              <div class="bot-stat-value" style="color: var(--green);">+$8,432</div>
+            </div>
+            <div>
+              <div class="bot-stat-label">Win Rate</div>
+              <div class="bot-stat-value">88.4%</div>
+            </div>
+            <div>
+              <div class="bot-stat-label">Trades</div>
+              <div class="bot-stat-value">856</div>
+            </div>
+          </div>
+          <div class="bot-mini-chart">
+            <svg class="sparkline" viewBox="0 0 200 40" preserveAspectRatio="none">
+              <defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3B82F6" stop-opacity="0.3"/><stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/></linearGradient></defs>
+              <path d="M0,30 L20,28 L40,24 L60,26 L80,18 L100,20 L120,14 L140,16 L160,10 L180,8 L200,5 L200,40 L0,40 Z" fill="url(#g2)"/>
+              <path d="M0,30 L20,28 L40,24 L60,26 L80,18 L100,20 L120,14 L140,16 L160,10 L180,8 L200,5" fill="none" stroke="#3B82F6" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Bot 3 -->
+        <div class="bot-card">
+          <div class="bot-header">
+            <div class="bot-name-area">
+              <div class="bot-icon purple">🤖</div>
+              <div>
+                <div class="bot-name">SOL Breakout AI</div>
+                <div class="bot-pair">SOL/USDT • Scalping</div>
+              </div>
+            </div>
+            <div class="bot-status active">● Activo</div>
+          </div>
+          <div class="bot-stats">
+            <div>
+              <div class="bot-stat-label">P&L Total</div>
+              <div class="bot-stat-value" style="color: var(--green);">+$6,215</div>
+            </div>
+            <div>
+              <div class="bot-stat-label">Win Rate</div>
+              <div class="bot-stat-value">90.7%</div>
+            </div>
+            <div>
+              <div class="bot-stat-label">Trades</div>
+              <div class="bot-stat-value">2,103</div>
+            </div>
+          </div>
+          <div class="bot-mini-chart">
+            <svg class="sparkline" viewBox="0 0 200 40" preserveAspectRatio="none">
+              <defs><linearGradient id="g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#A855F7" stop-opacity="0.3"/><stop offset="100%" stop-color="#A855F7" stop-opacity="0"/></linearGradient></defs>
+              <path d="M0,32 L25,28 L50,30 L75,22 L100,24 L125,15 L150,18 L175,8 L200,4 L200,40 L0,40 Z" fill="url(#g3)"/>
+              <path d="M0,32 L25,28 L50,30 L75,22 L100,24 L125,15 L150,18 L175,8 L200,4" fill="none" stroke="#A855F7" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Bot 4 -->
+        <div class="bot-card">
+          <div class="bot-header">
+            <div class="bot-name-area">
+              <div class="bot-icon green">🤖</div>
+              <div>
+                <div class="bot-name">BNB Smart Grid</div>
+                <div class="bot-pair">BNB/USDT • Grid</div>
+              </div>
+            </div>
+            <div class="bot-status active">● Activo</div>
+          </div>
+          <div class="bot-stats">
+            <div>
+              <div class="bot-stat-label">P&L Total</div>
+              <div class="bot-stat-value" style="color: var(--green);">+$4,890</div>
+            </div>
+            <div>
+              <div class="bot-stat-label">Win Rate</div>
+              <div class="bot-stat-value">85.6%</div>
+            </div>
+            <div>
+              <div class="bot-stat-label">Trades</div>
+              <div class="bot-stat-value">743</div>
+            </div>
+          </div>
+          <div class="bot-mini-chart">
+            <svg class="sparkline" viewBox="0 0 200 40" preserveAspectRatio="none">
+              <path d="M0,34 L30,28 L60,30 L90,22 L120,18 L150,15 L180,10 L200,6 L200,40 L0,40 Z" fill="url(#g1)"/>
+              <path d="M0,34 L30,28 L60,30 L90,22 L120,18 L150,15 L180,10 L200,6" fill="none" stroke="#00DC82" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Bot 5 -->
+        <div class="bot-card">
+          <div class="bot-header">
+            <div class="bot-name-area">
+              <div class="bot-icon blue">🤖</div>
+              <div>
+                <div class="bot-name">ARB Swing Master</div>
+                <div class="bot-pair">ARB/USDT • Swing</div>
+              </div>
+            </div>
+            <div class="bot-status active">● Activo</div>
+          </div>
+          <div class="bot-stats">
+            <div>
+              <div class="bot-stat-label">P&L Total</div>
+              <div class="bot-stat-value" style="color: var(--green);">+$3,156</div>
+            </div>
+            <div>
+              <div class="bot-stat-label">Win Rate</div>
+              <div class="bot-stat-value">84.2%</div>
+            </div>
+            <div>
+              <div class="bot-stat-label">Trades</div>
+              <div class="bot-stat-value">412</div>
+            </div>
+          </div>
+          <div class="bot-mini-chart">
+            <svg class="sparkline" viewBox="0 0 200 40" preserveAspectRatio="none">
+              <path d="M0,36 L25,32 L50,28 L75,30 L100,22 L125,18 L150,14 L175,10 L200,6 L200,40 L0,40 Z" fill="url(#g2)"/>
+              <path d="M0,36 L25,32 L50,28 L75,30 L100,22 L125,18 L150,14 L175,10 L200,6" fill="none" stroke="#3B82F6" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Bot 6 -->
+        <div class="bot-card">
+          <div class="bot-header">
+            <div class="bot-name-area">
+              <div class="bot-icon green">🤖</div>
+              <div>
+                <div class="bot-name">DOGE Micro Scalp</div>
+                <div class="bot-pair">DOGE/USDT • Scalping</div>
+              </div>
+            </div>
+            <div class="bot-status active">● Activo</div>
+          </div>
+          <div class="bot-stats">
+            <div>
+              <div class="bot-stat-label">P&L Total</div>
+              <div class="bot-stat-value" style="color: var(--green);">+$2,341</div>
+            </div>
+            <div>
+              <div class="bot-stat-label">Win Rate</div>
+              <div class="bot-stat-value">91.8%</div>
+            </div>
+            <div>
+              <div class="bot-stat-label">Trades</div>
+              <div class="bot-stat-value">3,847</div>
+            </div>
+          </div>
+          <div class="bot-mini-chart">
+            <svg class="sparkline" viewBox="0 0 200 40" preserveAspectRatio="none">
+              <path d="M0,33 L20,30 L40,28 L60,25 L80,27 L100,20 L120,16 L140,18 L160,12 L180,8 L200,5 L200,40 L0,40 Z" fill="url(#g1)"/>
+              <path d="M0,33 L20,30 L40,28 L60,25 L80,27 L100,20 L120,16 L140,18 L160,12 L180,8 L200,5" fill="none" stroke="#00DC82" stroke-width="2"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Trades -->
+      <div class="section-title">📋 Últimas Operaciones Ganadoras</div>
+      <div style="background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow: hidden;">
+        <table class="trade-table">
+          <thead>
+            <tr>
+              <th>Bot</th>
+              <th>Par</th>
+              <th>Lado</th>
+              <th>Precio Entrada</th>
+              <th>Precio Salida</th>
+              <th>P&L</th>
+              <th>Duración</th>
+              <th>Hora</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight: 700;">Alpha Scalper Pro</td>
+              <td>BTC/USDT</td>
+              <td><span class="trade-side buy">LONG</span></td>
+              <td style="font-family: monospace;">$96,842.30</td>
+              <td style="font-family: monospace;">$97,234.50</td>
+              <td><span class="trade-pnl pos">+$392.20</span></td>
+              <td>12m</td>
+              <td style="color: var(--text-dim);">hace 2m</td>
+            </tr>
+            <tr>
+              <td style="font-weight: 700;">ETH Momentum</td>
+              <td>ETH/USDT</td>
+              <td><span class="trade-side buy">LONG</span></td>
+              <td style="font-family: monospace;">$3,421.80</td>
+              <td style="font-family: monospace;">$3,489.20</td>
+              <td><span class="trade-pnl pos">+$674.00</span></td>
+              <td>28m</td>
+              <td style="color: var(--text-dim);">hace 5m</td>
+            </tr>
+            <tr>
+              <td style="font-weight: 700;">SOL Breakout AI</td>
+              <td>SOL/USDT</td>
+              <td><span class="trade-side buy">LONG</span></td>
+              <td style="font-family: monospace;">$187.42</td>
+              <td style="font-family: monospace;">$192.85</td>
+              <td><span class="trade-pnl pos">+$543.00</span></td>
+              <td>8m</td>
+              <td style="color: var(--text-dim);">hace 8m</td>
+            </tr>
+            <tr>
+              <td style="font-weight: 700;">DOGE Micro Scalp</td>
+              <td>DOGE/USDT</td>
+              <td><span class="trade-side sell">SHORT</span></td>
+              <td style="font-family: monospace;">$0.4128</td>
+              <td style="font-family: monospace;">$0.4089</td>
+              <td><span class="trade-pnl pos">+$195.00</span></td>
+              <td>3m</td>
+              <td style="color: var(--text-dim);">hace 11m</td>
+            </tr>
+            <tr>
+              <td style="font-weight: 700;">BNB Smart Grid</td>
+              <td>BNB/USDT</td>
+              <td><span class="trade-side buy">LONG</span></td>
+              <td style="font-family: monospace;">$648.50</td>
+              <td style="font-family: monospace;">$654.20</td>
+              <td><span class="trade-pnl pos">+$285.00</span></td>
+              <td>15m</td>
+              <td style="color: var(--text-dim);">hace 14m</td>
+            </tr>
+            <tr>
+              <td style="font-weight: 700;">ARB Swing Master</td>
+              <td>ARB/USDT</td>
+              <td><span class="trade-side buy">LONG</span></td>
+              <td style="font-family: monospace;">$1.824</td>
+              <td style="font-family: monospace;">$1.891</td>
+              <td><span class="trade-pnl pos">+$335.00</span></td>
+              <td>45m</td>
+              <td style="color: var(--text-dim);">hace 18m</td>
+            </tr>
+            <tr>
+              <td style="font-weight: 700;">Alpha Scalper Pro</td>
+              <td>BTC/USDT</td>
+              <td><span class="trade-side sell">SHORT</span></td>
+              <td style="font-family: monospace;">$97,105.00</td>
+              <td style="font-family: monospace;">$96,842.30</td>
+              <td><span class="trade-pnl pos">+$262.70</span></td>
+              <td>6m</td>
+              <td style="color: var(--text-dim);">hace 22m</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
