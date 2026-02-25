@@ -126,7 +126,7 @@ function initialize() {
   try {
     const rpcUrl = process.env.ARBITRUM_RPC_URL || "https://arb1.arbitrum.io/rpc";
     const relayerKey = process.env.RELAYER_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || process.env.OWNER_PRIVATE_KEY;
-    KAIROS_PERPS_ADDRESS = process.env.KAIROS_PERPS_ADDRESS || "";
+    KAIROS_PERPS_ADDRESS = process.env.KAIROS_PERPS_ADDRESS || KAIROS_PERPS_ADDRESS || "0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9";
 
     if (!relayerKey) {
       logger.warn("DEX Router: No relayer private key configured — running in read-only mode");
