@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 25, 2026 (Session 14C — Enhanced Swap/DEX + Vault + Push Notifications)
+#  Last Updated: February 25, 2026 (Session 14D — Website v2 Redesign + SEO)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -957,6 +957,30 @@ After adding, click **"Save Changes"** → Render will auto-redeploy.
 - Wallet: https://kairos-wallet.netlify.app (deploy `699f6466`)
 - Backend: Render auto-deploy from commits `f9c2c91`, `42ba6fc`
 - Git: Latest commit `42ba6fc`
+
+---
+
+## 21. SESSION 14D — Website v2 Redesign + SEO (Feb 25, 2026)
+
+### Website Complete Rewrite
+- **`website/index.html`** — REWRITTEN from scratch (~600 lines):
+  - Modern dark UI with floating gradient glows (blue, purple, gold), fadeUp animations
+  - Full SEO: Schema.org JSON-LD (Organization + 2 WebApplication), OG tags with images, Twitter Cards
+  - `<meta name="robots" content="index, follow">`, `<link rel="canonical">`
+  - **Trust Bar**: Binance, Coinbase, PancakeSwap, Uniswap, Aave, GMX logos
+  - **New Yield Vault section**: Showcases Aave V3 (3.2%), Venus (4.8%), KAIROS Treasury (8.5%)
+  - **Updated Ecosystem Cards**: Wallet card shows NEW badges (Multi-DEX Swaps, DeFi Yield Vaults, Push Notifications)
+  - **Numbers Bar**: 6 items now (added "8.5% Max Vault APY")
+  - **Hero**: "The Future of Decentralized Finance", mentions yield vaults, 6 Blockchains stat
+  - **Live BTC Price**: Fetched from Binance public API every 30s (new feature)
+  - **Security section**: Updated with cloud backup (AES-256-GCM), push notifications
+  - **Nav**: scrolled class with box-shadow transition, lazy unobserve after reveal
+  - All inline CSS (no external dependency other than Google Fonts)
+- **`website/sitemap.xml`** — NEW: 5 URLs (index, coin, buy, reserves, whitepaper)
+- **`website/robots.txt`** — NEW: Allow all, sitemap reference
+- **`website/index-v1-backup.html`** — Backup of original 737-line index.html
+- **Commit:** `7e57e5d`
+- **Deploy:** Live at https://kairos-777.com
 
 ---
 
