@@ -4,7 +4,7 @@
 //  Security level: Banking-grade
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const Database = require('better-sqlite3');
+const Database = require('libsql');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const speakeasy = require('speakeasy');
@@ -12,6 +12,7 @@ const QRCode = require('qrcode');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const config = require('../config');
 const logger = require('../utils/logger');
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -30,12 +31,18 @@ let db = null;
 // ═════════════════════════════════════════════════════════════════════════════
 
 function initialize() {
-  const dbDir = path.join(__dirname, '../../data');
-  if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
-
-  db = new Database(path.join(dbDir, 'kairos_auth.db'));
-  db.pragma('journal_mode = WAL');
-  db.pragma('busy_timeout = 5000');
+  if (config.tursoAuthUrl && config.tursoAuthToken) {
+    // Cloud mode — Turso persistent database
+    db = new Database(config.tursoAuthUrl, { authToken: config.tursoAuthToken });
+    logger.info(`Auth DB connected to Turso cloud: ${config.tursoAuthUrl}`);
+  } else {
+    // Local fallback
+    const dbDir = path.join(__dirname, '../../data');
+    if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+    db = new Database(path.join(dbDir, 'kairos_auth.db'));
+    db.pragma('journal_mode = WAL');
+    db.pragma('busy_timeout = 5000');
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (

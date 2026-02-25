@@ -100,11 +100,24 @@ export default function AuthScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
+  const [signupBonus, setSignupBonus] = useState(null);
 
   // 2FA state
   const [show2FA, setShow2FA] = useState(false);
   const [totpCode, setTotpCode] = useState('');
   const [tempToken, setTempToken] = useState('');
+
+  // Read referral code from URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      setReferralCode(ref.toUpperCase());
+      setIsLogin(false);
+      setShowForm(true);
+    }
+  }, []);
 
   /* ─── API helper ─── */
   const apiFetch = async (path, body) => {
@@ -169,10 +182,17 @@ export default function AuthScreen() {
           name: form.name,
           walletAddress,
           encryptedKey,
+          referralCode: referralCode || undefined,
         });
 
         // Persist wallet backup locally
         localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress, encryptedKey }));
+
+        // Show signup bonus notification
+        if (data.data?.referral?.signupBonus) {
+          setSignupBonus(data.data.referral.signupBonus.amount);
+          setTimeout(() => setSignupBonus(null), 6000);
+        }
 
         completeLogin(data.data);
       } else {
@@ -272,8 +292,34 @@ export default function AuthScreen() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2, duration: 0.8 }}>
               <h1 className="text-6xl sm:text-7xl font-black tracking-[0.25em] text-white relative"
                 style={{ textShadow: '0 0 60px rgba(59,130,246,0.3), 0 0 120px rgba(59,130,246,0.1)' }}>
-                KAIR<span className="relative inline-block align-middle" style={{ width: '0.85em', height: '0.85em', marginBottom: '0.05em' }}>
-                  <img src={KAIROS_LOGO} alt="O" className="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]" />
+                KAIR<span className="relative inline-block align-middle" style={{ width: '0.92em', height: '0.92em', marginBottom: '0.02em' }}>
+                  {/* Decentralized network node symbol */}
+                  <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                    <defs>
+                      <linearGradient id="nodeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#60A5FA" />
+                        <stop offset="100%" stopColor="#3B82F6" />
+                      </linearGradient>
+                    </defs>
+                    {/* Hexagon outer */}
+                    <polygon points="50,5 93,27.5 93,72.5 50,95 7,72.5 7,27.5" fill="none" stroke="url(#nodeGrad)" strokeWidth="3" opacity="0.9" />
+                    {/* Inner connection lines */}
+                    <line x1="50" y1="5" x2="50" y2="50" stroke="#3B82F6" strokeWidth="1.5" opacity="0.5" />
+                    <line x1="93" y1="27.5" x2="50" y2="50" stroke="#3B82F6" strokeWidth="1.5" opacity="0.5" />
+                    <line x1="93" y1="72.5" x2="50" y2="50" stroke="#3B82F6" strokeWidth="1.5" opacity="0.5" />
+                    <line x1="50" y1="95" x2="50" y2="50" stroke="#3B82F6" strokeWidth="1.5" opacity="0.5" />
+                    <line x1="7" y1="72.5" x2="50" y2="50" stroke="#3B82F6" strokeWidth="1.5" opacity="0.5" />
+                    <line x1="7" y1="27.5" x2="50" y2="50" stroke="#3B82F6" strokeWidth="1.5" opacity="0.5" />
+                    {/* Center node */}
+                    <circle cx="50" cy="50" r="6" fill="url(#nodeGrad)" />
+                    {/* Vertex nodes */}
+                    <circle cx="50" cy="5" r="4" fill="#60A5FA" />
+                    <circle cx="93" cy="27.5" r="4" fill="#60A5FA" />
+                    <circle cx="93" cy="72.5" r="4" fill="#60A5FA" />
+                    <circle cx="50" cy="95" r="4" fill="#60A5FA" />
+                    <circle cx="7" cy="72.5" r="4" fill="#60A5FA" />
+                    <circle cx="7" cy="27.5" r="4" fill="#60A5FA" />
+                  </svg>
                 </span>S
               </h1>
               <motion.div className="flex items-center justify-center gap-3 mt-3"
@@ -291,8 +337,7 @@ export default function AuthScreen() {
             {/* Tagline */}
             <motion.p className="text-lg sm:text-xl text-white/50 mt-8 max-w-md font-light leading-relaxed"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2 }}>
-              Decentralized Leverage Trading.<br />
-              <span className="text-[#3B82F6]/90 font-medium">100% Real. Zero Simulation.</span>
+              Decentralized Leverage Trading.
             </motion.p>
 
             {/* Stats row */}
@@ -465,6 +510,16 @@ export default function AuthScreen() {
                           </button>
                         </div>
                       </div>
+                      <AnimatePresence mode="wait">
+                        {!isLogin && (
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
+                            <label className="text-[11px] text-white/30 mb-1.5 block font-semibold uppercase tracking-wider">Código de Referido <span className="text-white/15">(opcional)</span></label>
+                            <input type="text" value={referralCode} onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                              placeholder="KAI-XXXXXXXX" className="w-full" maxLength={12}
+                              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', borderRadius: '0.75rem', padding: '0.65rem 0.85rem', fontSize: '0.875rem', letterSpacing: '0.05em' }} />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                       <AnimatePresence>
                         {error && (
                           <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
@@ -495,6 +550,29 @@ export default function AuthScreen() {
             <p className="text-[10px] text-white/15 text-center mt-6">
               Parte del ecosistema <span className="text-[#3B82F6]/40 font-semibold">Kairos 777</span>
             </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Signup Bonus Toast */}
+      <AnimatePresence>
+        {signupBonus && (
+          <motion.div
+            initial={{ opacity: 0, y: 60, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 60, scale: 0.9 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-2xl flex items-center gap-3"
+            style={{
+              background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(16,185,129,0.15))',
+              border: '1px solid rgba(59,130,246,0.3)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+            }}>
+            <span className="text-2xl">🎁</span>
+            <div>
+              <p className="text-sm font-bold text-white">¡Bienvenido a Kairos!</p>
+              <p className="text-xs text-[#3B82F6]">+{signupBonus} KAIROS de regalo</p>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -46,7 +46,13 @@ const config = {
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
   telegramChatId: process.env.TELEGRAM_CHAT_ID || "",
 
-  // Paths
+  // Turso (persistent cloud SQLite)
+  tursoMainUrl: process.env.TURSO_MAIN_URL || "",
+  tursoMainToken: process.env.TURSO_MAIN_TOKEN || "",
+  tursoAuthUrl: process.env.TURSO_AUTH_URL || "",
+  tursoAuthToken: process.env.TURSO_AUTH_TOKEN || "",
+
+  // Paths (fallback for local dev without Turso)
   dbPath: require("path").join(__dirname, "../data/kairos.db"),
   logsPath: require("path").join(__dirname, "../logs"),
 };

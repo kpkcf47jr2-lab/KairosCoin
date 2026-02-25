@@ -21,6 +21,7 @@ const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const authService = require('../services/authService');
+const referralService = require('../services/referralService');
 const { requireAuth, requireAdmin } = require('../middleware/jwtAuth');
 const { requireMasterKey } = require('../middleware/auth');
 const logger = require('../utils/logger');
@@ -61,12 +62,30 @@ function getClientInfo(req) {
 
 router.post('/register', authLimiter, async (req, res) => {
   try {
-    const { email, password, name, walletAddress, encryptedKey } = req.body;
+    const { email, password, name, walletAddress, encryptedKey, referralCode } = req.body;
     const { ip, userAgent } = getClientInfo(req);
 
     const result = await authService.register({
       email, password, name, walletAddress, encryptedKey, ip, userAgent,
     });
+
+    // Process referral rewards after successful registration
+    let referralData = { signupBonus: null, referral: null };
+    try {
+      // 1. Signup bonus: 100 KAIROS
+      referralData.signupBonus = referralService.processSignupBonus(result.user.id, email);
+
+      // 2. Referral reward: 20 KAIROS to referrer
+      if (referralCode) {
+        referralData.referral = referralService.processReferral(result.user.id, email, referralCode);
+      }
+
+      // 3. Auto-generate referral code for new user
+      const codeData = referralService.getOrCreateCode(result.user.id);
+      referralData.myCode = codeData.code;
+    } catch (refErr) {
+      logger.warn('Referral processing error (non-fatal)', { error: refErr.message });
+    }
 
     res.status(201).json({
       success: true,
@@ -74,6 +93,7 @@ router.post('/register', authLimiter, async (req, res) => {
         user: result.user,
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
+        referral: referralData,
       },
     });
   } catch (err) {

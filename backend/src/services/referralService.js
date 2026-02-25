@@ -4,10 +4,11 @@
 //  Tracked in SQLite  •  Rewards credited to margin/vault balance
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const Database = require('better-sqlite3');
+const Database = require('libsql');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const config = require('../config');
 const logger = require('../utils/logger');
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -23,12 +24,16 @@ let db = null;
 // ═════════════════════════════════════════════════════════════════════════════
 
 function initialize() {
-  const dbDir = path.join(__dirname, '../../data');
-  if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
-
-  db = new Database(path.join(dbDir, 'kairos_auth.db'));
-  db.pragma('journal_mode = WAL');
-  db.pragma('busy_timeout = 5000');
+  if (config.tursoAuthUrl && config.tursoAuthToken) {
+    db = new Database(config.tursoAuthUrl, { authToken: config.tursoAuthToken });
+    logger.info(`Referral DB connected to Turso cloud`);
+  } else {
+    const dbDir = path.join(__dirname, '../../data');
+    if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+    db = new Database(path.join(dbDir, 'kairos_auth.db'));
+    db.pragma('journal_mode = WAL');
+    db.pragma('busy_timeout = 5000');
+  }
 
   db.exec(`
     -- ═══════════════════════════════════════════════════════════════════════

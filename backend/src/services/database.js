@@ -4,7 +4,7 @@
 //  USDT/USDC don't offer this level of off-chain transparency
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const Database = require("better-sqlite3");
+const Database = require("libsql");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const fs = require("fs");
@@ -18,20 +18,25 @@ let db = null;
 // ═════════════════════════════════════════════════════════════════════════════
 
 function initialize() {
-  const dbDir = path.dirname(config.dbPath);
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
+  if (config.tursoMainUrl && config.tursoMainToken) {
+    // Cloud mode — Turso persistent database
+    db = new Database(config.tursoMainUrl, { authToken: config.tursoMainToken });
+    logger.info(`Database connected to Turso cloud: ${config.tursoMainUrl}`);
+  } else {
+    // Local fallback — file-based SQLite
+    const dbDir = path.dirname(config.dbPath);
+    if (!fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true });
+    }
+    db = new Database(config.dbPath);
+    db.pragma("journal_mode = WAL");
+    db.pragma("busy_timeout = 5000");
+    logger.info(`Database initialized locally at ${config.dbPath}`);
   }
-
-  db = new Database(config.dbPath, { verbose: config.isDev ? logger.debug.bind(logger) : null });
-
-  // WAL mode for better concurrent read performance
-  db.pragma("journal_mode = WAL");
-  db.pragma("busy_timeout = 5000");
 
   createTables();
   runMigrations();
-  logger.info(`Database initialized at ${config.dbPath}`);
+  logger.info(`Database ready`);
 }
 
 function createTables() {
