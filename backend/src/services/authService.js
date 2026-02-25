@@ -402,6 +402,24 @@ async function changePassword(userId, currentPassword, newPassword) {
   return { changed: true };
 }
 
+// Admin force reset — requires master API key (no current password needed)
+async function forceResetPassword(email, newPassword) {
+  if (!email) throw new AuthError('Email is required', 400);
+  if (!newPassword || newPassword.length < 8) throw new AuthError('Password must be at least 8 characters', 400);
+
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase());
+  if (!user) throw new AuthError('User not found', 404);
+
+  const newHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  db.prepare('UPDATE users SET password_hash = ?, failed_attempts = 0, locked_until = NULL, updated_at = ? WHERE id = ?')
+    .run(newHash, new Date().toISOString(), user.id);
+
+  revokeAllSessions(user.id);
+  logAuth(user.id, user.email, 'admin_password_reset', null, null, true, 'Force reset by admin');
+  logger.info(`🔑 Admin force reset password for ${email}`);
+  return { reset: true, email: user.email };
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 //                           USER QUERY
 // ═════════════════════════════════════════════════════════════════════════════
@@ -459,6 +477,7 @@ module.exports = {
   verify2FASetup,
   disable2FA,
   changePassword,
+  forceResetPassword,
   getUser,
   getUserSessions,
   getAuthLog,

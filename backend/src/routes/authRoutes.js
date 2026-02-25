@@ -22,6 +22,7 @@ const router = express.Router();
 const rateLimit = require('express-rate-limit');
 const authService = require('../services/authService');
 const { requireAuth, requireAdmin } = require('../middleware/jwtAuth');
+const { requireMasterKey } = require('../middleware/auth');
 const logger = require('../utils/logger');
 
 // ── Rate Limiters ────────────────────────────────────────────────────────────
@@ -284,6 +285,20 @@ router.get('/log', requireAuth, (req, res) => {
     res.json({ success: true, data: log });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  POST /admin/reset-password — Force reset any user's password (master key)
+// ═════════════════════════════════════════════════════════════════════════════
+
+router.post('/admin/reset-password', requireMasterKey, async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    const result = await authService.forceResetPassword(email, newPassword);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, error: err.message });
   }
 });
 
