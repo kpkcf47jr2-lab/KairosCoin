@@ -14,6 +14,7 @@ import {
   RefreshCw, Plus, Minus, X, Eye, ChevronDown,
   ChevronUp, Settings
 } from 'lucide-react';
+import { createChart, ColorType, CrosshairMode } from 'lightweight-charts';
 import { ethers } from 'ethers';
 import useStore from '../../store/useStore';
 
@@ -459,8 +460,11 @@ export default function KairosBroker() {
             </div>
           </div>
 
-          {/* ── CENTER: Trading Form ── */}
+          {/* ── CENTER: Chart + Trading Form ── */}
           <div className="space-y-4">
+            {/* Mini TradingView Chart */}
+            <BrokerChart pair={selectedPair} />
+
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
               {/* Pair + Price header */}
               <div className="flex items-center justify-between mb-4">
@@ -678,6 +682,143 @@ export default function KairosBroker() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  BROKER CHART — Mini TradingView chart using lightweight-charts + Binance data
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const CHART_TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1d'];
+const BINANCE_KLINES = [
+  'https://api.binance.us/api/v3/klines',
+  'https://api.binance.com/api/v3/klines',
+];
+
+function BrokerChart({ pair }) {
+  const containerRef = useRef(null);
+  const chartRef = useRef(null);
+  const candleRef = useRef(null);
+  const volRef = useRef(null);
+  const wsRef = useRef(null);
+  const [tf, setTf] = useState('15m');
+  const [chartLoading, setChartLoading] = useState(true);
+
+  const symbol = pair.replace('/', '');
+
+  // Fetch klines from Binance (with fallback)
+  const fetchKlines = useCallback(async (sym, interval) => {
+    for (const base of BINANCE_KLINES) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 8000);
+        const res = await fetch(`${base}?symbol=${sym}&interval=${interval}&limit=300`, { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (!res.ok) continue;
+        const raw = await res.json();
+        if (!Array.isArray(raw)) continue;
+        return raw.map(k => ({
+          time: Math.floor(k[0] / 1000),
+          open: +k[1], high: +k[2], low: +k[3], close: +k[4], volume: +k[5],
+        }));
+      } catch { continue; }
+    }
+    return [];
+  }, []);
+
+  // Initialize chart once
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const chart = createChart(containerRef.current, {
+      width: containerRef.current.clientWidth,
+      height: 280,
+      layout: { background: { type: ColorType.Solid, color: '#09090b' }, textColor: '#71717a', fontFamily: 'Inter, monospace', fontSize: 10 },
+      grid: { vertLines: { color: '#18181b' }, horzLines: { color: '#18181b' } },
+      crosshair: { mode: CrosshairMode.Normal, vertLine: { color: '#3b82f6', width: 1, style: 2 }, horzLine: { color: '#3b82f6', width: 1, style: 2 } },
+      timeScale: { borderColor: '#27272a', timeVisible: true, secondsVisible: false, rightOffset: 3, barSpacing: 6 },
+      rightPriceScale: { borderColor: '#27272a', scaleMargins: { top: 0.1, bottom: 0.25 } },
+    });
+    const candle = chart.addCandlestickSeries({
+      upColor: '#22c55e', downColor: '#ef4444', borderUpColor: '#22c55e', borderDownColor: '#ef4444',
+      wickUpColor: '#22c55e80', wickDownColor: '#ef444480',
+    });
+    const vol = chart.addHistogramSeries({
+      color: '#3b82f650', priceFormat: { type: 'volume' },
+      priceScaleId: '', scaleMargins: { top: 0.8, bottom: 0 },
+    });
+    chartRef.current = chart;
+    candleRef.current = candle;
+    volRef.current = vol;
+
+    const ro = new ResizeObserver(([e]) => { chart.applyOptions({ width: e.contentRect.width }); });
+    ro.observe(containerRef.current);
+    return () => { ro.disconnect(); chart.remove(); chartRef.current = null; };
+  }, []);
+
+  // Load data on pair/tf change
+  useEffect(() => {
+    let cancelled = false;
+    setChartLoading(true);
+
+    (async () => {
+      const candles = await fetchKlines(symbol, tf);
+      if (cancelled || !candleRef.current) return;
+      candleRef.current.setData(candles);
+      volRef.current.setData(candles.map(c => ({ time: c.time, value: c.volume, color: c.close >= c.open ? '#22c55e30' : '#ef444430' })));
+      chartRef.current?.timeScale().fitContent();
+      setChartLoading(false);
+    })();
+
+    // WebSocket for live candle updates
+    if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+    const wsUrls = ['wss://stream.binance.us:9443/ws', 'wss://stream.binance.com:9443/ws'];
+    function tryWs(idx) {
+      if (idx >= wsUrls.length || cancelled) return;
+      try {
+        const ws = new WebSocket(`${wsUrls[idx]}/${symbol.toLowerCase()}@kline_${tf}`);
+        ws.onopen = () => { wsRef.current = ws; };
+        ws.onmessage = (e) => {
+          try {
+            const { k } = JSON.parse(e.data);
+            if (!k || !candleRef.current) return;
+            candleRef.current.update({ time: Math.floor(k.t / 1000), open: +k.o, high: +k.h, low: +k.l, close: +k.c });
+            volRef.current?.update({ time: Math.floor(k.t / 1000), value: +k.v, color: +k.c >= +k.o ? '#22c55e30' : '#ef444430' });
+          } catch {}
+        };
+        ws.onerror = () => { ws.close(); tryWs(idx + 1); };
+      } catch { tryWs(idx + 1); }
+    }
+    tryWs(0);
+
+    return () => { cancelled = true; if (wsRef.current) { wsRef.current.close(); wsRef.current = null; } };
+  }, [symbol, tf, fetchKlines]);
+
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+      {/* Timeframe tabs */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-800">
+        <span className="text-xs font-bold text-white flex items-center gap-1.5">
+          <BarChart3 className="w-3.5 h-3.5 text-blue-400" /> {pair}
+        </span>
+        <div className="flex gap-1">
+          {CHART_TIMEFRAMES.map(t => (
+            <button key={t} onClick={() => setTf(t)}
+              className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${tf === t ? 'bg-blue-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* Chart container */}
+      <div className="relative">
+        <div ref={containerRef} style={{ width: '100%', height: 280 }} />
+        {chartLoading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/80">
+            <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
