@@ -5,7 +5,7 @@ import {
   LayoutDashboard, BarChart3, Bot, Link2, Brain, History,
   Settings, Wallet, LogOut, ChevronLeft, ChevronRight, Zap,
   Play, Bell, Crown, User, Sparkles, Activity, BookOpen,
-  Shield, Grid3x3, CreditCard, TrendingUp, Vault
+  Shield, Grid3x3, CreditCard, TrendingUp, Landmark
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 
@@ -15,7 +15,7 @@ const SECTIONS = [
     kairos: true,
     items: [
       { id: 'kairos-broker', icon: TrendingUp, label: 'Kairos Broker', desc: 'Trading con apalancamiento', kairos: true },
-      { id: 'kairos-vault', icon: Vault, label: 'Kairos Vault', desc: 'Provee liquidez y gana yield', kairos: true },
+      { id: 'kairos-vault', icon: Landmark, label: 'Kairos Vault', desc: 'Provee liquidez y gana yield', kairos: true },
       { id: 'buy-kairos', icon: CreditCard, label: 'Comprar KAIROS', desc: 'Con tarjeta de crédito', kairos: true },
     ],
   },

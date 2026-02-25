@@ -6,7 +6,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Vault, TrendingUp, DollarSign, Users, ArrowUpRight, ArrowDownRight,
+  Landmark, TrendingUp, DollarSign, Users, ArrowUpRight, ArrowDownRight,
   Wallet, Shield, Clock, Award, Lock, Unlock, ChevronDown, ChevronUp,
   RefreshCw, Info, Zap, PieChart, History, Star
 } from 'lucide-react';
