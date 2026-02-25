@@ -136,7 +136,11 @@ const OrderType = {
 // Fee constants
 const OPEN_FEE_RATE  = 0.001; // 0.10%
 const CLOSE_FEE_RATE = 0.001; // 0.10%
+const LIQUIDATION_FEE_RATE = 0.005; // 0.50% — liquidation penalty that goes to Kairos
 const DEFAULT_BALANCE = 10000; // 10,000 KAIROS demo balance for new users
+
+// Kairos 777 Treasury — ALL trading fees go here
+const KAIROS_TREASURY_WALLET = "kairos777_treasury";
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  SQLITE INITIALIZATION
@@ -196,9 +200,21 @@ function initializeDatabase() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS dex_treasury (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source TEXT NOT NULL,
+      position_id INTEGER,
+      trader TEXT,
+      pair TEXT,
+      fee_type TEXT NOT NULL,
+      amount REAL NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_dex_positions_trader ON dex_positions(trader);
     CREATE INDEX IF NOT EXISTS idx_dex_positions_status ON dex_positions(status);
     CREATE INDEX IF NOT EXISTS idx_dex_trades_trader ON dex_trades(trader);
+    CREATE INDEX IF NOT EXISTS idx_dex_treasury_source ON dex_treasury(source);
   `);
 
   logger.info(`DEX Router: SQLite database initialized at ${DB_PATH}`);
@@ -370,6 +386,9 @@ async function openPosition(trader, pair, side, leverage, collateralKairos) {
     "UPDATE dex_accounts SET balance = balance - ?, locked = locked + ? WHERE wallet = ?"
   ).run(openFee, collateralKairos, traderNorm);
 
+  // 4b. Credit open fee to Kairos 777 Treasury
+  creditTreasury("open_fee", null, traderNorm, pair, openFee);
+
   // 5. Insert position into SQLite
   const insertResult = db.prepare(`
     INSERT INTO dex_positions (trader, pair, side, leverage, collateral, size_usd, entry_price, open_fee, liquidation_price, gmx_order_key, status)
@@ -509,6 +528,9 @@ async function closePosition(positionId) {
   db.prepare(
     "UPDATE dex_accounts SET balance = balance + ?, locked = locked - ?, total_pnl = total_pnl + ? WHERE wallet = ?"
   ).run(returnAmount > 0 ? returnAmount : 0, position.collateral, netPnl, position.trader);
+
+  // 6b. Credit close fee to Kairos 777 Treasury
+  creditTreasury("close_fee", positionId, position.trader, position.pair, closeFee);
 
   // 7. Record close trade
   db.prepare(`
@@ -776,9 +798,13 @@ async function checkLiquidations() {
         `).run(currentPrice, netPnl, now, pos.id);
 
         // Account: lose the locked collateral
+        const liqFee = pos.size_usd * LIQUIDATION_FEE_RATE;
         db.prepare(
           "UPDATE dex_accounts SET locked = locked - ?, total_pnl = total_pnl + ? WHERE wallet = ?"
         ).run(pos.collateral, netPnl, pos.trader);
+
+        // Credit liquidation fee to Kairos 777 Treasury
+        creditTreasury("liquidation_fee", pos.id, pos.trader, pos.pair, liqFee);
 
         // Trade log
         db.prepare(`
@@ -969,6 +995,20 @@ async function getGlobalStats() {
       "SELECT COUNT(*) as cnt FROM dex_accounts"
     ).get();
 
+    // Treasury revenue
+    const treasury = db.prepare(
+      "SELECT COALESCE(SUM(amount), 0) as total FROM dex_treasury"
+    ).get();
+
+    const treasuryByType = db.prepare(
+      "SELECT fee_type, COALESCE(SUM(amount), 0) as total FROM dex_treasury GROUP BY fee_type"
+    ).all();
+
+    const revenueBreakdown = {};
+    for (const row of treasuryByType) {
+      revenueBreakdown[row.fee_type] = row.total;
+    }
+
     return {
       openInterestLong: oiLong.total,
       openInterestShort: oiShort.total,
@@ -978,6 +1018,8 @@ async function getGlobalStats() {
       positionsClosed: closed.cnt,
       liquidations: liqs.cnt,
       totalAccounts: accounts.cnt,
+      kairos777Revenue: treasury.total,
+      revenueBreakdown,
       source: "sqlite",
     };
   } catch (err) {
@@ -999,6 +1041,60 @@ async function getGlobalStats() {
 // ═════════════════════════════════════════════════════════════════════════════
 //  UTILITY FUNCTIONS
 // ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Credit a fee to the Kairos 777 Treasury
+ */
+function creditTreasury(feeType, positionId, trader, pair, amount) {
+  if (!db || amount <= 0) return;
+  try {
+    db.prepare(
+      "INSERT INTO dex_treasury (source, position_id, trader, pair, fee_type, amount) VALUES (?, ?, ?, ?, ?, ?)"
+    ).run("trading", positionId, trader, pair, feeType, amount);
+    logger.info(`Treasury: +${amount.toFixed(4)} KAIROS (${feeType}) from ${trader} on ${pair}`);
+  } catch (err) {
+    logger.error(`Treasury credit failed: ${err.message}`);
+  }
+}
+
+/**
+ * Get Kairos 777 Treasury summary
+ */
+async function getTreasury() {
+  if (!db) return { totalRevenue: 0, breakdown: {}, recentFees: [], source: "offline" };
+
+  const total = db.prepare("SELECT COALESCE(SUM(amount), 0) as v FROM dex_treasury").get().v;
+
+  const byType = db.prepare(
+    "SELECT fee_type, COALESCE(SUM(amount), 0) as total, COUNT(*) as count FROM dex_treasury GROUP BY fee_type"
+  ).all();
+
+  const breakdown = {};
+  for (const row of byType) {
+    breakdown[row.fee_type] = { total: row.total, count: row.count };
+  }
+
+  const recent = db.prepare(
+    "SELECT * FROM dex_treasury ORDER BY created_at DESC LIMIT 20"
+  ).all();
+
+  const today = db.prepare(
+    "SELECT COALESCE(SUM(amount), 0) as v FROM dex_treasury WHERE created_at >= date('now')"
+  ).get().v;
+
+  return {
+    totalRevenue: total,
+    todayRevenue: today,
+    breakdown,
+    recentFees: recent,
+    feeRates: {
+      openFee: `${(OPEN_FEE_RATE * 100).toFixed(2)}%`,
+      closeFee: `${(CLOSE_FEE_RATE * 100).toFixed(2)}%`,
+      liquidationFee: `${(LIQUIDATION_FEE_RATE * 100).toFixed(2)}%`,
+    },
+    source: "sqlite",
+  };
+}
 
 function calculatePnl(side, entryPrice, exitPrice, sizeUsd) {
   if (side === "LONG") {
@@ -1069,6 +1165,7 @@ module.exports = {
   getPositions,
   getHistory,
   getGlobalStats,
+  getTreasury,
   getPrice,
   getAllPrices,
   getSupportedPairs,

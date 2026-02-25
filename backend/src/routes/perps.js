@@ -258,6 +258,23 @@ router.get("/stats", async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  GET /api/perps/treasury — Kairos 777 fee revenue (public stats)
+// ═══════════════════════════════════════════════════════════════════════════════
+router.get("/treasury", async (req, res) => {
+  try {
+    const treasury = await dexRouter.getTreasury();
+    res.json({
+      success: true,
+      data: treasury,
+      message: "Kairos 777 Inc — Trading Fee Revenue",
+    });
+  } catch (err) {
+    logger.error("Perps treasury error:", err.message);
+    res.status(500).json({ error: "Failed to fetch treasury", detail: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  ADMIN: GET /api/perps/admin/relayer — Relayer wallet info
 // ═══════════════════════════════════════════════════════════════════════════════
 router.get("/admin/relayer", (req, res) => {
