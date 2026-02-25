@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-//  Kairos Trade — Kairos Broker (Real Leverage Trading)
-//  100% Real — Backend-driven margin trading with KAIROS collateral
-//  All positions are persisted in DB, P&L from live Binance prices,
-//  liquidation engine runs server-side. No simulation.
+//  Kairos Trade — Kairos Broker (DEX Perpetual Trading)
+//  Dual execution: DEX mode (GMX V2 on Arbitrum) or Internal margin engine
+//  KAIROS locked as collateral → Orders routed to GMX V2 → Real P&L
+//  Smart contract: KairosPerps on Arbitrum • Liquidation on-chain
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -19,10 +19,13 @@ import { ethers } from 'ethers';
 import useStore from '../../store/useStore';
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const API_BASE = 'https://kairos-api-u6k5.onrender.com/api/margin';
+const API_HOST = 'https://kairos-api-u6k5.onrender.com';
+const API_MARGIN = `${API_HOST}/api/margin`;  // Internal margin engine
+const API_PERPS  = `${API_HOST}/api/perps`;   // DEX route → GMX V2 (Arbitrum)
 const PRICE_POLL_MS = 3000;
 const ACCOUNT_POLL_MS = 5000;
-const LEVERAGE_OPTIONS = [2, 3, 5, 10];
+const LEVERAGE_INTERNAL = [2, 3, 5, 10];
+const LEVERAGE_DEX = [2, 3, 5, 10, 20, 50];
 
 const PAIR_ICONS = {
   'BTC/USDT': '₿', 'ETH/USDT': 'Ξ', 'BNB/USDT': '◆', 'SOL/USDT': '◎',
@@ -37,15 +40,17 @@ const PAIR_ICONS = {
 };
 
 // ── API Helper ───────────────────────────────────────────────────────────────
-async function api(endpoint, options = {}) {
-  const url = `${API_BASE}${endpoint}`;
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  });
-  const data = await res.json();
-  if (!res.ok || data.error) throw new Error(data.error || data.details?.join(', ') || `API error ${res.status}`);
-  return data;
+function createApi(base) {
+  return async function api(endpoint, options = {}) {
+    const url = `${base}${endpoint}`;
+    const res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...options.headers },
+      ...options,
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || data.details?.join(', ') || `API error ${res.status}`);
+    return data;
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -58,6 +63,12 @@ export default function KairosBroker() {
   // ── Wallet from Kairos account (auto-connected) ──
   const walletAddress = user?.walletAddress || '';
   const isConnected = !!walletAddress;
+
+  // ── Execution mode: 'dex' = GMX V2 on Arbitrum, 'internal' = Kairos margin engine ──
+  const [execMode, setExecMode] = useState('dex');
+  const API_BASE = execMode === 'dex' ? API_PERPS : API_MARGIN;
+  const api = useMemo(() => createApi(API_BASE), [API_BASE]);
+  const LEVERAGE_OPTIONS = execMode === 'dex' ? LEVERAGE_DEX : LEVERAGE_INTERNAL;
 
   // ── Account state (from backend) ──
   const [account, setAccount] = useState(null);
@@ -84,7 +95,7 @@ export default function KairosBroker() {
   const [showDeposit, setShowDeposit] = useState(false);
 
   // ── UI state ──
-  const [activeTab, setActiveTab] = useState('trade'); // 'trade' | 'positions' | 'history'
+  const [activeTab, setActiveTab] = useState('prices'); // 'prices' | 'trade' | 'history'
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingAccount, setIsLoadingAccount] = useState(false);
   const [closingPositionId, setClosingPositionId] = useState(null);
@@ -285,22 +296,45 @@ export default function KairosBroker() {
             <div>
               <h1 className="text-xl font-bold text-white flex items-center gap-2">
                 Kairos Broker
-                <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">REAL</span>
+                {execMode === 'dex' ? (
+                  <span className="text-xs bg-green-600 text-white px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse" /> GMX V2
+                  </span>
+                ) : (
+                  <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">INTERNO</span>
+                )}
               </h1>
-              <p className="text-sm text-blue-300">Leverage Trading con Reserva Kairos 777</p>
+              <p className="text-sm text-blue-300">
+                {execMode === 'dex' ? 'Perpetuales DEX — Órdenes en GMX V2 (Arbitrum)' : 'Leverage Trading con Reserva Kairos 777'}
+              </p>
             </div>
           </div>
 
           {/* Wallet auto-connected from Kairos account */}
           {isConnected && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              {/* Execution Mode Toggle */}
+              <div className="flex items-center bg-zinc-800 rounded-lg p-0.5">
+                <button
+                  onClick={() => setExecMode('dex')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${execMode === 'dex' ? 'bg-green-600 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                >
+                  🌐 DEX
+                </button>
+                <button
+                  onClick={() => setExecMode('internal')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${execMode === 'internal' ? 'bg-blue-600 text-white shadow-sm' : 'text-zinc-400 hover:text-white'}`}
+                >
+                  🏛️ Interno
+                </button>
+              </div>
+
               <div className="bg-green-900/30 border border-green-500/30 rounded-lg px-3 py-1.5 flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                 <span className="text-xs text-green-300 font-mono">
                   {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
                 </span>
               </div>
-              <span className="text-[10px] text-blue-400/60 font-medium">Kairos Wallet</span>
             </div>
           )}
         </div>
@@ -333,139 +367,34 @@ export default function KairosBroker() {
 
       {/* Connected — Main interface */}
       {isConnected && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="flex flex-col gap-3">
 
-          {/* ── LEFT: Account + Deposit/Withdraw ── */}
-          <div className="space-y-4">
-            {/* Account Summary */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-medium text-zinc-300 flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-blue-400" /> Cuenta Margin
-                </h3>
-                <button onClick={() => { fetchAccount(); fetchPositions(); }} className="text-zinc-500 hover:text-blue-400 transition-colors">
-                  <RefreshCw className="w-3.5 h-3.5" />
-                </button>
+          {/* DEX Mode Banner */}
+          {execMode === 'dex' && (
+            <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/20 border border-green-500/20 rounded-lg px-4 py-2 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-green-400 text-sm">🔗</span>
+                <span className="text-green-300 text-xs font-medium">DEX Mode — Órdenes ejecutadas en GMX V2 (Arbitrum)</span>
               </div>
-
-              {isLoadingAccount && !account ? (
-                <div className="flex items-center justify-center py-6 text-zinc-500">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <AccountRow label="Colateral" value={`${(account?.totalCollateral || 0).toFixed(2)} KAIROS`} icon={<Lock className="w-3.5 h-3.5" />} />
-                  <AccountRow label="Equity" value={`$${(account?.equity || 0).toFixed(2)}`} icon={<DollarSign className="w-3.5 h-3.5" />} />
-                  <AccountRow label="Margen usado" value={`$${(account?.usedMargin || 0).toFixed(2)}`} icon={<BarChart3 className="w-3.5 h-3.5" />} />
-                  <AccountRow label="Margen libre" value={`$${(account?.freeMargin || 0).toFixed(2)}`} icon={<Activity className="w-3.5 h-3.5" />}
-                    color={(account?.freeMargin || 0) > 0 ? 'text-green-400' : 'text-zinc-400'} />
-                  <AccountRow label="P&L no realizado"
-                    value={`${totalUnrealizedPnl >= 0 ? '+' : ''}$${totalUnrealizedPnl.toFixed(2)}`}
-                    icon={totalUnrealizedPnl >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
-                    color={totalUnrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'} />
-                  {account?.marginLevel != null && account.marginLevel < 999999 && (
-                    <AccountRow label="Nivel de margen" value={`${account.marginLevel.toFixed(1)}%`}
-                      icon={<AlertTriangle className="w-3.5 h-3.5" />}
-                      color={account.marginLevel > 150 ? 'text-green-400' : account.marginLevel > 100 ? 'text-yellow-400' : 'text-red-400'} />
-                  )}
-                  <div className="text-[10px] text-zinc-600 mt-2 flex items-center gap-1">
-                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
-                    Posiciones: {positions.length} abiertas
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Deposit / Withdraw */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-              <button onClick={() => setShowDeposit(!showDeposit)}
-                className="w-full flex items-center justify-between text-sm font-medium text-zinc-300">
-                <span className="flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-blue-400" /> Depositar / Retirar Colateral
-                </span>
-                {showDeposit ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-
-              <AnimatePresence>
-                {showDeposit && (
-                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                    <div className="pt-3 space-y-3">
-                      {/* Deposit */}
-                      <div>
-                        <label className="text-xs text-zinc-500 mb-1 block">Depositar KAIROS</label>
-                        <div className="flex gap-2">
-                          <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)}
-                            placeholder="Cantidad" min="1" step="1"
-                            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none" />
-                          <button onClick={handleDeposit} disabled={isSubmitting || !depositAmount}
-                            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors">
-                            {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-                            Depositar
-                          </button>
-                        </div>
-                      </div>
-                      {/* Withdraw */}
-                      <div>
-                        <label className="text-xs text-zinc-500 mb-1 block">Retirar KAIROS</label>
-                        <div className="flex gap-2">
-                          <input type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)}
-                            placeholder="Cantidad" min="1" step="1"
-                            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none" />
-                          <button onClick={handleWithdraw} disabled={isSubmitting || !withdrawAmount}
-                            className="bg-red-600/80 hover:bg-red-700 disabled:opacity-50 text-white px-3 py-2 rounded-lg text-sm font-medium flex items-center gap-1 transition-colors">
-                            {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Minus className="w-3.5 h-3.5" />}
-                            Retirar
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Market Prices */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-              <h3 className="text-sm font-medium text-zinc-300 mb-3 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-blue-400" /> Precios en Vivo
-              </h3>
-              <div className="space-y-1.5">
-                {Object.entries(prices).map(([symbol, data]) => (
-                  <button key={symbol}
-                    onClick={() => setSelectedPair(symbol.replace('USDT', '/USDT'))}
-                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
-                      selectedPair === symbol.replace('USDT', '/USDT')
-                        ? 'bg-blue-900/30 border border-blue-500/30'
-                        : 'hover:bg-zinc-800/50'
-                    }`}>
-                    <span className="flex items-center gap-2">
-                      <span className="text-base">{PAIR_ICONS[symbol.replace('USDT', '/USDT')] || '•'}</span>
-                      <span className="text-zinc-300 font-medium">{symbol.replace('USDT', '/USDT')}</span>
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <span className="text-white font-mono">${data.price?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-                      <span className={`${(data.change24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {(data.change24h || 0) >= 0 ? '+' : ''}{(data.change24h || 0).toFixed(2)}%
-                      </span>
-                    </span>
-                  </button>
-                ))}
-                {Object.keys(prices).length === 0 && (
-                  <div className="text-center py-3 text-zinc-500 text-xs flex items-center justify-center gap-2">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Cargando precios...
-                  </div>
-                )}
+              <div className="flex items-center gap-3 text-[10px] text-green-400/60">
+                <span>Contrato: KairosPerps</span>
+                <span>•</span>
+                <span>Colateral: KAIROS</span>
+                <span>•</span>
+                <span>Liq: On-chain</span>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* ── CENTER: Chart + Trading Form ── */}
-          <div className="space-y-4">
-            {/* Mini TradingView Chart */}
-            <BrokerChart pair={selectedPair} />
-
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
+          {/* ── TOP: Chart + Order Panel ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+            {/* ── Chart ── */}
+            <div className="lg:col-span-7">
+              <BrokerChart pair={selectedPair} height={520} />
+            </div>
+            {/* ── Order Entry + Account ── */}
+            <div className="lg:col-span-5 flex flex-col gap-3 overflow-y-auto" style={{ maxHeight: '540px', scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
               {/* Pair + Price header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -615,71 +544,174 @@ export default function KairosBroker() {
               {/* Risk warning */}
               <div className="mt-3 bg-yellow-900/10 border border-yellow-500/20 rounded-lg px-3 py-2 text-[10px] text-yellow-500/80 flex items-start gap-1.5">
                 <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
-                <span>
-                  El trading con apalancamiento conlleva riesgo de pérdida total del colateral.
-                  Liquidación automática cuando el margen cae por debajo del mantenimiento requerido.
-                </span>
+                <span>Trading apalancado = riesgo de pérdida total. Liquidación automática.</span>
               </div>
             </div>
-          </div>
 
-          {/* ── RIGHT: Positions / History ── */}
-          <div className="space-y-4">
-            {/* Tab selector */}
-            <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+            {/* Cuenta Margin */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-medium text-zinc-300 flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-blue-400" /> Cuenta Margin
+                </h3>
+                <button onClick={() => { fetchAccount(); fetchPositions(); }} className="text-zinc-500 hover:text-blue-400 transition-colors">
+                  <RefreshCw className="w-3 h-3" />
+                </button>
+              </div>
+              {isLoadingAccount && !account ? (
+                <div className="flex items-center justify-center py-3 text-zinc-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <AccountRow label="Colateral" value={`${(account?.totalCollateral || 0).toFixed(2)} KAIROS`} icon={<Lock className="w-3 h-3" />} />
+                  <AccountRow label="Equity" value={`$${(account?.equity || 0).toFixed(2)}`} icon={<DollarSign className="w-3 h-3" />} />
+                  <AccountRow label="Margen libre" value={`$${(account?.freeMargin || 0).toFixed(2)}`} icon={<Activity className="w-3 h-3" />}
+                    color={(account?.freeMargin || 0) > 0 ? 'text-green-400' : 'text-zinc-400'} />
+                  <AccountRow label="P&L no realizado"
+                    value={`${totalUnrealizedPnl >= 0 ? '+' : ''}$${totalUnrealizedPnl.toFixed(2)}`}
+                    icon={totalUnrealizedPnl >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                    color={totalUnrealizedPnl >= 0 ? 'text-green-400' : 'text-red-400'} />
+                </div>
+              )}
+            </div>
+
+            {/* Depositar / Retirar */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+              <button onClick={() => setShowDeposit(!showDeposit)}
+                className="w-full flex items-center justify-between text-xs font-medium text-zinc-300">
+                <span className="flex items-center gap-1.5">
+                  <Wallet className="w-3.5 h-3.5 text-blue-400" /> Depositar / Retirar
+                </span>
+                {showDeposit ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+              <AnimatePresence>
+                {showDeposit && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                    <div className="pt-2 space-y-2">
+                      <div className="flex gap-2">
+                        <input type="number" value={depositAmount} onChange={e => setDepositAmount(e.target.value)}
+                          placeholder="Depositar KAIROS" min="1" step="1"
+                          className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none" />
+                        <button onClick={handleDeposit} disabled={isSubmitting || !depositAmount}
+                          className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors">
+                          {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />} Dep
+                        </button>
+                      </div>
+                      <div className="flex gap-2">
+                        <input type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)}
+                          placeholder="Retirar KAIROS" min="1" step="1"
+                          className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none" />
+                        <button onClick={handleWithdraw} disabled={isSubmitting || !withdrawAmount}
+                          className="bg-red-600/80 hover:bg-red-700 disabled:opacity-50 text-white px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition-colors">
+                          {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Minus className="w-3 h-3" />} Ret
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            </div>{/* close col-span-5 */}
+          </div>{/* close grid-cols-12 */}
+
+          {/* ── BOTTOM: Prices / Positions / History ── */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+            {/* Tab bar */}
+            <div className="flex border-b border-zinc-800">
               {[
+                { id: 'prices', label: 'Precios en Vivo', icon: Activity },
                 { id: 'trade', label: 'Posiciones', icon: TrendingUp, count: positions.length },
                 { id: 'history', label: 'Historial', icon: History },
               ].map(tab => (
                 <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 transition-colors ${
-                    activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-zinc-300'
+                  className={`flex-1 py-2.5 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors border-b-2 ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-400'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-300'
                   }`}>
                   <tab.icon className="w-3.5 h-3.5" />
                   {tab.label}
                   {tab.count > 0 && (
-                    <span className="bg-white/20 text-white text-[10px] px-1.5 py-0.5 rounded-full">{tab.count}</span>
+                    <span className="bg-blue-500/20 text-blue-400 text-[10px] px-1.5 py-0.5 rounded-full">{tab.count}</span>
                   )}
                 </button>
               ))}
             </div>
 
-            {/* Positions Tab */}
-            {activeTab === 'trade' && (
-              <div className="space-y-2">
-                {positions.length === 0 ? (
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
-                    <Eye className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
-                    <p className="text-zinc-500 text-sm">Sin posiciones abiertas</p>
-                    <p className="text-zinc-600 text-xs mt-1">Deposita colateral y abre tu primera operación</p>
-                  </div>
-                ) : (
-                  positions.map(pos => (
-                    <PositionCard key={pos.id} position={pos}
-                      onClose={handleClosePosition}
-                      isClosing={closingPositionId === pos.id}
-                      prices={prices} />
-                  ))
-                )}
-              </div>
-            )}
+            {/* Tab content */}
+            <div className="overflow-y-auto p-3" style={{ maxHeight: '280px', scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
+              {/* Prices tab */}
+              {activeTab === 'prices' && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+                  {Object.entries(prices).map(([symbol, data]) => (
+                    <button key={symbol}
+                      onClick={() => setSelectedPair(symbol.replace('USDT', '/USDT'))}
+                      className={`flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg text-xs transition-colors ${
+                        selectedPair === symbol.replace('USDT', '/USDT')
+                          ? 'bg-blue-900/30 border border-blue-500/30'
+                          : 'bg-zinc-800/50 hover:bg-zinc-800 border border-transparent'
+                      }`}>
+                      <span className="text-lg">{PAIR_ICONS[symbol.replace('USDT', '/USDT')] || '•'}</span>
+                      <span className="text-zinc-300 font-medium truncate w-full text-center">{symbol.replace('USDT', '/USDT')}</span>
+                      <span className="text-white font-mono text-[11px]">${data.price?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                      <span className={`text-[10px] font-mono ${(data.change24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {(data.change24h || 0) >= 0 ? '+' : ''}{(data.change24h || 0).toFixed(2)}%
+                      </span>
+                    </button>
+                  ))}
+                  {Object.keys(prices).length === 0 && (
+                    <div className="col-span-full text-center py-6 text-zinc-500 text-xs flex items-center justify-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Cargando precios...
+                    </div>
+                  )}
+                </div>
+              )}
 
-            {/* History Tab */}
-            {activeTab === 'history' && (
-              <div className="space-y-2">
-                {tradeHistory.length === 0 ? (
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-8 text-center">
-                    <History className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
-                    <p className="text-zinc-500 text-sm">Sin historial</p>
-                  </div>
-                ) : (
-                  tradeHistory.map(trade => (
-                    <HistoryCard key={trade.id} trade={trade} />
-                  ))
-                )}
-              </div>
-            )}
+              {/* Positions tab */}
+              {activeTab === 'trade' && (
+                <div>
+                  {positions.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Eye className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+                      <p className="text-zinc-500 text-sm">Sin posiciones abiertas</p>
+                      <p className="text-zinc-600 text-xs mt-1">Deposita colateral y abre tu primera operación</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">
+                      {positions.map(pos => (
+                        <PositionCard key={pos.id} position={pos}
+                          onClose={handleClosePosition}
+                          isClosing={closingPositionId === pos.id}
+                          prices={prices} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* History tab */}
+              {activeTab === 'history' && (
+                <div>
+                  {tradeHistory.length === 0 ? (
+                    <div className="text-center py-8">
+                      <History className="w-8 h-8 text-zinc-600 mx-auto mb-2" />
+                      <p className="text-zinc-500 text-sm">Sin historial</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">
+                      {tradeHistory.map(trade => (
+                        <HistoryCard key={trade.id} trade={trade} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
+
         </div>
       )}
     </div>
@@ -696,7 +728,7 @@ const BINANCE_KLINES = [
   'https://api.binance.com/api/v3/klines',
 ];
 
-function BrokerChart({ pair }) {
+function BrokerChart({ pair, height = 280 }) {
   const containerRef = useRef(null);
   const chartRef = useRef(null);
   const candleRef = useRef(null);
@@ -732,7 +764,7 @@ function BrokerChart({ pair }) {
     if (!containerRef.current) return;
     const chart = createChart(containerRef.current, {
       width: containerRef.current.clientWidth,
-      height: 280,
+      height: height,
       layout: { background: { type: ColorType.Solid, color: '#09090b' }, textColor: '#71717a', fontFamily: 'Inter, monospace', fontSize: 10 },
       grid: { vertLines: { color: '#18181b' }, horzLines: { color: '#18181b' } },
       crosshair: { mode: CrosshairMode.Normal, vertLine: { color: '#3b82f6', width: 1, style: 2 }, horzLine: { color: '#3b82f6', width: 1, style: 2 } },
@@ -812,7 +844,7 @@ function BrokerChart({ pair }) {
       </div>
       {/* Chart container */}
       <div className="relative">
-        <div ref={containerRef} style={{ width: '100%', height: 280 }} />
+        <div ref={containerRef} style={{ width: '100%', height: height }} />
         {chartLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/80">
             <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />

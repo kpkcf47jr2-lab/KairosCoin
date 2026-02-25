@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 24, 2026 (Session 10 — KairosVault On-Chain + Vault UI)
+#  Last Updated: February 24, 2026 (Session 10 — KairosPerps DEX Integration + Broker Redesign)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -44,6 +44,18 @@
 - **Token:** kKAIROS (vault share token)
 - **Explorer:** [BscScan](https://bscscan.com/address/0x15E86d52D058e7AA5373906CC790aAbE82d14de9#code) (Verified)
 - **Fee Split:** 70% LP rewards / 20% Treasury / 10% Insurance
+- **Deployed:** February 24, 2026
+
+### KairosPerps (DEX Perpetual Trading)
+- **Contract:** `0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9` on Arbitrum
+- **Explorer:** [Arbiscan](https://arbiscan.io/address/0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9#code) (Verified)
+- **DEX:** GMX V2 (Arbitrum) — orders routed to real perpetual DEX
+- **Collateral:** KAIROS tokens locked on-chain
+- **Leverage:** 2x-50x
+- **Trading Fee:** 0.10% open + 0.10% close
+- **Fee Split:** 70% Vault / 20% Treasury / 10% Insurance
+- **Relayer:** Backend wallet executes GMX orders
+- **Liquidation:** On-chain, 1% maintenance margin
 - **Deployed:** February 24, 2026
 
 ### Website (Netlify)
@@ -434,7 +446,15 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 - **Sidebar:** New "Kairos Vault" nav item in KAIROS section
 - **AuthScreen:** Redesigned splash with real KairosCoin logo, auto-wallet on signup
 - **Logo Fix:** Real kairos-logo.png across all components (Sidebar, KairosBroker, AuthScreen)
-- **Commit:** `5966604` → Deployed to Netlify + Render
+- **Broker Chart:** BrokerChart component with lightweight-charts + Binance klines/WS
+- **KairosBroker Layout Redesign:** Big chart left (col-7), order form + account right (col-5), tabs bottom
+- **KairosPerps.sol deployed to Arbitrum** — `0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9` (verified on Arbiscan)
+- **DEX Perpetual Trading:** Orders routed to GMX V2 on Arbitrum via authorized relayer
+- **Backend dexRouter.js:** GMX V2 integration service (open/close/liquidate via smart contract)
+- **Backend perps.js routes:** Full REST API for DEX trading (/api/perps/*)
+- **Backend v1.3.0:** Added DEX Router initialization, perps routes
+- **Frontend Dual Execution:** Toggle between DEX mode (GMX V2) and Internal mode in KairosBroker
+- **Commit:** Latest → Deployed to Netlify + Render + Arbitrum
 
 ### Feb 23, 2026 — Session 8 (Stripe Integration + KAIROS Redemption System)
 - **Stripe Buy Flow (LIVE)** — Users buy KAIROS with card via Stripe Checkout → auto-mint to wallet

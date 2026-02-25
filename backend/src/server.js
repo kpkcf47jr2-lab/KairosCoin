@@ -6,8 +6,8 @@
 //  ██║  ██╗██║  ██║██║██║  ██║╚██████╔╝███████║╚██████╗╚██████╔╝██║██║ ╚████║
 //  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝
 //
-//  Stablecoin Backend v1.2.0
-//  Real-time automated mint/burn • Proof of Reserves • Fiat On-Ramp • Margin Trading
+//  Stablecoin Backend v1.3.0
+//  Real-time automated mint/burn • Proof of Reserves • Fiat On-Ramp • Margin Trading • DEX Perps
 //  Superior to USDT/USDC — real-time, on-chain verifiable, 24/7 API access
 //
 //  Endpoints:
@@ -37,6 +37,14 @@
 //    GET  /api/margin/positions    — Open positions (live P&L)
 //    GET  /api/margin/history      — Closed/liquidated positions
 //    GET  /api/margin/trades       — Trade audit trail
+//    ── DEX Perpetuals (GMX V2) ──
+//    POST /api/perps/open          — Open position via GMX V2
+//    POST /api/perps/close         — Close position via GMX V2
+//    GET  /api/perps/positions     — On-chain open positions
+//    GET  /api/perps/account       — On-chain margin account
+//    GET  /api/perps/history       — Closed positions history
+//    GET  /api/perps/stats         — Global protocol stats
+//    GET  /api/perps/status        — DEX router health
 // ═══════════════════════════════════════════════════════════════════════════════
 
 require("dotenv").config();
@@ -68,6 +76,8 @@ const stripeWebhookRoutes = require("./routes/stripeWebhook");
 const redeemRoutes = require("./routes/redeem");
 const marginRoutes = require("./routes/margin");
 const vaultRoutes = require("./routes/vault");
+const perpsRoutes = require("./routes/perps");
+const dexRouter = require("./services/dexRouter");
 
 // ── Express App ──────────────────────────────────────────────────────────────
 const app = express();
@@ -191,6 +201,7 @@ app.use("/api/stripe", stripeRoutes);
 app.use("/api/redeem", redeemRoutes);
 app.use("/api/margin", marginRoutes);
 app.use("/api/vault", vaultRoutes);
+app.use("/api/perps", perpsRoutes);
 // Note: Stripe webhook is mounted earlier (before express.json) for raw body
 
 // Fee endpoint (defined as /fees in supply router, so mount at /api)
@@ -309,6 +320,10 @@ async function start() {
     logger.info("Initializing Vault Engine...");
     vaultEngine.initialize(db);
     logger.info("Vault Engine started ✓");
+
+    logger.info("Initializing DEX Router (GMX V2 on Arbitrum)...");
+    dexRouter.initialize();
+    logger.info("DEX Router started ✓");
 
     // 8. Start HTTP server
     const server = app.listen(config.port, () => {
