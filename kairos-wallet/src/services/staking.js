@@ -139,6 +139,26 @@ const STAKING_POOL_ABI = [
   'function pendingReward(address _user) view returns (uint256)',
 ];
 
+// ERC-20 approve ABI for staking
+const ERC20_APPROVE_ABI = [
+  'function approve(address spender, uint256 amount) returns (bool)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function balanceOf(address) view returns (uint256)',
+];
+
+// PancakeSwap CAKE Pool V2 ABI
+const CAKE_POOL_ABI = [
+  'function deposit(uint256 _amount, uint256 _lockDuration) external',
+  'function withdrawByAmount(uint256 _amount) external',
+  'function userInfo(address) view returns (uint256 shares, uint256 lastDepositedTime, uint256 cakeAtLastUserAction, uint256 lastUserActionTime, uint256 lockStartTime, uint256 lockEndTime, uint256 userBoostedShare, bool locked, uint256 lockedAmount)',
+];
+
+// Ankr BNB liquid staking ABI
+const ANKR_BNB_ABI = [
+  'function stakeBNB() external payable',
+  'function balanceOf(address) view returns (uint256)',
+];
+
 /**
  * Get staking protocols available on a chain
  */
@@ -208,13 +228,30 @@ export async function getStakingPositions(address) {
     const stETH = await getLidoBalance(address);
     if (parseFloat(stETH) > 0) {
       positions.push({
-        protocol: 'Lido',
-        asset: 'ETH',
-        reward: 'stETH',
-        staked: stETH,
-        chainId: 1,
-        logo: '🔵',
-        color: '#00A3FF',
+        protocol: 'Lido', asset: 'ETH', reward: 'stETH',
+        staked: stETH, chainId: 1, logo: '🔵', color: '#00A3FF',
+      });
+    }
+  } catch {}
+
+  // Check PancakeSwap CAKE
+  try {
+    const cake = await getPancakeCAKEBalance(address);
+    if (parseFloat(cake) > 0) {
+      positions.push({
+        protocol: 'PancakeSwap', asset: 'CAKE', reward: 'CAKE',
+        staked: cake, chainId: 56, logo: '🥞', color: '#1FC7D4',
+      });
+    }
+  } catch {}
+
+  // Check Ankr aBNBc
+  try {
+    const abnb = await getAnkrBNBBalance(address);
+    if (parseFloat(abnb) > 0) {
+      positions.push({
+        protocol: 'Ankr BNB', asset: 'BNB', reward: 'aBNBc',
+        staked: abnb, chainId: 56, logo: '⚡', color: '#4A90E2',
       });
     }
   } catch {}
@@ -232,5 +269,94 @@ export async function getLidoAPR() {
     return data.data?.smaApr?.toFixed(2) || '3.5';
   } catch {
     return '3.5';
+  }
+}
+
+/**
+ * Stake CAKE on PancakeSwap (Flexible pool — 0 lock duration)
+ */
+export async function stakePancakeCAKE(privateKey, amountCAKE) {
+  const provider = getProvider(56);
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const cakeToken = '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82';
+  const cakePool = '0x45c54210128a065de780C4B0Df3d16664f7f859e';
+
+  const amount = ethers.parseEther(amountCAKE.toString());
+
+  // Approve CAKE for the pool
+  const erc20 = new ethers.Contract(cakeToken, ERC20_APPROVE_ABI, wallet);
+  const allowance = await erc20.allowance(wallet.address, cakePool);
+  if (allowance < amount) {
+    const approveTx = await erc20.approve(cakePool, ethers.MaxUint256);
+    await approveTx.wait();
+  }
+
+  // Deposit with 0 lock duration (flexible)
+  const pool = new ethers.Contract(cakePool, CAKE_POOL_ABI, wallet);
+  const tx = await pool.deposit(amount, 0);
+
+  return {
+    hash: tx.hash,
+    type: 'stake',
+    protocol: 'PancakeSwap',
+    amount: amountCAKE,
+    asset: 'CAKE',
+    reward: 'CAKE',
+    chainId: 56,
+    timestamp: Date.now(),
+    status: 'pending',
+  };
+}
+
+/**
+ * Stake BNB via Ankr liquid staking (get aBNBc)
+ */
+export async function stakeAnkrBNB(privateKey, amountBNB) {
+  const provider = getProvider(56);
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const ankrContract = '0x52F24a5e03aee338Da5fd9Df68D2b6FAe1178827';
+
+  const value = ethers.parseEther(amountBNB.toString());
+  const ankr = new ethers.Contract(ankrContract, ANKR_BNB_ABI, wallet);
+  const tx = await ankr.stakeBNB({ value });
+
+  return {
+    hash: tx.hash,
+    type: 'stake',
+    protocol: 'Ankr BNB',
+    amount: amountBNB,
+    asset: 'BNB',
+    reward: 'aBNBc',
+    chainId: 56,
+    timestamp: Date.now(),
+    status: 'pending',
+  };
+}
+
+/**
+ * Get PancakeSwap CAKE pool balance
+ */
+export async function getPancakeCAKEBalance(address) {
+  try {
+    const provider = getProvider(56);
+    const pool = new ethers.Contract('0x45c54210128a065de780C4B0Df3d16664f7f859e', CAKE_POOL_ABI, provider);
+    const info = await pool.userInfo(address);
+    return ethers.formatEther(info.lockedAmount || info.shares || 0n);
+  } catch {
+    return '0';
+  }
+}
+
+/**
+ * Get Ankr aBNBc balance
+ */
+export async function getAnkrBNBBalance(address) {
+  try {
+    const provider = getProvider(56);
+    const ankr = new ethers.Contract('0x52F24a5e03aee338Da5fd9Df68D2b6FAe1178827', ANKR_BNB_ABI, provider);
+    const balance = await ankr.balanceOf(address);
+    return ethers.formatEther(balance);
+  } catch {
+    return '0';
   }
 }

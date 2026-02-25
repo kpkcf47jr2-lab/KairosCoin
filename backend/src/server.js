@@ -82,6 +82,7 @@ const authService = require("./services/authService");
 const referralService = require("./services/referralService");
 const referralRoutes = require("./routes/referralRoutes");
 const treasuryRoutes = require("./routes/treasury");
+const walletBackupRoutes = require("./routes/walletBackup");
 const dexRouter = require("./services/dexRouter");
 
 // ── Express App ──────────────────────────────────────────────────────────────
@@ -210,6 +211,7 @@ app.use("/api/perps", perpsRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/referral", referralRoutes);
 app.use("/api/treasury", treasuryRoutes.router);
+app.use("/api/wallet", walletBackupRoutes.router);
 // Note: Stripe webhook is mounted earlier (before express.json) for raw body
 
 // Fee endpoint (defined as /fees in supply router, so mount at /api)
@@ -340,6 +342,10 @@ async function start() {
     logger.info("Initializing Treasury...");
     treasuryRoutes.init(db.getDb());
     logger.info("Treasury started ✓");
+
+    logger.info("Initializing Wallet Backup...");
+    walletBackupRoutes.initWalletBackup(db.getDb());
+    logger.info("Wallet Backup started ✓");
 
     logger.info("Initializing DEX Router (GMX V2 on Arbitrum)...");
     dexRouter.initialize();

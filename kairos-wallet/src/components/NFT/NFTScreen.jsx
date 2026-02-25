@@ -3,15 +3,17 @@
 //  Display NFTs with images, metadata, and details
 // ═══════════════════════════════════════════════════════
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Image, RefreshCw, X, ExternalLink, Loader2, Grid,
+  Send, Check, AlertTriangle,
 } from 'lucide-react';
+import { ethers } from 'ethers';
 import { useStore } from '../../store/useStore';
 import { CHAINS } from '../../constants/chains';
-import { getNFTs, clearNFTCache } from '../../services/nft';
-import { formatAddress } from '../../services/wallet';
+import { getNFTs, clearNFTCache, sendNFT } from '../../services/nft';
+import { formatAddress, getSigner } from '../../services/wallet';
 
 export default function NFTScreen() {
   const { activeAddress, activeChainId, goBack } = useStore();
@@ -190,7 +192,7 @@ export default function NFTScreen() {
               {selectedNFT.attributes?.length > 0 && (
                 <>
                   <h4 className="text-xs text-dark-400 uppercase tracking-wider mb-2">Atributos</h4>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2 mb-4">
                     {selectedNFT.attributes.map((attr, i) => (
                       <div key={i} className="bg-white/[0.03] rounded-xl p-2.5 border border-white/5 text-center">
                         <p className="text-[10px] text-dark-500 uppercase">{attr.trait_type}</p>
@@ -200,10 +202,122 @@ export default function NFTScreen() {
                   </div>
                 </>
               )}
+
+              {/* Send NFT button */}
+              <SendNFTSection
+                nft={selectedNFT}
+                chainId={activeChainId}
+                chain={chain}
+                onSuccess={() => {
+                  setSelectedNFT(null);
+                  handleRefresh();
+                }}
+              />
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/* ─── Send NFT Sub-Component ─── */
+function SendNFTSection({ nft, chainId, chain, onSuccess }) {
+  const { vault, showToast } = useStore();
+  const [showSendForm, setShowSendForm] = useState(false);
+  const [toAddress, setToAddress] = useState('');
+  const [sending, setSending] = useState(false);
+  const [txHash, setTxHash] = useState(null);
+  const [error, setError] = useState('');
+
+  const handleSend = useCallback(async () => {
+    setError('');
+    if (!toAddress || !ethers.isAddress(toAddress)) {
+      setError('Dirección inválida');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const signer = await getSigner(vault, chainId);
+      const result = await sendNFT(
+        chainId,
+        signer.privateKey,
+        nft.contractAddress,
+        nft.tokenId,
+        toAddress
+      );
+      setTxHash(result.hash);
+      showToast('NFT enviado exitosamente', 'success');
+    } catch (err) {
+      setError(err.reason || err.message || 'Error al enviar NFT');
+      showToast('Error al enviar NFT', 'error');
+    } finally {
+      setSending(false);
+    }
+  }, [toAddress, vault, chainId, nft, showToast]);
+
+  if (txHash) {
+    return (
+      <div className="rounded-2xl bg-green-500/5 border border-green-500/10 p-4 text-center">
+        <Check size={28} className="text-green-400 mx-auto mb-2" />
+        <p className="text-sm font-bold text-white mb-1">¡NFT Enviado!</p>
+        <a href={`${chain.blockExplorerUrl}/tx/${txHash}`} target="_blank" rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-xs text-kairos-400 hover:underline">
+          Ver en Explorer <ExternalLink size={10} />
+        </a>
+        <button onClick={onSuccess}
+          className="block w-full mt-3 py-2.5 rounded-xl text-sm font-bold text-white bg-kairos-500 hover:bg-kairos-600 transition-colors">
+          Cerrar
+        </button>
+      </div>
+    );
+  }
+
+  if (!showSendForm) {
+    return (
+      <button onClick={() => setShowSendForm(true)}
+        className="w-full py-3 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90"
+        style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
+        <Send size={16} />
+        Enviar NFT
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl bg-white/[0.02] border border-white/5 p-4 space-y-3">
+      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+        <Send size={14} className="text-kairos-400" />
+        Enviar {nft.nftName}
+      </h4>
+
+      <div>
+        <label className="text-[10px] font-bold text-dark-400 uppercase tracking-wider mb-1 block">Dirección destino</label>
+        <input type="text" value={toAddress} onChange={e => setToAddress(e.target.value)}
+          placeholder="0x..."
+          className="w-full px-3 py-2.5 rounded-xl text-sm font-mono bg-white/[0.04] border border-white/[0.08] outline-none focus:border-kairos-500/30 text-white placeholder:text-dark-500" />
+      </div>
+
+      {error && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/5 border border-red-500/10">
+          <AlertTriangle size={12} className="text-red-400" />
+          <span className="text-xs text-red-400">{error}</span>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button onClick={() => setShowSendForm(false)}
+          className="flex-1 py-2.5 rounded-xl text-sm font-bold text-dark-400 bg-white/[0.04] hover:bg-white/[0.06] transition-colors">
+          Cancelar
+        </button>
+        <button onClick={handleSend} disabled={sending}
+          className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50"
+          style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
+          {sending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+          {sending ? 'Enviando...' : 'Enviar'}
+        </button>
+      </div>
     </div>
   );
 }

@@ -15,12 +15,15 @@ const ERC721_ABI = [
   'function name() view returns (string)',
   'function symbol() view returns (string)',
   'function balanceOf(address owner) view returns (uint256)',
+  'function safeTransferFrom(address from, address to, uint256 tokenId)',
+  'function transferFrom(address from, address to, uint256 tokenId)',
 ];
 
 // ERC-1155 ABI
 const ERC1155_ABI = [
   'function uri(uint256 id) view returns (string)',
   'function balanceOf(address account, uint256 id) view returns (uint256)',
+  'function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes data)',
 ];
 
 // Explorer API keys — using Etherscan V2 unified key from hardhat config
@@ -246,6 +249,41 @@ async function resolveMetadataUri(uri) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Send an ERC-721 NFT to another address
+ */
+export async function sendNFT(chainId, privateKey, contractAddress, tokenId, toAddress) {
+  const provider = getProvider(chainId);
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const contract = new ethers.Contract(contractAddress, ERC721_ABI, wallet);
+
+  try {
+    // Try safeTransferFrom first
+    const tx = await contract['safeTransferFrom(address,address,uint256)'](
+      wallet.address, toAddress, tokenId
+    );
+    return { hash: tx.hash, status: 'pending' };
+  } catch {
+    // Fallback to transferFrom
+    const tx = await contract.transferFrom(wallet.address, toAddress, tokenId);
+    return { hash: tx.hash, status: 'pending' };
+  }
+}
+
+/**
+ * Send an ERC-1155 NFT to another address
+ */
+export async function sendERC1155(chainId, privateKey, contractAddress, tokenId, toAddress, amount = 1) {
+  const provider = getProvider(chainId);
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const contract = new ethers.Contract(contractAddress, ERC1155_ABI, wallet);
+
+  const tx = await contract.safeTransferFrom(
+    wallet.address, toAddress, tokenId, amount, '0x'
+  );
+  return { hash: tx.hash, status: 'pending' };
 }
 
 /**

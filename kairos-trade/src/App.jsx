@@ -34,6 +34,7 @@ import KairosBroker from './components/Kairos/KairosBroker';
 import BuyKairos from './components/Kairos/BuyKairos';
 import KairosVault from './components/Kairos/KairosVault';
 import KairosTreasury from './components/Kairos/KairosTreasury';
+import WalletPage from './components/Wallet/WalletPage';
 import { isAdmin } from './constants';
 import { telegramService } from './services/telegram';
 
@@ -118,25 +119,7 @@ function App() {
         return <KairosTreasury />;
       }
       case 'buy-kairos': return <BuyKairos />;
-      case 'wallet': return (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 rounded-2xl bg-[var(--gold)]/15 flex items-center justify-center text-[var(--gold)] text-2xl font-bold mx-auto mb-4">K</div>
-            <h2 className="text-lg font-bold mb-2">Kairos Wallet</h2>
-            <p className="text-sm text-[var(--text-dim)] mb-4 max-w-xs">
-              Conecta tu Kairos Wallet para integrar tus balances de KAIROS Coin con la plataforma de trading.
-            </p>
-            <a
-              href="https://kairos-wallet.netlify.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--gold)] text-white font-semibold rounded-xl hover:bg-[var(--gold-light)] transition-colors"
-            >
-              Abrir Kairos Wallet
-            </a>
-          </div>
-        </div>
-      );
+      case 'wallet': return <WalletPage />;
       case 'settings': return <SettingsPanel />;
       default: return <Dashboard />;
     }

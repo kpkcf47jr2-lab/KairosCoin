@@ -6,8 +6,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, User, Shield, Globe, Bell, Palette, Info,
-  ChevronRight, LogOut, Trash2, Key, Plus, Copy, Check, ExternalLink, Eye, EyeOff, AlertTriangle, Link2, FileText, Edit3, ShieldCheck, Clock, Binoculars, Fuel, Coins, Lock, Search
+  ChevronRight, LogOut, Trash2, Key, Plus, Copy, Check, ExternalLink, Eye, EyeOff, AlertTriangle, Link2, FileText, Edit3, ShieldCheck, Clock, Binoculars, Fuel, Coins, Lock, Search, Cloud, CloudUpload, CloudDownload, Loader2
 } from 'lucide-react';
+import { createBackup, restoreBackup, checkBackupExists, deleteBackup } from '../../services/cloudBackup';
+import { STORAGE_KEYS } from '../../constants/chains';
 import { useStore } from '../../store/useStore';
 import { formatAddress, resetWallet, addAccount, unlockVault, importWatchOnly, isValidAddress, changePassword } from '../../services/wallet';
 import { CHAINS } from '../../constants/chains';
@@ -65,6 +67,16 @@ export default function SettingsScreen() {
   const [confirmPwd, setConfirmPwd] = useState('');
   const [changePwdError, setChangePwdError] = useState('');
   const [changePwdLoading, setChangePwdLoading] = useState(false);
+
+  // Cloud backup states
+  const [showCloudBackup, setShowCloudBackup] = useState(false);
+  const [cloudTab, setCloudTab] = useState('backup'); // 'backup' | 'restore'
+  const [cloudPassword, setCloudPassword] = useState('');
+  const [cloudRestoreAddr, setCloudRestoreAddr] = useState('');
+  const [cloudLoading, setCloudLoading] = useState(false);
+  const [cloudError, setCloudError] = useState('');
+  const [cloudSuccess, setCloudSuccess] = useState('');
+  const [backupExists, setBackupExists] = useState(null);
 
   const accounts = getAllAccounts();
   const chain = CHAINS[activeChainId];
@@ -204,6 +216,23 @@ export default function SettingsScreen() {
           desc: t('settings.backup_seed_desc', 'Ver tu frase de recuperación'),
           action: () => setShowBackupSeed(true),
           color: 'text-yellow-400',
+        },
+        {
+          icon: Cloud,
+          label: 'Backup en la Nube',
+          desc: 'Respalda tu wallet encriptada',
+          action: async () => {
+            setShowCloudBackup(true);
+            setCloudTab('backup');
+            setCloudPassword('');
+            setCloudError('');
+            setCloudSuccess('');
+            try {
+              const check = await checkBackupExists(activeAddress);
+              setBackupExists(check);
+            } catch { setBackupExists({ exists: false }); }
+          },
+          color: 'text-sky-400',
         },
         {
           icon: Lock,
@@ -817,6 +846,158 @@ export default function SettingsScreen() {
                   {watchOnlyLoading ? 'Importando...' : 'Importar'}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* ── Cloud Backup Modal ── */}
+        {showCloudBackup && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-6"
+            onClick={() => setShowCloudBackup(false)}
+          >
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+              className="glass-card w-full max-w-sm p-6 rounded-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-2 mb-4">
+                <Cloud size={18} className="text-sky-400" />
+                <h3 className="font-bold text-white">Backup en la Nube</h3>
+              </div>
+
+              {/* Tab Switcher */}
+              <div className="flex gap-1 mb-4 bg-white/5 rounded-xl p-1">
+                <button
+                  onClick={() => { setCloudTab('backup'); setCloudError(''); setCloudSuccess(''); }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                    cloudTab === 'backup' ? 'bg-sky-500/20 text-sky-400' : 'text-dark-400 hover:text-white'
+                  }`}
+                >
+                  <CloudUpload size={14} /> Respaldar
+                </button>
+                <button
+                  onClick={() => { setCloudTab('restore'); setCloudError(''); setCloudSuccess(''); }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium transition-all ${
+                    cloudTab === 'restore' ? 'bg-green-500/20 text-green-400' : 'text-dark-400 hover:text-white'
+                  }`}
+                >
+                  <CloudDownload size={14} /> Restaurar
+                </button>
+              </div>
+
+              {cloudTab === 'backup' ? (
+                <>
+                  {backupExists?.exists && (
+                    <div className="glass-card p-3 mb-3 flex items-start gap-2 border border-sky-500/20">
+                      <Cloud size={14} className="text-sky-400 mt-0.5 flex-shrink-0" />
+                      <div className="text-[11px]">
+                        <p className="text-sky-300 font-medium">Backup existente</p>
+                        <p className="text-dark-400">Último: {new Date(backupExists.timestamp).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-dark-400 text-xs mb-3">
+                    Tu vault se encriptará con doble capa (AES-256-GCM) antes de subir al servidor. Solo tú podrás desencriptarlo con tu contraseña de backup.
+                  </p>
+                  <input
+                    type="password"
+                    value={cloudPassword}
+                    onChange={e => { setCloudPassword(e.target.value); setCloudError(''); }}
+                    placeholder="Contraseña de backup (mín. 8 chars)"
+                    className="glass-input w-full text-sm mb-3"
+                    autoFocus
+                  />
+                  {cloudError && <p className="text-red-400 text-xs mb-2">{cloudError}</p>}
+                  {cloudSuccess && <p className="text-green-400 text-xs mb-2">{cloudSuccess}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowCloudBackup(false)} className="glass-button flex-1 py-3 text-center text-sm">Cancelar</button>
+                    <button
+                      onClick={async () => {
+                        if (cloudPassword.length < 8) { setCloudError('Mínimo 8 caracteres'); return; }
+                        setCloudLoading(true); setCloudError(''); setCloudSuccess('');
+                        try {
+                          const encryptedVault = localStorage.getItem(STORAGE_KEYS.ENCRYPTED_VAULT);
+                          if (!encryptedVault) throw new Error('No hay vault local');
+                          await createBackup(activeAddress, encryptedVault, cloudPassword);
+                          setCloudSuccess('✅ Backup creado exitosamente');
+                          setBackupExists({ exists: true, timestamp: new Date().toISOString() });
+                          showToast('Backup en la nube creado', 'success');
+                        } catch (err) {
+                          setCloudError(err.message || 'Error al crear backup');
+                        }
+                        setCloudLoading(false);
+                      }}
+                      disabled={!cloudPassword || cloudLoading}
+                      className="kairos-button flex-1 py-3 text-sm disabled:opacity-40 flex items-center justify-center gap-1.5"
+                    >
+                      {cloudLoading ? <><Loader2 size={14} className="animate-spin" /> Subiendo...</> : <><CloudUpload size={14} /> Respaldar</>}
+                    </button>
+                  </div>
+                  {backupExists?.exists && (
+                    <button
+                      onClick={async () => {
+                        if (!confirm('¿Eliminar el backup de la nube?')) return;
+                        setCloudLoading(true);
+                        try {
+                          await deleteBackup(activeAddress, cloudPassword);
+                          setBackupExists({ exists: false });
+                          showToast('Backup eliminado', 'info');
+                        } catch (err) {
+                          setCloudError(err.message);
+                        }
+                        setCloudLoading(false);
+                      }}
+                      className="w-full mt-3 py-2 text-xs text-red-400 hover:text-red-300 transition-colors"
+                    >
+                      Eliminar backup de la nube
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-dark-400 text-xs mb-3">
+                    Restaura tu wallet desde un backup en la nube. Necesitas la dirección y la contraseña de backup que usaste.
+                  </p>
+                  <input
+                    type="text"
+                    value={cloudRestoreAddr}
+                    onChange={e => { setCloudRestoreAddr(e.target.value); setCloudError(''); }}
+                    placeholder="0x... dirección de la wallet"
+                    className="glass-input w-full text-sm font-mono mb-2"
+                  />
+                  <input
+                    type="password"
+                    value={cloudPassword}
+                    onChange={e => { setCloudPassword(e.target.value); setCloudError(''); }}
+                    placeholder="Contraseña de backup"
+                    className="glass-input w-full text-sm mb-3"
+                  />
+                  {cloudError && <p className="text-red-400 text-xs mb-2">{cloudError}</p>}
+                  {cloudSuccess && <p className="text-green-400 text-xs mb-2">{cloudSuccess}</p>}
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowCloudBackup(false)} className="glass-button flex-1 py-3 text-center text-sm">Cancelar</button>
+                    <button
+                      onClick={async () => {
+                        if (!cloudRestoreAddr || !cloudPassword) { setCloudError('Completa todos los campos'); return; }
+                        setCloudLoading(true); setCloudError(''); setCloudSuccess('');
+                        try {
+                          const result = await restoreBackup(cloudRestoreAddr, cloudPassword);
+                          // Save the decrypted vault to localStorage
+                          localStorage.setItem(STORAGE_KEYS.ENCRYPTED_VAULT, result.vault);
+                          localStorage.setItem(STORAGE_KEYS.HAS_WALLET, 'true');
+                          setCloudSuccess('✅ Wallet restaurada. Recarga la app.');
+                          showToast('Wallet restaurada desde la nube', 'success');
+                        } catch (err) {
+                          setCloudError(err.message || 'Error al restaurar');
+                        }
+                        setCloudLoading(false);
+                      }}
+                      disabled={!cloudRestoreAddr || !cloudPassword || cloudLoading}
+                      className="kairos-button flex-1 py-3 text-sm disabled:opacity-40 flex items-center justify-center gap-1.5"
+                    >
+                      {cloudLoading ? <><Loader2 size={14} className="animate-spin" /> Restaurando...</> : <><CloudDownload size={14} /> Restaurar</>}
+                    </button>
+                  </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}

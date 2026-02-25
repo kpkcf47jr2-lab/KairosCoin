@@ -1,0 +1,777 @@
+// Kairos Trade — Wallet Integration Page (Multi-Chain KAIROS)
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Wallet, Send, Download, Copy, Check, ExternalLink, RefreshCw,
+  ChevronRight, ChevronDown, Shield, Globe, ArrowUpRight,
+  ArrowDownRight, AlertTriangle, Eye, EyeOff, QrCode, X, Loader2
+} from 'lucide-react';
+import { ethers } from 'ethers';
+import useStore from '../../store/useStore';
+import { KAIROS_COIN } from '../../constants';
+
+/* ─── Chain Configurations ─── */
+const CHAINS = [
+  {
+    id: 56, name: 'BNB Smart Chain', short: 'BSC', color: '#F0B90B',
+    rpc: 'https://bsc-dataseed1.binance.org',
+    rpcFallback: 'https://bsc-dataseed2.binance.org',
+    explorer: 'https://bscscan.com',
+    explorerApi: 'https://api.bscscan.com/api',
+    nativeSymbol: 'BNB', nativeDecimals: 18,
+    apiKey: 'YourBscScanKey',
+  },
+  {
+    id: 8453, name: 'Base', short: 'Base', color: '#0052FF',
+    rpc: 'https://mainnet.base.org',
+    rpcFallback: 'https://base.publicnode.com',
+    explorer: 'https://basescan.org',
+    explorerApi: 'https://api.basescan.org/api',
+    nativeSymbol: 'ETH', nativeDecimals: 18,
+    apiKey: '',
+  },
+  {
+    id: 42161, name: 'Arbitrum One', short: 'ARB', color: '#28A0F0',
+    rpc: 'https://arb1.arbitrum.io/rpc',
+    rpcFallback: 'https://arbitrum.publicnode.com',
+    explorer: 'https://arbiscan.io',
+    explorerApi: 'https://api.arbiscan.io/api',
+    nativeSymbol: 'ETH', nativeDecimals: 18,
+    apiKey: '',
+  },
+  {
+    id: 137, name: 'Polygon', short: 'MATIC', color: '#8247E5',
+    rpc: 'https://polygon-rpc.com',
+    rpcFallback: 'https://polygon.publicnode.com',
+    explorer: 'https://polygonscan.com',
+    explorerApi: 'https://api.polygonscan.com/api',
+    nativeSymbol: 'POL', nativeDecimals: 18,
+    apiKey: '',
+  },
+];
+
+/* ─── ERC-20 minimal ABI ─── */
+const ERC20_ABI = [
+  'function balanceOf(address) view returns (uint256)',
+  'function transfer(address to, uint256 amount) returns (bool)',
+  'function decimals() view returns (uint8)',
+  'function symbol() view returns (string)',
+];
+
+/* ─── Helpers ─── */
+const shortenAddress = (addr) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '';
+const formatBalance = (bal) => {
+  const n = parseFloat(bal);
+  if (n === 0) return '0.00';
+  if (n < 0.01) return n.toFixed(6);
+  if (n < 1) return n.toFixed(4);
+  if (n < 1000) return n.toFixed(2);
+  return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+};
+
+/* ─── Get provider with fallback ─── */
+const getProvider = (chain) => {
+  try {
+    return new ethers.JsonRpcProvider(chain.rpc, chain.id);
+  } catch {
+    return new ethers.JsonRpcProvider(chain.rpcFallback, chain.id);
+  }
+};
+
+/* ─── Get KAIROS balance on a specific chain ─── */
+const getKairosBalance = async (chain, address) => {
+  try {
+    const kairosAddr = KAIROS_COIN.addresses[chain.id];
+    if (!kairosAddr) return '0';
+    const provider = getProvider(chain);
+    const contract = new ethers.Contract(kairosAddr, ERC20_ABI, provider);
+    const bal = await contract.balanceOf(address);
+    return ethers.formatUnits(bal, KAIROS_COIN.decimals);
+  } catch (err) {
+    console.warn(`Failed to get KAIROS balance on ${chain.short}:`, err.message);
+    return '0';
+  }
+};
+
+/* ─── Get native balance ─── */
+const getNativeBalance = async (chain, address) => {
+  try {
+    const provider = getProvider(chain);
+    const bal = await provider.getBalance(address);
+    return ethers.formatUnits(bal, chain.nativeDecimals);
+  } catch {
+    return '0';
+  }
+};
+
+/* ─── Send KAIROS transaction ─── */
+const sendKairos = async (chain, privateKey, toAddress, amount) => {
+  const kairosAddr = KAIROS_COIN.addresses[chain.id];
+  if (!kairosAddr) throw new Error(`KAIROS no está desplegado en ${chain.name}`);
+
+  const provider = getProvider(chain);
+  const wallet = new ethers.Wallet(privateKey, provider);
+  const contract = new ethers.Contract(kairosAddr, ERC20_ABI, wallet);
+
+  const amountWei = ethers.parseUnits(amount.toString(), KAIROS_COIN.decimals);
+  const tx = await contract.transfer(toAddress, amountWei);
+  return tx;
+};
+
+/* ─── Get recent KAIROS transfers from explorer API ─── */
+const getRecentTransfers = async (chain, address) => {
+  try {
+    const kairosAddr = KAIROS_COIN.addresses[chain.id];
+    if (!kairosAddr) return [];
+    const url = `${chain.explorerApi}?module=account&action=tokentx&contractaddress=${kairosAddr}&address=${address}&page=1&offset=10&sort=desc`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.status === '1' && Array.isArray(data.result)) {
+      return data.result.map(tx => ({
+        hash: tx.hash,
+        from: tx.from,
+        to: tx.to,
+        value: ethers.formatUnits(tx.value || '0', parseInt(tx.tokenDecimal) || 18),
+        timestamp: parseInt(tx.timeStamp) * 1000,
+        chainId: chain.id,
+        chainShort: chain.short,
+        chainColor: chain.color,
+        isIncoming: tx.to.toLowerCase() === address.toLowerCase(),
+      }));
+    }
+    return [];
+  } catch {
+    return [];
+  }
+};
+
+/* ══════════════════════════════════════════════════════════════
+   MAIN COMPONENT — WalletPage
+   ══════════════════════════════════════════════════════════════ */
+export default function WalletPage() {
+  const { user } = useStore();
+  const walletAddress = user?.walletAddress || '';
+
+  // State
+  const [balances, setBalances] = useState({});       // { chainId: { kairos: '0', native: '0' } }
+  const [totalKairos, setTotalKairos] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showSend, setShowSend] = useState(false);
+  const [showReceive, setShowReceive] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [showPK, setShowPK] = useState(false);
+
+  // Decrypt private key from stored encryptedKey
+  const privateKey = useMemo(() => {
+    try {
+      if (user?.encryptedKey) return atob(user.encryptedKey);
+      const stored = localStorage.getItem('kairos_trade_wallet');
+      if (stored) {
+        const { encryptedKey } = JSON.parse(stored);
+        if (encryptedKey) return atob(encryptedKey);
+      }
+    } catch {}
+    return null;
+  }, [user?.encryptedKey]);
+
+  /* ─── Load Balances ─── */
+  const loadBalances = useCallback(async () => {
+    if (!walletAddress) return;
+    setRefreshing(true);
+
+    const results = {};
+    let total = 0;
+
+    await Promise.all(
+      CHAINS.map(async (chain) => {
+        const [kairos, native] = await Promise.all([
+          getKairosBalance(chain, walletAddress),
+          getNativeBalance(chain, walletAddress),
+        ]);
+        results[chain.id] = { kairos, native };
+        total += parseFloat(kairos) || 0;
+      })
+    );
+
+    setBalances(results);
+    setTotalKairos(total);
+    setLoading(false);
+    setRefreshing(false);
+  }, [walletAddress]);
+
+  useEffect(() => { loadBalances(); }, [loadBalances]);
+
+  /* ─── Load History ─── */
+  const loadHistory = useCallback(async () => {
+    if (!walletAddress) return;
+    setHistoryLoading(true);
+    const allTx = [];
+    await Promise.all(
+      CHAINS.map(async (chain) => {
+        const txs = await getRecentTransfers(chain, walletAddress);
+        allTx.push(...txs);
+      })
+    );
+    allTx.sort((a, b) => b.timestamp - a.timestamp);
+    setHistory(allTx.slice(0, 20));
+    setHistoryLoading(false);
+  }, [walletAddress]);
+
+  /* ─── Copy to clipboard ─── */
+  const handleCopy = useCallback(async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  }, []);
+
+  /* ─── No wallet ─── */
+  if (!walletAddress) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center p-8">
+          <Wallet size={48} className="text-[var(--text-dim)] mx-auto mb-4" />
+          <h2 className="text-lg font-bold mb-2">No hay wallet vinculada</h2>
+          <p className="text-sm text-[var(--text-dim)] max-w-xs">
+            Tu wallet se genera automáticamente al registrarte. Si ves esto, intenta cerrar sesión y volver a entrar.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5" style={{ maxWidth: '100%' }}>
+
+      {/* ─── Header ─── */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--gold)]/15 flex items-center justify-center">
+            <Wallet size={22} className="text-[var(--gold)]" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">Kairos Wallet</h1>
+            <button onClick={() => handleCopy(walletAddress)} className="flex items-center gap-1.5 text-xs text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors">
+              {shortenAddress(walletAddress)}
+              {copied ? <Check size={10} className="text-green-400" /> : <Copy size={10} />}
+            </button>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={loadBalances} disabled={refreshing}
+            className="p-2 rounded-xl transition-all hover:bg-white/5">
+            <RefreshCw size={16} className={`text-[var(--text-dim)] ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
+          <a href="https://kairos-wallet.netlify.app" target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--gold)] transition-all hover:bg-[var(--gold)]/10"
+            style={{ border: '1px solid rgba(59,130,246,0.15)' }}>
+            <ExternalLink size={12} />
+            Wallet Completa
+          </a>
+        </div>
+      </motion.div>
+
+      {/* ─── Total Balance Card ─── */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+        className="rounded-2xl p-6 relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(59,130,246,0.02))',
+          border: '1px solid rgba(59,130,246,0.12)',
+        }}
+      >
+        <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.06), transparent)' }} />
+
+        <p className="text-xs text-[var(--text-dim)] font-semibold uppercase tracking-wider mb-1">Balance Total KAIROS</p>
+        {loading ? (
+          <div className="h-10 w-48 rounded-lg bg-white/5 animate-pulse" />
+        ) : (
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-4xl font-black text-white">{formatBalance(totalKairos)}</h2>
+            <span className="text-sm font-bold text-[var(--gold)]">KAIROS</span>
+          </div>
+        )}
+        <p className="text-xs text-[var(--text-dim)] mt-1">
+          ≈ ${formatBalance(totalKairos)} USD <span className="text-[var(--text-dim)]/50">(1 KAIROS = 1 USD)</span>
+        </p>
+
+        {/* Action buttons */}
+        <div className="flex gap-3 mt-5">
+          <button onClick={() => setShowSend(true)}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all hover:scale-[1.02]"
+            style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 20px rgba(59,130,246,0.2)' }}>
+            <Send size={16} />
+            Enviar
+          </button>
+          <button onClick={() => setShowReceive(true)}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all hover:scale-[1.02]"
+            style={{ background: 'rgba(0,220,130,0.15)', border: '1px solid rgba(0,220,130,0.2)' }}>
+            <Download size={16} className="text-[var(--green)]" />
+            <span className="text-[var(--green)]">Recibir</span>
+          </button>
+          <button onClick={() => { setShowHistory(true); loadHistory(); }}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-[var(--text-dim)] transition-all hover:scale-[1.02] hover:text-white"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <Globe size={16} />
+            Historial
+          </button>
+        </div>
+      </motion.div>
+
+      {/* ─── Chain Balances ─── */}
+      <div className="space-y-2.5">
+        <h3 className="text-sm font-bold flex items-center gap-2">
+          <Shield size={14} className="text-[var(--gold)]" />
+          Balances por Chain
+        </h3>
+        {CHAINS.map((chain, i) => {
+          const bal = balances[chain.id] || { kairos: '0', native: '0' };
+          const kairosVal = parseFloat(bal.kairos);
+          return (
+            <motion.div key={chain.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + i * 0.05 }}
+              className="rounded-xl p-4 flex items-center justify-between transition-all hover:scale-[1.005]"
+              style={{
+                background: `linear-gradient(135deg, ${chain.color}06, ${chain.color}02)`,
+                border: `1px solid ${chain.color}15`,
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black"
+                  style={{ background: `${chain.color}15`, color: chain.color }}>
+                  {chain.short.slice(0, 2)}
+                </div>
+                <div>
+                  <p className="text-sm font-bold">{chain.name}</p>
+                  <p className="text-[10px] text-[var(--text-dim)]">
+                    {formatBalance(bal.native)} {chain.nativeSymbol}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                {loading ? (
+                  <div className="h-5 w-20 rounded bg-white/5 animate-pulse" />
+                ) : (
+                  <>
+                    <p className="text-sm font-bold" style={{ color: kairosVal > 0 ? 'white' : 'var(--text-dim)' }}>
+                      {formatBalance(bal.kairos)} <span className="text-[10px] text-[var(--gold)]">KAIROS</span>
+                    </p>
+                    <a href={`${chain.explorer}/token/${KAIROS_COIN.addresses[chain.id]}?a=${walletAddress}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="text-[10px] text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors flex items-center gap-1 justify-end">
+                      Ver en explorer <ExternalLink size={8} />
+                    </a>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* ─── Private Key Reveal ─── */}
+      {privateKey && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="rounded-xl p-4"
+          style={{
+            background: 'linear-gradient(135deg, rgba(239,68,68,0.04), rgba(239,68,68,0.01))',
+            border: '1px solid rgba(239,68,68,0.1)',
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={14} className="text-red-400" />
+              <span className="text-xs font-bold text-red-400/80">Clave Privada</span>
+            </div>
+            <button onClick={() => setShowPK(!showPK)}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold text-red-400/60 hover:text-red-400 transition-colors"
+              style={{ background: 'rgba(239,68,68,0.06)' }}>
+              {showPK ? <EyeOff size={10} /> : <Eye size={10} />}
+              {showPK ? 'Ocultar' : 'Mostrar'}
+            </button>
+          </div>
+          {showPK && (
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-[10px] text-red-400/70 font-mono break-all bg-black/20 rounded-lg p-2">
+                {privateKey}
+              </code>
+              <button onClick={() => handleCopy(privateKey)} className="p-2 rounded-lg hover:bg-red-400/10">
+                <Copy size={12} className="text-red-400/50" />
+              </button>
+            </div>
+          )}
+          <p className="text-[9px] text-red-400/30 mt-2">
+            ⚠️ Nunca compartas tu clave privada. Impórtala en Kairos Wallet para acceso completo.
+          </p>
+        </motion.div>
+      )}
+
+      {/* ─── Quick Links ─── */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <a href="https://kairos-wallet.netlify.app" target="_blank" rel="noopener noreferrer"
+          className="rounded-xl p-4 text-left transition-all hover:scale-[1.02] block"
+          style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.1)' }}>
+          <Wallet size={20} className="text-[var(--gold)] mb-2" />
+          <p className="text-xs font-bold">Kairos Wallet</p>
+          <p className="text-[10px] text-[var(--text-dim)] mt-0.5">Swap, Bridge, Staking, NFTs, WalletConnect</p>
+        </a>
+        <a href={`${CHAINS[0].explorer}/address/${walletAddress}`} target="_blank" rel="noopener noreferrer"
+          className="rounded-xl p-4 text-left transition-all hover:scale-[1.02] block"
+          style={{ background: 'rgba(240,185,11,0.04)', border: '1px solid rgba(240,185,11,0.1)' }}>
+          <Globe size={20} className="text-amber-400 mb-2" />
+          <p className="text-xs font-bold">BSCScan</p>
+          <p className="text-[10px] text-[var(--text-dim)] mt-0.5">Ver todas las transacciones on-chain</p>
+        </a>
+      </div>
+
+      {/* ══════════ MODALS ══════════ */}
+
+      {/* ─── Send Modal ─── */}
+      <AnimatePresence>
+        {showSend && (
+          <SendModal
+            chains={CHAINS}
+            walletAddress={walletAddress}
+            privateKey={privateKey}
+            onClose={() => setShowSend(false)}
+            onSuccess={loadBalances}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ─── Receive Modal ─── */}
+      <AnimatePresence>
+        {showReceive && (
+          <ReceiveModal
+            walletAddress={walletAddress}
+            onClose={() => setShowReceive(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ─── History Modal ─── */}
+      <AnimatePresence>
+        {showHistory && (
+          <HistoryModal
+            history={history}
+            loading={historyLoading}
+            walletAddress={walletAddress}
+            onClose={() => setShowHistory(false)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SEND MODAL
+   ══════════════════════════════════════════════════════════════ */
+function SendModal({ chains, walletAddress, privateKey, onClose, onSuccess }) {
+  const [selectedChain, setSelectedChain] = useState(chains[0]);
+  const [toAddress, setToAddress] = useState('');
+  const [amount, setAmount] = useState('');
+  const [sending, setSending] = useState(false);
+  const [txHash, setTxHash] = useState(null);
+  const [error, setError] = useState('');
+
+  const handleSend = async () => {
+    setError('');
+    if (!toAddress || !ethers.isAddress(toAddress)) {
+      setError('Dirección inválida');
+      return;
+    }
+    if (!amount || parseFloat(amount) <= 0) {
+      setError('Ingresa un monto válido');
+      return;
+    }
+    if (!privateKey) {
+      setError('No se encontró la clave privada');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const tx = await sendKairos(selectedChain, privateKey, toAddress, amount);
+      setTxHash(tx.hash);
+      onSuccess?.();
+    } catch (err) {
+      setError(err.reason || err.message || 'Error al enviar transacción');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <motion.div className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)' }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.div className="w-full max-w-md rounded-2xl p-6"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <Send size={18} className="text-[var(--gold)]" />
+            Enviar KAIROS
+          </h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} /></button>
+        </div>
+
+        {txHash ? (
+          /* Success state */
+          <div className="text-center py-6">
+            <div className="w-16 h-16 rounded-full bg-green-500/15 flex items-center justify-center mx-auto mb-4">
+              <Check size={28} className="text-green-400" />
+            </div>
+            <h4 className="text-lg font-bold text-white mb-2">¡Transacción Enviada!</h4>
+            <p className="text-xs text-[var(--text-dim)] mb-4">Tu transacción está siendo procesada en {selectedChain.name}</p>
+            <a href={`${selectedChain.explorer}/tx/${txHash}`} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-[var(--gold)] hover:bg-[var(--gold)]/10 transition-colors"
+              style={{ border: '1px solid rgba(59,130,246,0.15)' }}>
+              Ver en Explorer <ExternalLink size={12} />
+            </a>
+            <button onClick={onClose}
+              className="block w-full mt-4 py-3 rounded-xl text-sm font-bold text-white"
+              style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
+              Cerrar
+            </button>
+          </div>
+        ) : (
+          /* Send form */
+          <div className="space-y-4">
+            {/* Chain selector */}
+            <div>
+              <label className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-1.5 block">Red</label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {chains.map(c => (
+                  <button key={c.id} onClick={() => setSelectedChain(c)}
+                    className="flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all"
+                    style={{
+                      background: selectedChain.id === c.id ? `${c.color}20` : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${selectedChain.id === c.id ? c.color + '40' : 'rgba(255,255,255,0.06)'}`,
+                      color: selectedChain.id === c.id ? c.color : 'var(--text-dim)',
+                    }}>
+                    {c.short}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* To address */}
+            <div>
+              <label className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-1.5 block">Dirección destino</label>
+              <input type="text" value={toAddress} onChange={e => setToAddress(e.target.value)}
+                placeholder="0x..."
+                className="w-full px-4 py-3 rounded-xl text-sm font-mono outline-none transition-all focus:ring-2 focus:ring-[var(--gold)]/30"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+            </div>
+
+            {/* Amount */}
+            <div>
+              <label className="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-wider mb-1.5 block">Cantidad KAIROS</label>
+              <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all focus:ring-2 focus:ring-[var(--gold)]/30"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }} />
+            </div>
+
+            {/* Error */}
+            {error && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-red-400"
+                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                <AlertTriangle size={12} />
+                {error}
+              </div>
+            )}
+
+            {/* Send button */}
+            <button onClick={handleSend} disabled={sending}
+              className="w-full py-3.5 rounded-xl text-sm font-bold text-white transition-all hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 20px rgba(59,130,246,0.2)' }}>
+              {sending ? (
+                <><Loader2 size={16} className="animate-spin" /> Enviando...</>
+              ) : (
+                <><Send size={16} /> Enviar {amount ? `${amount} KAIROS` : 'KAIROS'}</>
+              )}
+            </button>
+
+            <p className="text-[9px] text-[var(--text-dim)]/50 text-center">
+              Necesitas {selectedChain.nativeSymbol} en {selectedChain.name} para pagar el gas
+            </p>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RECEIVE MODAL
+   ══════════════════════════════════════════════════════════════ */
+function ReceiveModal({ walletAddress, onClose }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(walletAddress);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  return (
+    <motion.div className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)' }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.div className="w-full max-w-sm rounded-2xl p-6 text-center"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}>
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <Download size={18} className="text-green-400" />
+            Recibir KAIROS
+          </h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} /></button>
+        </div>
+
+        {/* QR Code placeholder — using address visual */}
+        <div className="w-48 h-48 rounded-2xl mx-auto mb-4 flex items-center justify-center relative overflow-hidden"
+          style={{ background: 'white' }}>
+          {/* Simple QR visual representation */}
+          <div className="absolute inset-2 grid grid-cols-8 gap-[2px]">
+            {Array.from({ length: 64 }).map((_, i) => {
+              // Generate deterministic pattern from address
+              const charCode = walletAddress.charCodeAt((i * 3) % walletAddress.length) || 0;
+              const filled = (charCode + i) % 3 !== 0;
+              return (
+                <div key={i} className="rounded-[1px]"
+                  style={{ background: filled ? '#000' : '#fff' }} />
+              );
+            })}
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-md">
+              <span className="text-sm font-black text-blue-600">K</span>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-[10px] text-[var(--text-dim)] mb-3">
+          Envía KAIROS a esta dirección en cualquier chain soportada
+        </p>
+
+        {/* Address */}
+        <button onClick={handleCopy}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-mono transition-all hover:bg-white/5"
+          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <span className="truncate">{walletAddress}</span>
+          {copied ? <Check size={14} className="text-green-400 shrink-0" /> : <Copy size={14} className="text-[var(--text-dim)] shrink-0" />}
+        </button>
+
+        {/* Supported chains */}
+        <div className="flex justify-center gap-2 mt-4">
+          {CHAINS.map(c => (
+            <div key={c.id} className="px-2 py-1 rounded-md text-[9px] font-bold"
+              style={{ background: `${c.color}15`, color: c.color }}>
+              {c.short}
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HISTORY MODAL
+   ══════════════════════════════════════════════════════════════ */
+function HistoryModal({ history, loading, walletAddress, onClose }) {
+  return (
+    <motion.div className="fixed inset-0 z-[60] flex items-center justify-center px-4"
+      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(10px)' }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.div className="w-full max-w-lg rounded-2xl overflow-hidden"
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)', maxHeight: '80vh' }}
+        initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}>
+        <div className="flex items-center justify-between p-5" style={{ borderBottom: '1px solid var(--border)' }}>
+          <h3 className="text-lg font-bold flex items-center gap-2">
+            <Globe size={18} className="text-[var(--gold)]" />
+            Historial KAIROS
+          </h3>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} /></button>
+        </div>
+
+        <div className="overflow-y-auto p-4 space-y-2" style={{ maxHeight: 'calc(80vh - 70px)' }}>
+          {loading && (
+            <div className="py-8 text-center">
+              <Loader2 size={24} className="animate-spin text-[var(--gold)] mx-auto mb-2" />
+              <p className="text-xs text-[var(--text-dim)]">Cargando transacciones...</p>
+            </div>
+          )}
+
+          {!loading && history.length === 0 && (
+            <div className="py-8 text-center">
+              <Globe size={32} className="text-[var(--text-dim)]/30 mx-auto mb-2" />
+              <p className="text-sm text-[var(--text-dim)]">No hay transacciones aún</p>
+            </div>
+          )}
+
+          {!loading && history.map((tx, i) => {
+            const chain = CHAINS.find(c => c.id === tx.chainId) || CHAINS[0];
+            return (
+              <a key={`${tx.hash}-${i}`}
+                href={`${chain.explorer}/tx/${tx.hash}`}
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-between p-3 rounded-xl transition-all hover:bg-white/[0.03]"
+                style={{ border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                    style={{ background: tx.isIncoming ? 'rgba(0,220,130,0.1)' : 'rgba(59,130,246,0.1)' }}>
+                    {tx.isIncoming
+                      ? <ArrowDownRight size={16} className="text-green-400" />
+                      : <ArrowUpRight size={16} className="text-blue-400" />
+                    }
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold">
+                      {tx.isIncoming ? 'Recibido' : 'Enviado'}
+                      <span className="ml-1.5 text-[9px] font-semibold px-1.5 py-0.5 rounded"
+                        style={{ background: `${chain.color}15`, color: chain.color }}>
+                        {chain.short}
+                      </span>
+                    </p>
+                    <p className="text-[10px] text-[var(--text-dim)] font-mono">
+                      {tx.isIncoming ? `de ${shortenAddress(tx.from)}` : `a ${shortenAddress(tx.to)}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-xs font-bold ${tx.isIncoming ? 'text-green-400' : 'text-white'}`}>
+                    {tx.isIncoming ? '+' : '-'}{formatBalance(tx.value)} KAIROS
+                  </p>
+                  <p className="text-[9px] text-[var(--text-dim)]">
+                    {new Date(tx.timestamp).toLocaleDateString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
