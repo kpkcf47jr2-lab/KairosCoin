@@ -55,7 +55,7 @@ const TOKENS = {
 };
 
 // ── KairosPerps Contract (will be set after deployment) ──────────────────────
-let KAIROS_PERPS_ADDRESS = process.env.KAIROS_PERPS_ADDRESS || "";
+let KAIROS_PERPS_ADDRESS = process.env.KAIROS_PERPS_ADDRESS || "0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9";
 
 // ── Minimal ABIs ─────────────────────────────────────────────────────────────
 
