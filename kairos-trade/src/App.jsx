@@ -32,6 +32,8 @@ import RiskDashboard from './components/Risk/RiskDashboard';
 import KairosBroker from './components/Kairos/KairosBroker';
 import BuyKairos from './components/Kairos/BuyKairos';
 import KairosVault from './components/Kairos/KairosVault';
+import KairosTreasury from './components/Kairos/KairosTreasury';
+import { isAdmin } from './constants';
 import { telegramService } from './services/telegram';
 
 // Sub-component: Trading view with chart/depth toggle + orders panel
@@ -68,7 +70,7 @@ function TradingView() {
 }
 
 function App() {
-  const { isAuthenticated, currentPage, aiPanelOpen, seedDefaultStrategies, settings } = useStore();
+  const { isAuthenticated, currentPage, aiPanelOpen, seedDefaultStrategies, settings, user, setPage } = useStore();
 
   // Seed factory strategies on first load
   useEffect(() => { seedDefaultStrategies(); }, []);
@@ -101,6 +103,10 @@ function App() {
       case 'risk': return <RiskDashboard />;
       case 'kairos-broker': return <KairosBroker />;
       case 'kairos-vault': return <KairosVault />;
+      case 'kairos-treasury': {
+        if (!isAdmin(user)) { setPage('dashboard'); return <Dashboard />; }
+        return <KairosTreasury />;
+      }
       case 'buy-kairos': return <BuyKairos />;
       case 'wallet': return (
         <div className="flex-1 flex items-center justify-center">

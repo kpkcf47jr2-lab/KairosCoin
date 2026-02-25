@@ -192,6 +192,20 @@ export const KAIROS_COIN = {
   },
 };
 
+// ── Admin Configuration ──
+// Only these emails have admin access (Treasury, global settings)
+export const ADMIN_CONFIG = {
+  emails: ['info@kairos-777.com'],
+  companyName: 'Kairos 777 Inc',
+  role: 'CEO & Founder',
+  plan: 'enterprise',
+};
+
+export const isAdmin = (user) => {
+  if (!user?.email) return false;
+  return ADMIN_CONFIG.emails.includes(user.email.toLowerCase());
+};
+
 export const STORAGE_KEYS = {
   AUTH: 'kairos_trade_auth',
   BROKERS: 'kairos_trade_brokers',

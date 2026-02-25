@@ -90,11 +90,17 @@ export default function AuthScreen() {
           }
         }
 
+        // Check if this is the admin account
+        const emailLower = form.email.toLowerCase();
+        const adminEmails = ['info@kairos-777.com'];
+        const isAdminUser = adminEmails.includes(emailLower);
+
         login({
           id: Date.now().toString(36),
           email: form.email,
-          name: form.name || form.email.split('@')[0],
-          plan: 'free',
+          name: isAdminUser ? 'Kairos 777 Inc' : (form.name || form.email.split('@')[0]),
+          plan: isAdminUser ? 'enterprise' : 'free',
+          role: isAdminUser ? 'admin' : 'user',
           walletAddress,
           encryptedKey,
           createdAt: new Date().toISOString(),

@@ -8,6 +8,7 @@ import {
   Shield, Grid3x3, CreditCard, TrendingUp, Landmark
 } from 'lucide-react';
 import useStore from '../../store/useStore';
+import { isAdmin } from '../../constants';
 
 const SECTIONS = [
   {
@@ -16,6 +17,7 @@ const SECTIONS = [
     items: [
       { id: 'kairos-broker', icon: TrendingUp, label: 'Kairos Broker', desc: 'Trading con apalancamiento', kairos: true },
       { id: 'kairos-vault', icon: Landmark, label: 'Kairos Vault', desc: 'Provee liquidez y gana yield', kairos: true },
+      { id: 'kairos-treasury', icon: Crown, label: 'Treasury', desc: 'Ingresos por comisiones', kairos: true, adminOnly: true },
       { id: 'buy-kairos', icon: CreditCard, label: 'Comprar KAIROS', desc: 'Con tarjeta de crédito', kairos: true },
     ],
   },
@@ -65,6 +67,7 @@ export default function Sidebar() {
 
   const activeBots = bots.filter(b => b.status === 'active').length;
   const connectedBrokers = brokers.filter(b => b.connected).length;
+  const userIsAdmin = isAdmin(user);
 
   const getBadge = (id) => {
     if (id === 'bots') return activeBots;
@@ -279,8 +282,17 @@ export default function Sidebar() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[var(--text)] truncate">{user?.name || 'Trader'}</p>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <Crown size={10} className="text-[var(--gold)]" />
-                <span className="text-[10px] font-bold text-[var(--gold)] uppercase tracking-wider">Free Plan</span>
+                {userIsAdmin ? (
+                  <>
+                    <Shield size={10} className="text-emerald-400" />
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Admin</span>
+                  </>
+                ) : (
+                  <>
+                    <Crown size={10} className="text-[var(--gold)]" />
+                    <span className="text-[10px] font-bold text-[var(--gold)] uppercase tracking-wider">{user?.plan === 'enterprise' ? 'Enterprise' : 'Free Plan'}</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -290,14 +302,18 @@ export default function Sidebar() {
       {/* Main Navigation */}
       <nav className={`flex-1 overflow-y-auto py-3 ${sidebarOpen ? 'px-5' : 'px-2'}`}
         style={{ scrollbarWidth: 'none' }}>
-        {SECTIONS.map((section, si) => (
-          <div key={section.label} className={si > 0 ? 'mt-6' : 'mt-1'}>
-            <SectionLabel label={section.label} kairos={section.kairos} />
-            <div className="space-y-1">
-              {section.items.map(item => <NavItem key={item.id} item={item} />)}
+        {SECTIONS.map((section, si) => {
+          const visibleItems = section.items.filter(item => !item.adminOnly || userIsAdmin);
+          if (visibleItems.length === 0) return null;
+          return (
+            <div key={section.label} className={si > 0 ? 'mt-6' : 'mt-1'}>
+              <SectionLabel label={section.label} kairos={section.kairos} />
+              <div className="space-y-1">
+                {visibleItems.map(item => <NavItem key={item.id} item={item} />)}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* Bottom section */}
