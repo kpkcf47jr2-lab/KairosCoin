@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 25, 2026 (Session 14 — Platform Fees + Growth Landing + Onboarding)
+#  Last Updated: February 25, 2026 (Session 14 — Wallet Features + Cloud Backup + NFT Send + Staking)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -853,6 +853,52 @@ After adding, click **"Save Changes"** → Render will auto-redeploy.
 ### Commits
 - `a49562a` — Platform fee system (0.05% per trade) + treasury backend
 - `81f38eb` — Growth landing page + onboarding wizard + referral sharing
+- `ada0cc4` — Wallet cloud backup, NFT send, staking 4 protocols, trade wallet page
+
+---
+
+## 22. SESSION 14B — Wallet Features + Cloud Backup + NFT Send + Staking (Feb 25, 2026)
+
+### Cloud Backup System
+- **`kairos-wallet/src/services/cloudBackup.js`** — NEW. Double-encrypted cloud vault backup:
+  - Vault already encrypted with AES-256-GCM locally → re-encrypted with backup password (PBKDF2 300k iterations + AES-256-GCM)
+  - Functions: `createBackup()`, `restoreBackup()`, `checkBackupExists()`, `deleteBackup()`
+  - API at `POST/GET/DELETE /api/wallet/backup` and `GET /api/wallet/backup/check`
+- **`backend/src/routes/walletBackup.js`** — NEW. Turso table `wallet_backups` (1 backup per address)
+  - Routes: save, restore, check, delete. Max vault size 10KB.
+  - Initialized at server startup with `initWalletBackup(db)`
+- **`SettingsScreen.jsx`** — Cloud Backup modal with backup/restore tabs:
+  - Backup tab: shows existing backup status, password input, upload
+  - Restore tab: address + password input, downloads & decrypts vault to localStorage
+
+### NFT Send Functionality
+- **`kairos-wallet/src/services/nft.js`** — Added `sendNFT()` (ERC-721 `safeTransferFrom`) and `sendERC1155()` (ERC-1155 with amount)
+- **`kairos-wallet/src/components/NFT/NFTScreen.jsx`** — Added `SendNFTSection` component:
+  - Address input with validation
+  - Gas estimation before sending
+  - Password unlock to access private key for signing
+  - Success/error feedback with transaction hash
+
+### Staking Improvements (4 Protocols)
+- **`kairos-wallet/src/services/staking.js`** — Enhanced from Lido-only to 4 protocols:
+  - PancakeSwap CAKE: `stakePancakeSwap()`, `unstakePancakeSwap()`, `getPancakeBalance()` — BSC CAKE pool
+  - Ankr BNB: `stakeAnkrBNB()` — BNB liquid staking, returns aBNBc
+  - Rocket Pool ETH: `stakeRocketPool()` — ETH staking, returns rETH
+  - Enhanced `getStakingPositions()` checks Lido stETH, PancakeSwap CAKE, Ankr aBNBc, Rocket Pool rETH
+
+### Trade App — Wallet Page
+- **`kairos-trade/src/components/Wallet/WalletPage.jsx`** — NEW. Multi-chain KAIROS wallet in Trade app:
+  - Shows KAIROS balance across 4 chains (BSC, Base, Arbitrum, Polygon) with on-chain reads via ethers.js
+  - Send KAIROS tab with gas estimation and tx submission
+  - Receive tab with QR code generation
+  - Transaction history tab
+  - Portfolio total in USD (1 KAIROS = 1 USD)
+  - Integrated into `App.jsx` replacing placeholder wallet page
+
+### Deployments
+- Wallet: https://kairos-wallet.netlify.app (deploy `699f5964`)
+- Trade: https://kairos-trade.netlify.app (deploy `699f59a2`)
+- Backend: Render auto-deploy from commit `ada0cc4`
 
 ---
 
