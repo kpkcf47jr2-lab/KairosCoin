@@ -6,8 +6,8 @@
 //  ██║  ██╗██║  ██║██║██║  ██║╚██████╔╝███████║╚██████╗╚██████╔╝██║██║ ╚████║
 //  ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝ ╚═════╝ ╚═════╝ ╚═╝╚═╝  ╚═══╝
 //
-//  Stablecoin Backend v1.1.0
-//  Real-time automated mint/burn • Proof of Reserves • Fiat On-Ramp
+//  Stablecoin Backend v1.2.0
+//  Real-time automated mint/burn • Proof of Reserves • Fiat On-Ramp • Margin Trading
 //  Superior to USDT/USDC — real-time, on-chain verifiable, 24/7 API access
 //
 //  Endpoints:
@@ -26,6 +26,17 @@
 //    POST /api/stripe/create-checkout — Create Stripe Checkout session
 //    GET  /api/stripe/config      — Stripe publishable key
 //    POST /api/webhook/stripe     — Stripe webhook handler (automated)
+//    ── Margin Trading ──
+//    GET  /api/margin/prices       — Live prices from Binance
+//    GET  /api/margin/pairs        — Supported pairs + tier info
+//    GET  /api/margin/account      — Margin account summary
+//    POST /api/margin/deposit      — Deposit KAIROS collateral
+//    POST /api/margin/withdraw     — Withdraw available collateral
+//    POST /api/margin/open         — Open leveraged position
+//    POST /api/margin/close        — Close position
+//    GET  /api/margin/positions    — Open positions (live P&L)
+//    GET  /api/margin/history      — Closed/liquidated positions
+//    GET  /api/margin/trades       — Trade audit trail
 // ═══════════════════════════════════════════════════════════════════════════════
 
 require("dotenv").config();
@@ -39,6 +50,8 @@ const blockchain = require("./services/blockchain");
 const db = require("./services/database");
 const depositMonitor = require("./services/depositMonitor");
 const redemptionMonitor = require("./services/redemptionMonitor");
+const priceOracle = require("./services/priceOracle");
+const marginEngine = require("./services/marginEngine");
 const { generalLimiter } = require("./middleware/rateLimiter");
 
 // ── Import Routes ────────────────────────────────────────────────────────────
@@ -52,6 +65,7 @@ const webhookRoutes = require("./routes/webhook");
 const stripeRoutes = require("./routes/stripe");
 const stripeWebhookRoutes = require("./routes/stripeWebhook");
 const redeemRoutes = require("./routes/redeem");
+const marginRoutes = require("./routes/margin");
 
 // ── Express App ──────────────────────────────────────────────────────────────
 const app = express();
@@ -68,6 +82,7 @@ app.use(
       "https://kairos-wallet.netlify.app",
       "https://global.transak.com",
       "https://staging.transak.com",
+      "https://kairos-trade.netlify.app",
       "http://localhost:3000",
       "http://localhost:5173",
     ],
@@ -172,6 +187,7 @@ app.use("/api/fiat", fiatRoutes);
 app.use("/api/webhook", webhookRoutes);
 app.use("/api/stripe", stripeRoutes);
 app.use("/api/redeem", redeemRoutes);
+app.use("/api/margin", marginRoutes);
 // Note: Stripe webhook is mounted earlier (before express.json) for raw body
 
 // Fee endpoint (defined as /fees in supply router, so mount at /api)
@@ -277,7 +293,17 @@ async function start() {
       logger.info("Auto mint/burn engine DISABLED");
     }
 
-    // 7. Start HTTP server
+    // 7. Start Price Oracle & Margin Engine
+    logger.info("Starting Price Oracle...");
+    await priceOracle.start();
+    logger.info("Price Oracle started ✓");
+
+    logger.info("Initializing Margin Engine...");
+    marginEngine.initialize(db);
+    marginEngine.startLiquidationEngine();
+    logger.info("Margin Engine + Liquidation Engine started ✓");
+
+    // 8. Start HTTP server
     const server = app.listen(config.port, () => {
       logger.info(`Server running on port ${config.port}`);
       console.log(`
@@ -296,6 +322,8 @@ async function start() {
       logger.info(`${signal} received. Shutting down gracefully...`);
       depositMonitor.stop();
       redemptionMonitor.stop();
+      priceOracle.stop();
+      marginEngine.stopLiquidationEngine();
       server.close(() => {
         logger.info("HTTP server closed");
         process.exit(0);
