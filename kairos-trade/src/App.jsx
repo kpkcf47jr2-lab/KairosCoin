@@ -35,6 +35,7 @@ import BuyKairos from './components/Kairos/BuyKairos';
 import KairosVault from './components/Kairos/KairosVault';
 import KairosTreasury from './components/Kairos/KairosTreasury';
 import WalletPage from './components/Wallet/WalletPage';
+import MarketHeatmap from './components/Dashboard/MarketHeatmap';
 import { isAdmin } from './constants';
 import { telegramService } from './services/telegram';
 
@@ -110,6 +111,7 @@ function App() {
       case 'alerts': return <AlertPanel />;
       case 'portfolio': return <PortfolioAnalytics />;
       case 'multichart': return <MultiChart />;
+      case 'heatmap': return <MarketHeatmap />;
       case 'journal': return <TradeJournal />;
       case 'risk': return <RiskDashboard />;
       case 'kairos-broker': return <KairosBroker />;

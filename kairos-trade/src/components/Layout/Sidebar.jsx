@@ -27,6 +27,7 @@ const SECTIONS = [
       { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', desc: 'Panel de control' },
       { id: 'chart', icon: BarChart3, label: 'Trading', desc: 'Gráficos en vivo' },
       { id: 'multichart', icon: Grid3x3, label: 'Multi-Chart', desc: 'Vista profesional' },
+      { id: 'heatmap', icon: Activity, label: 'Heatmap', desc: 'Mapa de calor del mercado' },
       { id: 'simulator', icon: Play, label: 'Simulador', desc: 'Paper trading' },
     ],
   },

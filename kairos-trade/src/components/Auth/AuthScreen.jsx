@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import useStore from '../../store/useStore';
+import { encrypt as vaultEncrypt, decryptKey, migrateLegacyKey, isLegacyKey } from '../../utils/keyVault';
 
 /* ─── API Host ─── */
 const API_HOST = 'https://kairos-api-u6k5.onrender.com';
@@ -134,10 +135,12 @@ export default function AuthScreen() {
   }, []);
 
   /* ─── API helper ─── */
-  const apiFetch = async (path, body) => {
+  const apiFetch = async (path, body, authToken) => {
+    const headers = { 'Content-Type': 'application/json' };
+    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
     const res = await fetch(`${API_HOST}${path}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
     });
     const data = await res.json();
@@ -148,7 +151,7 @@ export default function AuthScreen() {
   };
 
   /* ─── Complete login (shared by login + 2FA verify) ─── */
-  const completeLogin = (data) => {
+  const completeLogin = async (data, password) => {
     const { user, accessToken, refreshToken } = data;
     // Persist wallet separately so it survives logout
     if (user.walletAddress) {
@@ -157,6 +160,34 @@ export default function AuthScreen() {
         encryptedKey: user.encryptedKey || '',
       }));
     }
+
+    // Decrypt private key into session memory (cleared on tab close)
+    if (user.encryptedKey && password) {
+      try {
+        const { privateKey, needsMigration } = await decryptKey(user.encryptedKey, password);
+        if (privateKey) {
+          sessionStorage.setItem('kairos_pk', privateKey);
+        }
+        // Auto-migrate legacy btoa keys to AES-256-GCM
+        if (needsMigration && privateKey) {
+          const newEncrypted = await migrateLegacyKey(user.encryptedKey, password);
+          user.encryptedKey = newEncrypted;
+          localStorage.setItem('kairos_trade_wallet', JSON.stringify({
+            walletAddress: user.walletAddress,
+            encryptedKey: newEncrypted,
+          }));
+          // Update server-side key silently
+          try {
+            await apiFetch('/api/auth/update-key', {
+              encryptedKey: newEncrypted,
+            }, accessToken);
+          } catch {}
+        }
+      } catch (err) {
+        console.warn('Could not decrypt wallet key:', err.message);
+      }
+    }
+
     login({
       id: user.id,
       email: user.email,
@@ -188,7 +219,8 @@ export default function AuthScreen() {
         /* ─── REGISTER ─── */
         const wallet = ethers.Wallet.createRandom();
         const walletAddress = wallet.address;
-        const encryptedKey = btoa(wallet.privateKey);
+        // AES-256-GCM encryption with password-derived key (PBKDF2)
+        const encryptedKey = await vaultEncrypt(wallet.privateKey, form.password);
 
         const data = await apiFetch('/api/auth/register', {
           email: form.email,
@@ -199,8 +231,10 @@ export default function AuthScreen() {
           referralCode: referralCode || undefined,
         });
 
-        // Persist wallet backup locally
+        // Persist wallet backup locally (encrypted — safe to store)
         localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress, encryptedKey }));
+        // Keep decrypted PK in sessionStorage only (cleared on tab close)
+        sessionStorage.setItem('kairos_pk', wallet.privateKey);
 
         // Show signup bonus notification
         if (data.data?.referral?.signupBonus) {
@@ -208,7 +242,7 @@ export default function AuthScreen() {
           setTimeout(() => setSignupBonus(null), 6000);
         }
 
-        completeLogin(data.data);
+        await completeLogin(data.data, form.password);
       } else {
         /* ─── LOGIN ─── */
         const data = await apiFetch('/api/auth/login', {
@@ -222,7 +256,7 @@ export default function AuthScreen() {
           setTotpCode('');
           setShow2FA(true);
         } else {
-          completeLogin(data.data);
+          await completeLogin(data.data, form.password);
         }
       }
     } catch (err) {
@@ -244,7 +278,7 @@ export default function AuthScreen() {
         tempToken,
         totpCode,
       });
-      completeLogin(data.data);
+      await completeLogin(data.data, form.password);
     } catch (err) {
       setError(err.message || 'Código inválido');
     } finally {

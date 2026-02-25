@@ -1,25 +1,107 @@
-// Kairos Trade — Dashboard (Premium v2.1 — Growth)
-import { useEffect, useState, useCallback } from 'react';
+// Kairos Trade — Dashboard (Premium v3.0 — Analytics)
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Bot, Link2, BarChart3, Brain,
   DollarSign, Activity, Zap, ArrowUpRight, ArrowDownRight,
-  Sparkles, Play, Shield, ChevronRight, Gift, Copy, Check, Share2, Users
+  Sparkles, Play, Shield, ChevronRight, Gift, Copy, Check, Share2, Users,
+  Clock, Target, AlertTriangle, Award, Percent, Flame, Eye
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import marketData from '../../services/marketData';
+import { tradingEngine } from '../../services/tradingEngine';
+import { feeService } from '../../services/feeService';
+import { isAdmin } from '../../constants';
 import { toDisplayPair, getBase, formatPair } from '../../utils/pairUtils';
+
+// ─── Mini sparkline (canvas) ───
+function MiniSparkline({ data, color = '#D4AF37', height = 48, width = 140 }) {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !data || data.length < 2) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    const pad = 4;
+    const cW = width - pad * 2;
+    const cH = height - pad * 2;
+    // Gradient fill
+    const gradient = ctx.createLinearGradient(0, pad, 0, height - pad);
+    gradient.addColorStop(0, color + '30');
+    gradient.addColorStop(1, color + '00');
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = pad + (i / (data.length - 1)) * cW;
+      const y = pad + (1 - (v - min) / range) * cH;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.lineTo(pad + cW, height - pad);
+    ctx.lineTo(pad, height - pad);
+    ctx.closePath();
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    // Line
+    ctx.beginPath();
+    data.forEach((v, i) => {
+      const x = pad + (i / (data.length - 1)) * cW;
+      const y = pad + (1 - (v - min) / range) * cH;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    // Last dot
+    const lastX = pad + cW;
+    const lastY = pad + (1 - (data[data.length - 1] - min) / range) * cH;
+    ctx.beginPath();
+    ctx.arc(lastX, lastY, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  }, [data, color, width, height]);
+  return <canvas ref={canvasRef} style={{ width, height }} />;
+}
+
+// ─── Time ago helper ───
+function timeSince(date) {
+  const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (s < 60) return 'ahora';
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  return `${Math.floor(s / 86400)}d`;
+}
 
 export default function Dashboard() {
   const { setPage, bots, brokers, tradeHistory, positions, user } = useStore();
   const [marketOverview, setMarketOverview] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [liveBotData, setLiveBotData] = useState({});
 
   useEffect(() => {
     loadMarketData();
     const interval = setInterval(loadMarketData, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Refresh live bot data every 2s
+  useEffect(() => {
+    const tick = () => {
+      const data = {};
+      tradingEngine.activeBots.forEach((val, key) => {
+        data[key] = tradingEngine.liveData.get(key) || {};
+      });
+      setLiveBotData(data);
+    };
+    tick();
+    const iv = setInterval(tick, 2000);
+    return () => clearInterval(iv);
+  }, [bots]);
 
   const loadMarketData = async () => {
     try {
@@ -56,6 +138,72 @@ export default function Dashboard() {
     { label: 'Estrategias', icon: Zap, page: 'strategies', desc: 'Crea y gestiona', color: '#EC4899' },
     { label: 'Brokers', icon: Shield, page: 'brokers', desc: 'Conecta tu cuenta', color: '#22D3EE' },
   ];
+
+  // ─── Portfolio analytics (computed from tradeHistory) ───
+  const portfolio = useMemo(() => {
+    const trades = tradeHistory || [];
+    if (trades.length === 0) return null;
+    const wins = trades.filter(t => (t.pnl || 0) > 0);
+    const losses = trades.filter(t => (t.pnl || 0) < 0);
+    const winRate = (wins.length / trades.length) * 100;
+    const totalWin = wins.reduce((s, t) => s + t.pnl, 0);
+    const totalLoss = losses.reduce((s, t) => s + Math.abs(t.pnl), 0);
+    const profitFactor = totalLoss > 0 ? totalWin / totalLoss : totalWin > 0 ? Infinity : 0;
+    // Equity curve
+    let equity = 0, peak = 0, maxDD = 0;
+    const equityCurve = [];
+    trades.forEach(t => {
+      equity += (t.pnl || 0);
+      equityCurve.push(equity);
+      peak = Math.max(peak, equity);
+      const dd = peak > 0 ? ((peak - equity) / peak) * 100 : 0;
+      maxDD = Math.max(maxDD, dd);
+    });
+    // Today's P&L
+    const todayStart = new Date().setHours(0, 0, 0, 0);
+    const todayPnl = trades
+      .filter(t => new Date(t.closedAt || t.time).getTime() >= todayStart)
+      .reduce((s, t) => s + (t.pnl || 0), 0);
+    // This week
+    const weekStart = Date.now() - 7 * 86400000;
+    const weekPnl = trades
+      .filter(t => new Date(t.closedAt || t.time).getTime() >= weekStart)
+      .reduce((s, t) => s + (t.pnl || 0), 0);
+    return { winRate, profitFactor, maxDD, equityCurve, todayPnl, weekPnl, totalPnl, totalTrades: trades.length };
+  }, [tradeHistory, totalPnl]);
+
+  // Active bots list
+  const activeBotsList = useMemo(() => bots.filter(b => b.status === 'active'), [bots]);
+
+  // Recent activity (last 8 events)
+  const recentActivity = useMemo(() => {
+    const events = [];
+    (tradeHistory || []).slice(-6).forEach(t => {
+      events.push({
+        type: 'trade',
+        icon: t.pnl >= 0 ? TrendingUp : TrendingDown,
+        color: t.pnl >= 0 ? '#10B981' : '#EF4444',
+        text: `${t.side?.toUpperCase() || 'TRADE'} ${t.symbol || t.pair || '—'} → ${t.pnl >= 0 ? '+' : ''}$${(t.pnl || 0).toFixed(2)}`,
+        time: t.closedAt || t.time,
+      });
+    });
+    bots.filter(b => b.status === 'active').forEach(b => {
+      events.push({
+        type: 'bot',
+        icon: Bot,
+        color: '#3B82F6',
+        text: `${b.name} running on ${b.pair}`,
+        time: b.startedAt || b.createdAt,
+      });
+    });
+    return events.sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0)).slice(0, 8);
+  }, [tradeHistory, bots]);
+
+  // Admin treasury stats
+  const treasuryStats = useMemo(() => {
+    if (!isAdmin(user)) return null;
+    try { return feeService.getStats(); } catch { return null; }
+  }, [user]);
 
   return (
     <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5" style={{ maxWidth: '100%' }}>
@@ -109,6 +257,240 @@ export default function Dashboard() {
             </motion.button>
           );
         })}
+      </div>
+
+      {/* ═══ Portfolio Performance Widget ═══ */}
+      {portfolio && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="rounded-xl overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, rgba(17,19,24,0.8), rgba(24,26,32,0.6))',
+            border: '1px solid rgba(30,34,45,0.5)',
+          }}
+        >
+          <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(30,34,45,0.5)' }}>
+            <div className="flex items-center gap-2">
+              <Activity size={14} className="text-[var(--gold)]" />
+              <h2 className="text-sm font-bold">Portfolio Performance</h2>
+            </div>
+            <button onClick={() => setPage('portfolio')} className="text-[11px] text-[var(--gold)] hover:text-[var(--gold-light)] font-semibold flex items-center gap-1 transition-colors">
+              Analytics completos <ChevronRight size={12} />
+            </button>
+          </div>
+          <div className="p-4 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 items-center">
+            {/* Mini chart */}
+            <div className="flex items-center gap-4">
+              <MiniSparkline
+                data={portfolio.equityCurve}
+                color={totalPnl >= 0 ? '#10B981' : '#EF4444'}
+                width={180}
+                height={56}
+              />
+              <div className="flex-1 grid grid-cols-3 gap-3">
+                <div>
+                  <p className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider font-semibold">Hoy</p>
+                  <p className={`text-sm font-bold ${portfolio.todayPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {portfolio.todayPnl >= 0 ? '+' : ''}${portfolio.todayPnl.toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider font-semibold">7 Días</p>
+                  <p className={`text-sm font-bold ${portfolio.weekPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {portfolio.weekPnl >= 0 ? '+' : ''}${portfolio.weekPnl.toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider font-semibold">Total</p>
+                  <p className={`text-sm font-bold ${totalPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </div>
+            {/* Quick KPIs */}
+            <div className="flex gap-3 flex-wrap">
+              {[
+                { label: 'Win Rate', value: `${portfolio.winRate.toFixed(0)}%`, color: portfolio.winRate >= 50 ? '#10B981' : '#EF4444', icon: Target },
+                { label: 'Profit Factor', value: portfolio.profitFactor === Infinity ? '∞' : portfolio.profitFactor.toFixed(1), color: portfolio.profitFactor >= 1 ? '#10B981' : '#EF4444', icon: Award },
+                { label: 'Max DD', value: `${portfolio.maxDD.toFixed(1)}%`, color: portfolio.maxDD < 15 ? '#10B981' : '#EF4444', icon: AlertTriangle },
+              ].map((kpi, i) => {
+                const I = kpi.icon;
+                return (
+                  <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: `${kpi.color}08`, border: `1px solid ${kpi.color}15` }}>
+                    <I size={13} style={{ color: kpi.color }} />
+                    <div>
+                      <p className="text-[9px] text-[var(--text-dim)] uppercase font-semibold">{kpi.label}</p>
+                      <p className="text-sm font-bold" style={{ color: kpi.color }}>{kpi.value}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ═══ Active Bots Live ═══ */}
+      {activeBotsList.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-[var(--text)] flex items-center gap-2">
+              <Bot size={14} className="text-blue-400" />
+              Bots Activos
+              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
+                {activeBotsList.length} running
+              </span>
+            </h2>
+            <button onClick={() => setPage('bots')} className="text-[11px] text-[var(--gold)] hover:text-[var(--gold-light)] font-semibold flex items-center gap-1 transition-colors">
+              Ver todos <ChevronRight size={12} />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {activeBotsList.slice(0, 6).map(bot => {
+              const live = liveBotData[bot.id] || {};
+              const pnl = live.unrealizedPnl || 0;
+              const pnlPct = live.pnlPercent || 0;
+              const pos = live.position;
+              return (
+                <div
+                  key={bot.id}
+                  onClick={() => setPage('bots')}
+                  className="rounded-xl p-3.5 cursor-pointer transition-all hover:scale-[1.01] group"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(17,19,24,0.8), rgba(24,26,32,0.6))',
+                    border: `1px solid ${pnl >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)'}`,
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-xs font-bold truncate max-w-[120px]">{bot.name}</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-[var(--text-dim)]">{bot.pair}</span>
+                  </div>
+                  {pos ? (
+                    <div className="flex items-center justify-between">
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${pos.side === 'buy' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                        {pos.side?.toUpperCase()} @ ${pos.entryPrice?.toFixed(2)}
+                      </span>
+                      <span className={`text-sm font-bold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+                        <span className="text-[10px] ml-1">({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(1)}%)</span>
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-[var(--text-dim)]">Esperando señal...</span>
+                      <Eye size={12} className="text-[var(--text-dim)]" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 mt-2 text-[10px] text-[var(--text-dim)]">
+                    <span>Trades: {bot.trades || 0}</span>
+                    <span>WR: {(bot.winRate || 0).toFixed(0)}%</span>
+                    {live.price && <span className="ml-auto font-mono">${live.price.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
+      {/* ═══ Activity Feed + Admin Revenue (side by side on large screens) ═══ */}
+      <div className={`grid gap-4 ${treasuryStats ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
+        {/* Activity Feed */}
+        {recentActivity.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="rounded-xl overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, rgba(17,19,24,0.8), rgba(24,26,32,0.6))',
+              border: '1px solid rgba(30,34,45,0.5)',
+            }}
+          >
+            <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(30,34,45,0.5)' }}>
+              <div className="flex items-center gap-2">
+                <Clock size={14} className="text-[var(--gold)]" />
+                <h2 className="text-sm font-bold">Actividad Reciente</h2>
+              </div>
+              <button onClick={() => setPage('history')} className="text-[11px] text-[var(--gold)] hover:text-[var(--gold-light)] font-semibold flex items-center gap-1 transition-colors">
+                Ver historial <ChevronRight size={12} />
+              </button>
+            </div>
+            <div className="divide-y divide-[var(--border)]/30">
+              {recentActivity.map((evt, i) => {
+                const I = evt.icon;
+                const when = evt.time ? new Date(evt.time) : null;
+                const ago = when ? timeSince(when) : '';
+                return (
+                  <div key={i} className="flex items-center gap-3 px-4 py-2.5 hover:bg-white/[0.01] transition-colors">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${evt.color}12` }}>
+                      <I size={13} style={{ color: evt.color }} />
+                    </div>
+                    <p className="flex-1 text-xs truncate">{evt.text}</p>
+                    <span className="text-[10px] text-[var(--text-dim)] shrink-0">{ago}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Admin Revenue Panel */}
+        {treasuryStats && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="rounded-xl overflow-hidden"
+            style={{
+              background: 'linear-gradient(135deg, rgba(212,175,55,0.04), rgba(212,175,55,0.01))',
+              border: '1px solid rgba(212,175,55,0.12)',
+            }}
+          >
+            <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(212,175,55,0.08)' }}>
+              <div className="flex items-center gap-2">
+                <Flame size={14} className="text-amber-400" />
+                <h2 className="text-sm font-bold">Platform Revenue</h2>
+                <span className="text-[9px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">ADMIN</span>
+              </div>
+              <button onClick={() => setPage('kairos-treasury')} className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1 transition-colors">
+                Treasury <ChevronRight size={12} />
+              </button>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-3">
+              <div className="rounded-lg p-3" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.1)' }}>
+                <p className="text-[10px] text-[var(--text-dim)] uppercase font-semibold mb-1">Total Recaudado</p>
+                <p className="text-lg font-bold text-emerald-400">${treasuryStats.totalCollected.toFixed(2)}</p>
+                <p className="text-[10px] text-[var(--text-dim)]">{treasuryStats.totalTrades} trades</p>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.1)' }}>
+                <p className="text-[10px] text-[var(--text-dim)] uppercase font-semibold mb-1">Hoy</p>
+                <p className="text-lg font-bold text-blue-400">${treasuryStats.today.fees.toFixed(2)}</p>
+                <p className="text-[10px] text-[var(--text-dim)]">{treasuryStats.today.trades} trades • ${treasuryStats.today.volume.toLocaleString()} vol</p>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.1)' }}>
+                <p className="text-[10px] text-[var(--text-dim)] uppercase font-semibold mb-1">7 Días</p>
+                <p className="text-lg font-bold text-purple-400">${treasuryStats.last7days.fees.toFixed(2)}</p>
+                <p className="text-[10px] text-[var(--text-dim)]">{treasuryStats.last7days.trades} trades</p>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.1)' }}>
+                <p className="text-[10px] text-[var(--text-dim)] uppercase font-semibold mb-1">30 Días</p>
+                <p className="text-lg font-bold text-amber-400">${treasuryStats.last30days.fees.toFixed(2)}</p>
+                <p className="text-[10px] text-[var(--text-dim)]">${treasuryStats.last30days.volume.toLocaleString()} volumen</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Quick actions */}

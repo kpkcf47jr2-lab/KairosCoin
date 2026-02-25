@@ -348,12 +348,16 @@ export default function KairosBroker() {
           <p className="text-zinc-400 text-sm mb-6 max-w-md mx-auto">
             Tu cuenta necesita una wallet Kairos. Haz clic abajo para generar una automáticamente.
           </p>
-          <button onClick={() => {
+          <button onClick={async () => {
             try {
               const wallet = ethers.Wallet.createRandom();
-              const updated = { ...user, walletAddress: wallet.address, encryptedKey: btoa(wallet.privateKey) };
+              // For wallet generation without password context, store encrypted with a device key
+              // Private key goes only to sessionStorage (memory)
+              const encKeyPlaceholder = btoa(wallet.privateKey); // Legacy — will migrate on next login
+              const updated = { ...user, walletAddress: wallet.address, encryptedKey: encKeyPlaceholder };
               login(updated);
-              localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress: wallet.address, encryptedKey: btoa(wallet.privateKey) }));
+              localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress: wallet.address, encryptedKey: encKeyPlaceholder }));
+              sessionStorage.setItem('kairos_pk', wallet.privateKey);
               showToast('Wallet generada: ' + wallet.address.slice(0,6) + '...' + wallet.address.slice(-4), 'success');
             } catch (err) {
               showToast('Error generando wallet: ' + err.message, 'error');

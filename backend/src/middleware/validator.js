@@ -6,6 +6,19 @@
 const { ethers } = require("ethers");
 
 /**
+ * Basic XSS sanitizer — strips HTML tags and dangerous characters from strings.
+ */
+function sanitizeString(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/[<>]/g, '')           // strip angle brackets
+    .replace(/javascript:/gi, '')    // strip javascript: protocol
+    .replace(/on\w+\s*=/gi, '')      // strip event handlers (onclick=, etc.)
+    .replace(/data:\s*text\/html/gi, '') // strip data URI HTML
+    .trim();
+}
+
+/**
  * Validate mint request body.
  */
 function validateMintRequest(req, res, next) {
@@ -60,8 +73,8 @@ function validateMintRequest(req, res, next) {
   req.validatedData = {
     to: ethers.getAddress(to), // checksum
     amount: String(amount),
-    reference: reference || null,
-    note: note || null,
+    reference: reference ? sanitizeString(reference) : null,
+    note: note ? sanitizeString(note) : null,
   };
 
   next();
@@ -119,8 +132,8 @@ function validateBurnRequest(req, res, next) {
   req.validatedData = {
     from: ethers.getAddress(from),
     amount: String(amount),
-    reference: reference || null,
-    note: note || null,
+    reference: reference ? sanitizeString(reference) : null,
+    note: note ? sanitizeString(note) : null,
   };
 
   next();

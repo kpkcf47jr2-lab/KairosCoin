@@ -81,8 +81,8 @@ function extractApiKey(req) {
     return req.headers["x-api-key"];
   }
 
-  // 3. Query parameter (for simple testing only)
-  if (req.query.api_key) {
+  // 3. Query parameter — disabled in production (security risk: logged in URLs)
+  if (req.query.api_key && process.env.NODE_ENV !== "production") {
     return req.query.api_key;
   }
 

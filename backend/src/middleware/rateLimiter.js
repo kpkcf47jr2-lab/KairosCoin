@@ -54,9 +54,24 @@ const healthLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// ── Auth routes limiter (brute-force protection) ────────────────────────────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 15, // 15 attempts per 15 min (login/register/2FA)
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => req.ip,
+  message: {
+    error: "Too many auth attempts",
+    message: "Account locked temporarily. Try again in 15 minutes.",
+    retryAfter: "15 minutes",
+  },
+});
+
 module.exports = {
   generalLimiter,
   mintBurnLimiter,
   publicLimiter,
   healthLimiter,
+  authLimiter,
 };

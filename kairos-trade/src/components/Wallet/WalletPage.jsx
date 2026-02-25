@@ -165,14 +165,24 @@ export default function WalletPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [showPK, setShowPK] = useState(false);
 
-  // Decrypt private key from stored encryptedKey
+  // Get private key from session memory (decrypted at login)
   const privateKey = useMemo(() => {
     try {
-      if (user?.encryptedKey) return atob(user.encryptedKey);
+      // Primary: session-only storage (set during login, cleared on tab close)
+      const sessionPK = sessionStorage.getItem('kairos_pk');
+      if (sessionPK && sessionPK.startsWith('0x')) return sessionPK;
+      // Fallback: legacy unencrypted keys (backward compat)
+      if (user?.encryptedKey && !user.encryptedKey.startsWith('v1:')) {
+        const decoded = atob(user.encryptedKey);
+        if (decoded.startsWith('0x')) return decoded;
+      }
       const stored = localStorage.getItem('kairos_trade_wallet');
       if (stored) {
         const { encryptedKey } = JSON.parse(stored);
-        if (encryptedKey) return atob(encryptedKey);
+        if (encryptedKey && !encryptedKey.startsWith('v1:')) {
+          const decoded = atob(encryptedKey);
+          if (decoded.startsWith('0x')) return decoded;
+        }
       }
     } catch {}
     return null;

@@ -322,4 +322,22 @@ router.post('/admin/reset-password', requireMasterKey, async (req, res) => {
   }
 });
 
+// ═════════════════════════════════════════════════════════════════════════════
+//  POST /update-key — Migrate encrypted key (legacy btoa → AES-256-GCM)
+// ═════════════════════════════════════════════════════════════════════════════
+
+router.post('/update-key', requireAuth, (req, res) => {
+  try {
+    const { encryptedKey } = req.body;
+    if (!encryptedKey || !encryptedKey.startsWith('v1:')) {
+      return res.status(400).json({ success: false, error: 'Invalid encrypted key format' });
+    }
+    const db = require('../services/database').getAuthDb();
+    db.prepare('UPDATE users SET encrypted_key = ? WHERE id = ?').run(encryptedKey, req.user.id);
+    res.json({ success: true, message: 'Key updated' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

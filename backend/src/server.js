@@ -61,7 +61,7 @@ const redemptionMonitor = require("./services/redemptionMonitor");
 const priceOracle = require("./services/priceOracle");
 const marginEngine = require("./services/marginEngine");
 const vaultEngine = require("./services/vaultEngine");
-const { generalLimiter } = require("./middleware/rateLimiter");
+const { generalLimiter, authLimiter } = require("./middleware/rateLimiter");
 
 // ── Import Routes ────────────────────────────────────────────────────────────
 const mintRoutes = require("./routes/mint");
@@ -90,7 +90,15 @@ const dexRouter = require("./services/dexRouter");
 const app = express();
 
 // ── Security Headers ─────────────────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false, // handled by frontend Netlify headers
+  crossOriginEmbedderPolicy: false, // needed for cross-origin API calls
+  hsts: { maxAge: 31536000, includeSubDomains: true },
+}));
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  next();
+});
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
 app.use(
@@ -102,8 +110,7 @@ app.use(
       "https://global.transak.com",
       "https://staging.transak.com",
       "https://kairos-trade.netlify.app",
-      "http://localhost:3000",
-      "http://localhost:5173",
+      ...(process.env.NODE_ENV !== "production" ? ["http://localhost:3000", "http://localhost:5173"] : []),
     ],
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Transak-Signature", "Webhook-Secret"],
@@ -209,7 +216,7 @@ app.use("/api/redeem", redeemRoutes);
 app.use("/api/margin", marginRoutes);
 app.use("/api/vault", vaultRoutes);
 app.use("/api/perps", perpsRoutes);
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/referral", referralRoutes);
 app.use("/api/treasury", treasuryRoutes.router);
 app.use("/api/wallet", walletBackupRoutes.router);
