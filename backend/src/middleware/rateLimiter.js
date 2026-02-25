@@ -9,7 +9,7 @@ const config = require("../config");
 // ── General API limiter (all routes) ─────────────────────────────────────────
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: config.rateLimitMax || 100,
+  max: config.rateLimitMax || 500,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
