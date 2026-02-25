@@ -19,6 +19,10 @@ import {
   isBiometricAvailable, isBiometricEnabled, enrollBiometric, removeBiometric,
 } from '../../services/autolock';
 import { getLanguage, setLanguage, getAvailableLanguages, t, useTranslation } from '../../services/i18n';
+import {
+  isPushSupported, getPermissionStatus, requestPermission, subscribeToPush,
+  unsubscribeFromPush, getPreferences, updatePreferences, getPushStatus,
+} from '../../services/pushNotifications';
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
@@ -77,6 +81,11 @@ export default function SettingsScreen() {
   const [cloudError, setCloudError] = useState('');
   const [cloudSuccess, setCloudSuccess] = useState('');
   const [backupExists, setBackupExists] = useState(null);
+
+  // Push notification states
+  const [showPushSettings, setShowPushSettings] = useState(false);
+  const [pushPrefs, setPushPrefs] = useState(getPreferences());
+  const [pushStatus, setPushStatus] = useState(getPushStatus());
 
   const accounts = getAllAccounts();
   const chain = CHAINS[activeChainId];
@@ -276,6 +285,39 @@ export default function SettingsScreen() {
             }
           },
           color: 'text-green-400',
+        }] : []),
+      ],
+    },
+    {
+      title: 'Notificaciones',
+      items: [
+        {
+          icon: Bell,
+          label: pushStatus.permission === 'granted' ? 'Push Activadas' : 'Activar Push',
+          desc: pushStatus.permission === 'granted'
+            ? 'Recibe alertas de txs, precios y seguridad'
+            : pushStatus.permission === 'denied'
+            ? 'Bloqueadas — habilita en ajustes del navegador'
+            : 'Toca para activar notificaciones push',
+          action: async () => {
+            if (pushStatus.permission === 'granted') {
+              setShowPushSettings(true);
+            } else if (pushStatus.permission !== 'denied') {
+              const granted = await requestPermission();
+              setPushStatus(getPushStatus());
+              showToast(granted ? 'Push activadas ✅' : 'Permiso denegado', granted ? 'success' : 'error');
+            } else {
+              showToast('Notificaciones bloqueadas. Habilita en ajustes del navegador.', 'error');
+            }
+          },
+          color: pushStatus.permission === 'granted' ? 'text-green-400' : 'text-kairos-400',
+        },
+        ...(pushStatus.permission === 'granted' ? [{
+          icon: Shield,
+          label: 'Configurar Categorías',
+          desc: 'Elige qué notificaciones recibir',
+          action: () => setShowPushSettings(true),
+          color: 'text-indigo-400',
         }] : []),
       ],
     },
@@ -1081,6 +1123,147 @@ export default function SettingsScreen() {
                   {changePwdLoading ? 'Cambiando...' : 'Cambiar'}
                 </button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* ── Push Notification Settings Modal ── */}
+        {showPushSettings && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-6"
+            onClick={() => setShowPushSettings(false)}
+          >
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+              className="glass-card w-full max-w-sm p-6 rounded-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-2 mb-4">
+                <Bell size={18} className="text-kairos-400" />
+                <h3 className="font-bold text-white">Notificaciones Push</h3>
+              </div>
+
+              <p className="text-dark-400 text-xs mb-4">
+                Elige qué notificaciones deseas recibir. Los cambios se guardan automáticamente.
+              </p>
+
+              {/* Category Toggles */}
+              <div className="space-y-1">
+                {[
+                  { key: 'transactions', label: 'Transacciones', desc: 'Envíos y recibos confirmados', emoji: '💸' },
+                  { key: 'priceAlerts', label: 'Alertas de Precio', desc: 'Cuando se activan tus alertas', emoji: '📈' },
+                  { key: 'security', label: 'Seguridad', desc: 'Aprobaciones y actividad sospechosa', emoji: '🛡️' },
+                  { key: 'staking', label: 'Staking & Vault', desc: 'Rewards y yield acumulado', emoji: '🌾' },
+                  { key: 'system', label: 'Sistema', desc: 'Actualizaciones y mantenimiento', emoji: '⚙️' },
+                  { key: 'marketing', label: 'Promociones', desc: 'Ofertas y novedades de Kairos', emoji: '🎁' },
+                ].map(cat => (
+                  <button
+                    key={cat.key}
+                    onClick={() => {
+                      const newVal = !pushPrefs.categories[cat.key];
+                      const updated = updatePreferences({ categories: { [cat.key]: newVal } });
+                      setPushPrefs(updated);
+                    }}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all text-left"
+                  >
+                    <span className="text-lg">{cat.emoji}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-white">{cat.label}</p>
+                      <p className="text-dark-500 text-[10px]">{cat.desc}</p>
+                    </div>
+                    <div className={`w-10 h-6 rounded-full transition-all flex items-center px-0.5 ${
+                      pushPrefs.categories[cat.key] ? 'bg-kairos-500' : 'bg-dark-700'
+                    }`}>
+                      <div className={`w-5 h-5 rounded-full bg-white transition-all ${
+                        pushPrefs.categories[cat.key] ? 'translate-x-4' : 'translate-x-0'
+                      }`} />
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Quiet Hours */}
+              <div className="mt-4 pt-4 border-t border-white/5">
+                <button
+                  onClick={() => {
+                    const updated = updatePreferences({ quiet: { enabled: !pushPrefs.quiet.enabled } });
+                    setPushPrefs(updated);
+                  }}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all text-left"
+                >
+                  <span className="text-lg">🌙</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white">Horas Silenciosas</p>
+                    <p className="text-dark-500 text-[10px]">{pushPrefs.quiet.start} — {pushPrefs.quiet.end}</p>
+                  </div>
+                  <div className={`w-10 h-6 rounded-full transition-all flex items-center px-0.5 ${
+                    pushPrefs.quiet.enabled ? 'bg-kairos-500' : 'bg-dark-700'
+                  }`}>
+                    <div className={`w-5 h-5 rounded-full bg-white transition-all ${
+                      pushPrefs.quiet.enabled ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </div>
+                </button>
+              </div>
+
+              {/* Sound & Vibrate */}
+              <div className="mt-2 space-y-1">
+                <button
+                  onClick={() => {
+                    const updated = updatePreferences({ sound: !pushPrefs.sound });
+                    setPushPrefs(updated);
+                  }}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all text-left"
+                >
+                  <span className="text-lg">🔊</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white">Sonido</p>
+                  </div>
+                  <div className={`w-10 h-6 rounded-full transition-all flex items-center px-0.5 ${
+                    pushPrefs.sound ? 'bg-kairos-500' : 'bg-dark-700'
+                  }`}>
+                    <div className={`w-5 h-5 rounded-full bg-white transition-all ${
+                      pushPrefs.sound ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    const updated = updatePreferences({ vibrate: !pushPrefs.vibrate });
+                    setPushPrefs(updated);
+                  }}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-all text-left"
+                >
+                  <span className="text-lg">📳</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-white">Vibración</p>
+                  </div>
+                  <div className={`w-10 h-6 rounded-full transition-all flex items-center px-0.5 ${
+                    pushPrefs.vibrate ? 'bg-kairos-500' : 'bg-dark-700'
+                  }`}>
+                    <div className={`w-5 h-5 rounded-full bg-white transition-all ${
+                      pushPrefs.vibrate ? 'translate-x-4' : 'translate-x-0'
+                    }`} />
+                  </div>
+                </button>
+              </div>
+
+              {/* Unsubscribe */}
+              <button
+                onClick={async () => {
+                  await unsubscribeFromPush();
+                  setPushStatus(getPushStatus());
+                  setShowPushSettings(false);
+                  showToast('Push desactivadas', 'info');
+                }}
+                className="w-full mt-4 py-2.5 rounded-xl border border-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/5 transition-all"
+              >
+                Desactivar todas las notificaciones
+              </button>
+
+              <button
+                onClick={() => setShowPushSettings(false)}
+                className="w-full mt-2 py-2.5 kairos-button text-sm"
+              >
+                Listo
+              </button>
             </motion.div>
           </motion.div>
         )}

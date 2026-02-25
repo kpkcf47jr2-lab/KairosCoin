@@ -40,6 +40,7 @@ import NotificationCenter from './components/Common/NotificationCenter';
 import RPCHealthScreen from './components/Settings/RPCHealthScreen';
 import ErrorBoundary from './components/Common/ErrorBoundary';
 import Toast from './components/Common/Toast';
+import { initPushListeners } from './services/pushNotifications';
 
 const pageVariants = {
   initial: { opacity: 0, x: 20 },
@@ -69,6 +70,8 @@ export default function App() {
   useEffect(() => {
     if (isUnlocked) {
       startInactivityTimer(() => lock());
+      // Init push notification click handlers
+      initPushListeners(navigate);
     } else {
       stopInactivityTimer();
     }

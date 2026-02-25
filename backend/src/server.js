@@ -83,6 +83,7 @@ const referralService = require("./services/referralService");
 const referralRoutes = require("./routes/referralRoutes");
 const treasuryRoutes = require("./routes/treasury");
 const walletBackupRoutes = require("./routes/walletBackup");
+const pushRoutes = require("./routes/push");
 const dexRouter = require("./services/dexRouter");
 
 // ── Express App ──────────────────────────────────────────────────────────────
@@ -212,6 +213,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/referral", referralRoutes);
 app.use("/api/treasury", treasuryRoutes.router);
 app.use("/api/wallet", walletBackupRoutes.router);
+app.use("/api/push", pushRoutes.router);
 // Note: Stripe webhook is mounted earlier (before express.json) for raw body
 
 // Fee endpoint (defined as /fees in supply router, so mount at /api)
