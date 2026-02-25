@@ -676,7 +676,7 @@ class BrokerService {
     if (conn.config.id === 'coinbase') {
       try {
         const data = await this._coinbaseRequest(conn.creds, 'GET', '/api/v3/brokerage/accounts?limit=250');
-        console.log('[COINBASE BALANCES] Raw accounts count:', data.accounts?.length);
+        // Debug removed for production
         const allAccounts = (data.accounts || []).map(a => ({
           asset: a.currency,
           free: a.available_balance?.value || '0',
@@ -684,9 +684,9 @@ class BrokerService {
           total: (parseFloat(a.available_balance?.value || 0) + parseFloat(a.hold?.value || 0)).toString(),
           name: a.name,
         }));
-        console.log('[COINBASE BALANCES] All accounts:', allAccounts.map(a => `${a.asset}: free=${a.free} locked=${a.locked}`).join(', '));
+
         const filtered = allAccounts.filter(a => parseFloat(a.free) > 0 || parseFloat(a.locked) > 0);
-        console.log('[COINBASE BALANCES] Non-zero:', filtered.map(a => `${a.asset}: $${a.free}`).join(', '));
+
         return filtered;
       } catch (err) { console.error('Coinbase getBalances:', err); throw err; }
     }
@@ -892,9 +892,9 @@ class BrokerService {
           order_configuration: orderConfig,
         };
 
-        console.log('[COINBASE ORDER] Sending:', JSON.stringify(orderBody, null, 2));
+
         const result = await this._coinbaseRequest(conn.creds, 'POST', '/api/v3/brokerage/orders', orderBody);
-        console.log('[COINBASE ORDER] Response:', JSON.stringify(result, null, 2));
+
 
         // Coinbase returns { success: true/false, success_response: {...}, error_response: {...} }
         if (!result.success) {
@@ -911,7 +911,7 @@ class BrokerService {
           console.error('[COINBASE ORDER] No order_id in response:', result);
           throw new Error('Coinbase: no order_id returned');
         }
-        console.log('[COINBASE ORDER] Order created:', orderId);
+
 
         // Wait briefly for market order to fill, then fetch details
         let filledPrice = 0;
@@ -923,7 +923,7 @@ class BrokerService {
           try {
             if (attempt > 0) await new Promise(r => setTimeout(r, 500));
             const details = await this._coinbaseRequest(conn.creds, 'GET', `/api/v3/brokerage/orders/historical/${orderId}`);
-            console.log(`[COINBASE ORDER] Details attempt ${attempt + 1}:`, JSON.stringify(details, null, 2));
+
             const ord = details.order || details;
             orderStatus = (ord.status || '').toUpperCase();
             filledPrice = parseFloat(ord.average_filled_price || 0);
@@ -943,7 +943,7 @@ class BrokerService {
           orderStatus = 'UNCONFIRMED';
         }
 
-        console.log(`[COINBASE ORDER] Final: orderId=${orderId} status=${orderStatus} filledPrice=${filledPrice} filledQty=${filledQty}`);
+
 
         return {
           id: orderId,
@@ -1380,7 +1380,7 @@ class BrokerService {
         let url = `/api/v3/brokerage/orders/historical/fills?limit=${limit}`;
         if (productId) url += `&product_id=${productId}`;
         const data = await this._coinbaseRequest(conn.creds, 'GET', url);
-        console.log('[COINBASE] Trade history fills:', data);
+
         return (data.fills || []).map(f => ({
           id: f.trade_id || f.entry_id,
           orderId: f.order_id,

@@ -91,12 +91,23 @@ const app = express();
 
 // ── Security Headers ─────────────────────────────────────────────────────────
 app.use(helmet({
-  contentSecurityPolicy: false, // handled by frontend Netlify headers
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://bsc-dataseed1.binance.org", "https://api.binance.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+    },
+  },
   crossOriginEmbedderPolicy: false, // needed for cross-origin API calls
-  hsts: { maxAge: 31536000, includeSubDomains: true },
+  hsts: { maxAge: 63072000, includeSubDomains: true, preload: true },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  frameguard: { action: 'deny' },
 }));
 app.use((req, res, next) => {
-  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(self), usb=()');
   next();
 });
 
