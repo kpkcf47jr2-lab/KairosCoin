@@ -1,5 +1,5 @@
-// Kairos Trade — Main Application (Premium v2.1 — Kairos Broker)
-import { useEffect } from 'react';
+// Kairos Trade — Main Application (Premium v2.2 — Growth + Onboarding)
+import { useEffect, useState } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import useStore from './store/useStore';
@@ -8,8 +8,9 @@ import useStore from './store/useStore';
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
 
-// Auth
+// Auth & Onboarding
 import AuthScreen from './components/Auth/AuthScreen';
+import OnboardingWizard from './components/Onboarding/OnboardingWizard';
 
 // Pages
 import Dashboard from './components/Dashboard/Dashboard';
@@ -71,6 +72,7 @@ function TradingView() {
 
 function App() {
   const { isAuthenticated, currentPage, aiPanelOpen, seedDefaultStrategies, settings, user, setPage } = useStore();
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Seed factory strategies on first load
   useEffect(() => { seedDefaultStrategies(); }, []);
@@ -81,6 +83,14 @@ function App() {
       telegramService.configure(settings.telegramBotToken, settings.telegramChatId);
     }
   }, [settings?.telegramBotToken, settings?.telegramChatId]);
+
+  // Show onboarding wizard for new users (only once per user)
+  useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      const done = localStorage.getItem(`kairos_onboarding_done_${user.id}`);
+      if (!done) setShowOnboarding(true);
+    }
+  }, [isAuthenticated, user?.id]);
 
   if (!isAuthenticated) {
     return <AuthScreen />;
@@ -140,6 +150,11 @@ function App() {
           style: { background: '#181A20', color: '#EAECEF', border: '1px solid #1E222D', fontSize: '13px' },
         }}
       />
+
+      {/* Onboarding Wizard (shows once for new users) */}
+      <AnimatePresence>
+        {showOnboarding && <OnboardingWizard onComplete={() => setShowOnboarding(false)} />}
+      </AnimatePresence>
 
       {/* Sidebar */}
       <Sidebar />

@@ -1,10 +1,10 @@
-// Kairos Trade — Dashboard (Premium v2)
-import { useEffect, useState } from 'react';
+// Kairos Trade — Dashboard (Premium v2.1 — Growth)
+import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Bot, Link2, BarChart3, Brain,
   DollarSign, Activity, Zap, ArrowUpRight, ArrowDownRight,
-  Sparkles, Play, Shield, ChevronRight
+  Sparkles, Play, Shield, ChevronRight, Gift, Copy, Check, Share2, Users
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import marketData from '../../services/marketData';
@@ -223,6 +223,95 @@ export default function Dashboard() {
           ))}
         </div>
       </div>
+
+      {/* Referral Card — Invite & Earn */}
+      {user?.referralCode && <ReferralCard code={user.referralCode} />}
     </div>
+  );
+}
+
+/* ─── Referral Sharing Card ─── */
+function ReferralCard({ code }) {
+  const [copied, setCopied] = useState(false);
+
+  const link = `https://kairos-trade.netlify.app?ref=${code}`;
+
+  const handleCopy = useCallback(async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  }, []);
+
+  const handleShare = useCallback((platform) => {
+    const msg = encodeURIComponent(`Únete a Kairos Trade — trading automatizado con 10+ brokers y bots AI. Usa mi código ${code} y recibe 100 KAIROS gratis: ${link}`);
+    const urls = {
+      whatsapp: `https://wa.me/?text=${msg}`,
+      telegram: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${msg}`,
+      twitter: `https://twitter.com/intent/tweet?text=${msg}`,
+    };
+    window.open(urls[platform], '_blank');
+  }, [code, link]);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.4 }}
+      className="rounded-xl overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, rgba(245,158,11,0.04), rgba(245,158,11,0.01))',
+        border: '1px solid rgba(245,158,11,0.12)',
+      }}
+    >
+      <div className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(245,158,11,0.1)' }}>
+            <Gift size={16} className="text-amber-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-[var(--text)]">Invita y Gana</h3>
+            <p className="text-[10px] text-[var(--text-dim)]">20 KAIROS por cada amigo</p>
+          </div>
+        </div>
+
+        {/* Code + Copy */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex-1 rounded-lg px-3 py-2 font-mono text-sm font-bold text-amber-400 tracking-wider"
+            style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.1)' }}>
+            {code}
+          </div>
+          <button onClick={() => handleCopy(code)}
+            className="px-3 py-2 rounded-lg transition-all hover:scale-105"
+            style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)' }}>
+            {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} className="text-amber-400/60" />}
+          </button>
+        </div>
+
+        {/* Link */}
+        <button onClick={() => handleCopy(link)}
+          className="w-full text-left rounded-lg px-3 py-2 text-[11px] text-[var(--text-dim)] truncate hover:text-white/50 transition-colors mb-3"
+          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+          {link}
+        </button>
+
+        {/* Share buttons */}
+        <div className="flex gap-2">
+          {[
+            { id: 'whatsapp', label: 'WhatsApp', bg: '#25D366' },
+            { id: 'telegram', label: 'Telegram', bg: '#0088cc' },
+            { id: 'twitter', label: 'X', bg: '#1DA1F2' },
+          ].map(p => (
+            <button key={p.id} onClick={() => handleShare(p.id)}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold text-white/60 hover:text-white transition-all hover:scale-[1.02]"
+              style={{ background: `${p.bg}10`, border: `1px solid ${p.bg}20` }}>
+              <Share2 size={10} />
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </motion.div>
   );
 }
