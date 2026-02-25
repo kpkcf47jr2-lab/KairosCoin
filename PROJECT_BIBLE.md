@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 25, 2026 (Session 14D — Website v2 Redesign + SEO)
+#  Last Updated: February 25, 2026 (Session 14D — Security Hardening + Dashboard Analytics)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -981,6 +981,51 @@ After adding, click **"Save Changes"** → Render will auto-redeploy.
 - **`website/index-v1-backup.html`** — Backup of original 737-line index.html
 - **Commit:** `7e57e5d`
 - **Deploy:** Live at https://kairos-777.com
+
+## 22. SESSION 14D (cont.) — Dashboard Analytics + Security Hardening (Feb 25, 2026)
+
+### Dashboard Analytics Enhancement
+- **`kairos-trade/src/components/Dashboard/Dashboard.jsx`** — Major rewrite with 4 new sections:
+  - **Portfolio Performance Widget**: Sparkline SVG, win rate %, P&L stats, best/worst trade
+  - **Active Bots Live Panel**: Running bots with real-time P&L from tradingEngine, color indicators
+  - **Activity Feed**: Timeline of recent 8 trades with relative time (`timeSince()` helper)
+  - **Admin Revenue Stats**: Total fees, today's fees/trades/volume (admin only via `feeService.getStats()`)
+- **`kairos-trade/src/components/Dashboard/MarketHeatmap.jsx`** — NEW component:
+  - Fetches 24hr tickers from Binance for ~20 top cryptos
+  - Color-coded grid (green for positive, red for negative change)
+  - Each tile: symbol, price, % change; tile size proportional to volume
+  - Auto-refreshes every 30 seconds
+- **`kairos-trade/src/App.jsx`** — Added `MarketHeatmap` route
+- **`kairos-trade/src/components/Layout/Sidebar.jsx`** — Added Heatmap nav in Analytics section
+
+### Security Hardening (Critical)
+- **`kairos-trade/src/utils/keyVault.js`** — NEW: AES-256-GCM encryption utility:
+  - PBKDF2 key derivation (310,000 iterations, SHA-256)
+  - `encrypt(plaintext, password)` / `decrypt(ciphertext, password)` with `v1:` prefix versioning
+  - `isLegacyKey()` detects old btoa-encoded keys
+  - `decryptKey()` handles both legacy and v1 encrypted keys
+  - `migrateLegacyKey()` auto-upgrades btoa keys to AES-256-GCM
+- **`kairos-trade/src/components/Auth/AuthScreen.jsx`** — Fixed CRITICAL btoa() issue:
+  - Registration now encrypts private key with `vaultEncrypt(pk, password)` (AES-256-GCM)
+  - Login decrypts key into `sessionStorage` only (cleared on tab close)
+  - Auto-migrates legacy btoa keys to v1 encryption on login
+  - `completeLogin()` now async, receives password for decryption
+  - `apiFetch()` supports optional auth token header
+- **`kairos-trade/src/components/Wallet/WalletPage.jsx`** — Reads PK from sessionStorage first, falls back to legacy atob
+- **`kairos-trade/src/components/Kairos/KairosBroker.jsx`** — Wallet generation stores PK in sessionStorage
+- **`backend/src/routes/authRoutes.js`** — NEW endpoint: `POST /api/auth/update-key` for key migration
+- **Security Headers** (all 3 apps):
+  - `website/_headers`: CSP, HSTS (1yr), X-Frame-Options: DENY, X-Content-Type-Options, Permissions-Policy
+  - `kairos-trade/netlify.toml`: Full CSP (Binance WS, Google Fonts, kairos-api), HSTS, Permissions-Policy
+  - `kairos-wallet/public/_headers`: CSP (ethers CDN, WalletConnect, Binance, CoinGecko, Aave), HSTS
+- **Backend hardening**:
+  - `rateLimiter.js`: Added `authLimiter` (10 req/15min per IP)
+  - `auth.js`: Blocked API key in query params for production (dev only)
+  - `validator.js`: Added `sanitizeString()` — strips script tags, HTML, event handlers, javascript: URIs
+  - `server.js`: Removed localhost from CORS in prod, enhanced Helmet (full CSP, HSTS 2yr, Permissions-Policy)
+- **Commit:** `9cdf95e`
+- **Deploy:** Backend auto-deployed via Render. Wallet + Website deployed to Netlify. Trade needs redeploy (Netlify credits depleted).
+- **NOTE:** Netlify deploy credits exhausted — trade redeploy pending credit renewal
 
 ---
 
