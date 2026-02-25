@@ -8,6 +8,7 @@ import { marketData } from './marketData';
 import { brokerService } from './broker';
 import { executeScript } from './kairosScript';
 import { toApiPair } from '../utils/pairUtils';
+import { telegramService } from './telegram';
 
 const WS_ENDPOINTS = [
   'wss://stream.binance.us:9443/ws',
@@ -23,6 +24,7 @@ class TradingEngine {
     this.lastHeartbeat = new Map(); // Throttle heartbeat logs
     this.logs = new Map();          // Internal log buffer per bot (survives navigation)
     this.callbacks = new Map();     // Callback registry per bot { onTrade, onLog }
+    this.liveData = new Map();      // Real-time data per bot: { price, unrealizedPnl, position }
   }
 
   // ─── Internal log: stores + forwards to UI ───
@@ -38,6 +40,42 @@ class TradingEngine {
   // ─── Internal trade forward ───
   _onTrade(botId, trade) {
     try { this.callbacks.get(botId)?.onTrade?.(trade); } catch (e) { /* stale callback */ }
+  }
+
+  // ─── Sync bot position to Zustand store (for OrdersPanel visibility) ───
+  async _syncPositionToStore(bot, entryPrice, side, quantity, order) {
+    try {
+      const store = (await import('../store/useStore')).default;
+      const state = store.getState();
+
+      // Remove any existing position for this bot first (prevent duplicates)
+      const existing = state.positions.filter(p => p.botId === bot.id);
+      existing.forEach(p => state.closePosition(p.id));
+
+      store.getState().addPosition({
+        pair: bot.pair,
+        side,
+        quantity,
+        entryPrice,
+        currentPrice: entryPrice,
+        stopLoss: order.stopLoss ? parseFloat(order.stopLoss.toFixed(2)) : null,
+        takeProfit: order.takeProfit ? parseFloat(order.takeProfit.toFixed(2)) : null,
+        botId: bot.id,
+        botName: bot.name,
+        time: Date.now(),
+      });
+    } catch {}
+  }
+
+  // ─── Remove bot position from store ───
+  async _removePositionFromStore(botId) {
+    try {
+      const store = (await import('../store/useStore')).default;
+      const state = store.getState();
+      // Remove ALL positions for this bot (in case of duplicates)
+      const botPositions = state.positions.filter(p => p.botId === botId);
+      botPositions.forEach(p => state.closePosition(p.id));
+    } catch {}
   }
 
   // ─── Update callbacks (call when component remounts) ───
@@ -115,7 +153,7 @@ class TradingEngine {
     // Run initial strategy evaluation
     const closes = initialCandles.map(c => c.close);
     const currentPrice = closes[closes.length - 1];
-    const signal = this._evaluateStrategy(bot.strategy, initialCandles, closes);
+    const signal = this._evaluateStrategy(bot.strategy, initialCandles, closes, bot.id);
     if (signal) {
       this._log(bot.id, `📊 Señal inicial: ${signal.type.toUpperCase()} a $${currentPrice.toFixed(2)}`);
       await this._handleSignal(bot, signal, currentPrice);
@@ -151,6 +189,14 @@ class TradingEngine {
       } else if (ind === 'macd_cross') {
         const { macd, signal } = calculateMACD(closes);
         this._log(bot.id, `📈 MACD: ${macd[len - 1]?.toFixed(2)} | Signal: ${signal[len - 1]?.toFixed(2)} — Sin señal, monitoreando...`);
+      } else if (bot.strategy?.type === 'custom_script') {
+        // Custom script — show key indicator values automatically
+        const emaFast = calculateEMA(closes, 9);
+        const emaSlow = calculateEMA(closes, 21);
+        const rsiArr = calculateRSI(closes, 14);
+        const p = closes[len - 1];
+        const diff = ((emaFast[len - 1] - emaSlow[len - 1]) / emaSlow[len - 1] * 100).toFixed(3);
+        this._log(bot.id, `📈 $${p?.toFixed(2)} | EMA9: $${emaFast[len - 1]?.toFixed(2)} | EMA21: $${emaSlow[len - 1]?.toFixed(2)} (${diff}%) | RSI: ${rsiArr[len - 1]?.toFixed(1)} — Sin señal`);
       } else {
         this._log(bot.id, `👀 Sin señal — Monitoreando en tiempo real...`);
       }
@@ -254,14 +300,38 @@ class TradingEngine {
     this.streams.set(bot.id, { ws, reconnectTimeout });
   }
 
+  // ─── Get live data for a bot (called by UI) ───
+  getLiveData(botId) {
+    return this.liveData.get(botId) || null;
+  }
+
   // ─── Handle real-time price tick ───
   _handleTick(bot, currentPrice) {
-    // Heartbeat every 10 seconds
+    // Update live data on EVERY tick (for real-time UI)
+    const pos = this.positions.get(bot.id);
+    if (pos) {
+      const unrealizedPnl = pos.side === 'buy'
+        ? (currentPrice - pos.entryPrice) * pos.quantity
+        : (pos.entryPrice - currentPrice) * pos.quantity;
+      const pnlPercent = pos.side === 'buy'
+        ? ((currentPrice - pos.entryPrice) / pos.entryPrice) * 100
+        : ((pos.entryPrice - currentPrice) / pos.entryPrice) * 100;
+      this.liveData.set(bot.id, {
+        price: currentPrice,
+        unrealizedPnl,
+        pnlPercent,
+        position: { side: pos.side, entryPrice: pos.entryPrice, quantity: pos.quantity },
+        time: Date.now(),
+      });
+    } else {
+      this.liveData.set(bot.id, { price: currentPrice, unrealizedPnl: 0, pnlPercent: 0, position: null, time: Date.now() });
+    }
+
+    // Heartbeat log every 10 seconds
     const now = Date.now();
     const lastHB = this.lastHeartbeat.get(bot.id) || 0;
     if (now - lastHB > 10000) {
       this.lastHeartbeat.set(bot.id, now);
-      const pos = this.positions.get(bot.id);
       if (pos) {
         const unrealizedPnl = pos.side === 'buy'
           ? (currentPrice - pos.entryPrice) * pos.quantity
@@ -295,7 +365,7 @@ class TradingEngine {
     this._log(bot.id, `🕯️ Vela cerrada: O:${candle.open.toFixed(2)} H:${candle.high.toFixed(2)} L:${candle.low.toFixed(2)} C:${candle.close.toFixed(2)}`);
 
     // Evaluate strategy
-    const signal = this._evaluateStrategy(bot.strategy, botCandles, closes);
+    const signal = this._evaluateStrategy(bot.strategy, botCandles, closes, bot.id);
     if (signal) {
       await this._handleSignal(bot, signal, currentPrice);
     } else {
@@ -341,13 +411,21 @@ class TradingEngine {
       try {
         this._log(bot.id, `🔄 Cerrando posición REAL en broker...`);
         const result = await brokerService.placeOrder(bot.brokerId, closeOrder);
-        const realProfit = result.filledPrice
-          ? (position.side === 'buy'
-            ? (result.filledPrice - entryPrice) * qty
-            : (entryPrice - result.filledPrice) * qty)
-          : profit;
-        this._log(bot.id, `✅ Cerrada: P&L real ${realProfit >= 0 ? '+' : ''}$${realProfit.toFixed(2)}`);
-        this._onTrade(bot.id, { ...closeOrder, ...result, profit: realProfit, real: true, action: 'close', reason });
+        const confirmed = result.confirmed !== false;
+        const realExitPrice = (result.filledPrice && result.filledPrice > 0)
+          ? result.filledPrice : currentPrice;
+        const realProfit = position.side === 'buy'
+          ? (realExitPrice - entryPrice) * qty
+          : (entryPrice - realExitPrice) * qty;
+        const statusIcon = confirmed ? '✅' : '⚠️';
+        this._log(bot.id, `${statusIcon} Cerrada: P&L ${realProfit >= 0 ? '+' : ''}$${realProfit.toFixed(4)} [${result.status}] ID:${result.id || 'N/A'}`);
+        this._onTrade(bot.id, { ...closeOrder, ...result, profit: realProfit, real: true, confirmed, action: 'close', reason });
+
+        // Telegram notification
+        telegramService.notifyTradeClose(bot.name, pos.side, bot.pair, entryPrice, realExitPrice, realProfit, reason);
+
+        // Auto-refresh balance from broker after closing
+        this._refreshBotBalance(bot);
       } catch (err) {
         this._log(bot.id, `❌ Error cerrando: ${err.message}`);
         this._onTrade(bot.id, { ...closeOrder, profit, status: 'error', error: err.message, action: 'close' });
@@ -358,15 +436,36 @@ class TradingEngine {
     }
 
     this.positions.delete(bot.id);
+    this._removePositionFromStore(bot.id);
   }
 
   // ─── Open position ───
   async _openPosition(bot, signal, currentPrice) {
+    // Short cooldown (5s): prevents double-fire on same candle, lets next candle evaluate fresh
+    const lastFail = this._lastOrderFail?.get(bot.id) || 0;
+    const cooldown = this._lastFailPermanent?.get(bot.id) ? 60000 : 5000; // 1min for balance issues, 5s for transient
+    if (Date.now() - lastFail < cooldown) {
+      return;
+    }
+
     this._log(bot.id, `📊 Señal: ${signal.type.toUpperCase()} a $${currentPrice.toFixed(2)}`);
 
     const positionSize = this._calculatePositionSize(bot, currentPrice);
-    const slPct = parseFloat(bot.strategy?.stopLoss || 2) / 100;
-    const tpPct = parseFloat(bot.strategy?.takeProfit || 4) / 100;
+
+    // Sanity check: if position too small even after minimum, skip
+    if (positionSize * currentPrice < 0.50) {
+      this._log(bot.id, `⚠️ Balance insuficiente para operar (mínimo ~$1). Necesitas al menos $1.10 de saldo.`);
+      this._lastOrderFail = this._lastOrderFail || new Map();
+      this._lastFailPermanent = this._lastFailPermanent || new Map();
+      this._lastOrderFail.set(bot.id, Date.now());
+      this._lastFailPermanent.set(bot.id, true);
+      return;
+    }
+
+    // Use script config SL/TP if available, otherwise bot strategy defaults
+    const scriptCfg = this._scriptConfigs?.get(bot.id);
+    const slPct = parseFloat(scriptCfg?.stopLoss || bot.strategy?.stopLoss || 2) / 100;
+    const tpPct = parseFloat(scriptCfg?.takeProfit || bot.strategy?.takeProfit || 4) / 100;
 
     const order = {
       symbol: toApiPair(bot.pair),
@@ -387,7 +486,15 @@ class TradingEngine {
         this._log(bot.id, `🔄 Ejecutando orden REAL en broker...`);
         const result = await brokerService.placeOrder(bot.brokerId, order);
         const fillPrice = result.filledPrice || currentPrice;
-        this._log(bot.id, `✅ REAL: ${result.side?.toUpperCase()} ${result.filledQty || positionSize} @ $${fillPrice} [${result.status}]`);
+        const confirmed = result.confirmed !== false;
+        const statusIcon = confirmed ? '✅' : '⚠️';
+        this._log(bot.id, `${statusIcon} REAL: ${result.side?.toUpperCase()} ${result.filledQty || positionSize} @ $${fillPrice.toFixed(2)} [${result.status}] ID:${result.id || 'N/A'}`);
+        if (!confirmed) {
+          this._log(bot.id, `⚠️ Orden no confirmada por el broker — el fill real puede diferir`);
+        }
+        // Clear cooldown on success
+        this._lastOrderFail?.delete(bot.id);
+        this._lastFailPermanent?.delete(bot.id);
 
         this.positions.set(bot.id, {
           side: signal.type,
@@ -396,10 +503,25 @@ class TradingEngine {
           entryTime: Date.now(),
           orderId: result.id,
         });
+        this._syncPositionToStore(bot, fillPrice, signal.type, result.filledQty || positionSize, order);
         this._onTrade(bot.id, { ...order, ...result, real: true, action: 'open' });
+
+        // Telegram notification
+        telegramService.notifyTradeOpen(bot.name, signal.type, bot.pair, fillPrice, result.filledQty || positionSize, bot.brokerName || bot.brokerId);
+
+        // Auto-refresh balance from broker after trade
+        this._refreshBotBalance(bot);
       } catch (err) {
         this._log(bot.id, `❌ Error orden: ${err.message}`);
-        this._onTrade(bot.id, { ...order, status: 'error', error: err.message });
+        // Short cooldown (5s) — next candle re-evaluará la señal fresca
+        this._lastOrderFail = this._lastOrderFail || new Map();
+        this._lastOrderFail.set(bot.id, Date.now());
+        // Detect permanent errors (balance/size) vs transient (network/rate-limit)
+        this._lastFailPermanent = this._lastFailPermanent || new Map();
+        const msg = err.message.toLowerCase();
+        const isPermanent = msg.includes('insufficient') || msg.includes('size') || msg.includes('balance') || msg.includes('too small') || msg.includes('minimum');
+        this._lastFailPermanent.set(bot.id, isPermanent);
+        // Don't fire _onTrade for errors (don't count as trade)
       }
     } else {
       this._log(bot.id, `📝 [DEMO] ${signal.type.toUpperCase()} ${positionSize} @ $${currentPrice.toFixed(2)}`);
@@ -410,21 +532,58 @@ class TradingEngine {
         entryTime: Date.now(),
         simulated: true,
       });
+      this._syncPositionToStore(bot, currentPrice, signal.type, positionSize, order);
       this._onTrade(bot.id, { ...order, status: 'filled', simulated: true, action: 'open' });
     }
   }
 
-  // ─── Check SL/TP on every tick (real-time) ───
+  // ─── Check SL/TP + Trailing Stop on every tick (real-time) ───
   async _checkStopLossTakeProfit(bot, currentPrice) {
     const pos = this.positions.get(bot.id);
     if (!pos) return;
 
-    const slPct = parseFloat(bot.strategy?.stopLoss || 2) / 100;
-    const tpPct = parseFloat(bot.strategy?.takeProfit || 4) / 100;
+    const scriptCfg = this._scriptConfigs?.get(bot.id);
+    const slPct = parseFloat(scriptCfg?.stopLoss || bot.strategy?.stopLoss || 2) / 100;
+    const tpPct = parseFloat(scriptCfg?.takeProfit || bot.strategy?.takeProfit || 4) / 100;
 
-    const sl = pos.side === 'buy'
-      ? pos.entryPrice * (1 - slPct)
-      : pos.entryPrice * (1 + slPct);
+    // ── Trailing Stop Loss Logic ──
+    // Activates when trailingStop is enabled on the bot or strategy
+    const trailingEnabled = bot.trailingStop || bot.strategy?.trailingStop || scriptCfg?.trailingStop;
+    const trailingPct = parseFloat(bot.trailingStopPct || bot.strategy?.trailingStopPct || scriptCfg?.trailingStopPct || slPct * 100) / 100;
+    const trailingActivation = parseFloat(bot.trailingActivation || bot.strategy?.trailingActivation || scriptCfg?.trailingActivation || 0.5) / 100;
+
+    let sl, effectiveTrailing = false;
+    if (trailingEnabled) {
+      // Track best price since entry
+      if (!pos.bestPrice) pos.bestPrice = pos.entryPrice;
+      if (pos.side === 'buy') {
+        pos.bestPrice = Math.max(pos.bestPrice, currentPrice);
+        // Activate trailing only after price moves X% in profit
+        const profitPct = (currentPrice - pos.entryPrice) / pos.entryPrice;
+        if (profitPct >= trailingActivation) {
+          sl = pos.bestPrice * (1 - trailingPct);
+          effectiveTrailing = true;
+        } else {
+          sl = pos.entryPrice * (1 - slPct); // Use regular SL until activation
+        }
+      } else {
+        pos.bestPrice = Math.min(pos.bestPrice, currentPrice);
+        const profitPct = (pos.entryPrice - currentPrice) / pos.entryPrice;
+        if (profitPct >= trailingActivation) {
+          sl = pos.bestPrice * (1 + trailingPct);
+          effectiveTrailing = true;
+        } else {
+          sl = pos.entryPrice * (1 + slPct);
+        }
+      }
+      // Update position in map with tracked best price
+      this.positions.set(bot.id, pos);
+    } else {
+      sl = pos.side === 'buy'
+        ? pos.entryPrice * (1 - slPct)
+        : pos.entryPrice * (1 + slPct);
+    }
+
     const tp = pos.side === 'buy'
       ? pos.entryPrice * (1 + tpPct)
       : pos.entryPrice * (1 - tpPct);
@@ -432,11 +591,22 @@ class TradingEngine {
     const hitSL = pos.side === 'buy' ? currentPrice <= sl : currentPrice >= sl;
     const hitTP = pos.side === 'buy' ? currentPrice >= tp : currentPrice <= tp;
 
+    // Update live data with trailing info
+    if (effectiveTrailing) {
+      const ld = this.liveData.get(bot.id);
+      if (ld) {
+        ld.trailingStop = sl;
+        ld.bestPrice = pos.bestPrice;
+        this.liveData.set(bot.id, ld);
+      }
+    }
+
     if (hitSL || hitTP) {
       const exitSide = pos.side === 'buy' ? 'sell' : 'buy';
-      const reason = hitSL ? 'stop_loss' : 'take_profit';
+      const reason = hitSL ? (effectiveTrailing ? 'trailing_stop' : 'stop_loss') : 'take_profit';
+      const icon = hitSL ? (effectiveTrailing ? '📐 TRAILING-STOP' : '🛑 STOP-LOSS') : '🎯 TAKE-PROFIT';
 
-      this._log(bot.id, `${hitSL ? '🛑 STOP-LOSS' : '🎯 TAKE-PROFIT'} a $${currentPrice.toFixed(2)}`);
+      this._log(bot.id, `${icon} a $${currentPrice.toFixed(2)}${effectiveTrailing ? ` (best: $${pos.bestPrice?.toFixed(2)})` : ''}`);
       await this._closePosition(bot, pos, currentPrice, exitSide, reason);
     }
   }
@@ -467,7 +637,7 @@ class TradingEngine {
         }
 
         // Evaluate
-        const signal = this._evaluateStrategy(bot.strategy, candles, closes);
+        const signal = this._evaluateStrategy(bot.strategy, candles, closes, bot.id);
         if (signal) {
           await this._handleSignal(bot, signal, currentPrice);
         } else {
@@ -510,16 +680,33 @@ class TradingEngine {
     this.candles.delete(botId);
     this.lastHeartbeat.delete(botId);
     this.callbacks.delete(botId);
+    this.liveData.delete(botId);
   }
 
   // ─── Evaluate strategy rules ───
-  _evaluateStrategy(strategy, candles, closes) {
+  _evaluateStrategy(strategy, candles, closes, botId) {
     // Custom Kairos Script
     if (strategy?.type === 'custom_script' && strategy?.code) {
       const result = executeScript(strategy.code, candles);
+
+      // Surface script logs to the user
+      if (result.logs?.length > 0) {
+        result.logs.forEach(l => this._log(botId, `📝 ${l}`));
+      }
+
       if (result.error) {
-        console.warn('[KairosScript] Error:', result.error);
+        this._log(botId, `❌ Script error: ${result.error}`);
         return null;
+      }
+
+      // Store script config for SL/TP
+      if (result.config && botId) {
+        this._scriptConfigs = this._scriptConfigs || new Map();
+        this._scriptConfigs.set(botId, result.config);
+      }
+
+      if (result.signal) {
+        this._log(botId, `🎯 Script señal: ${result.signal.type.toUpperCase()}`);
       }
       return result.signal;
     }
@@ -581,11 +768,57 @@ class TradingEngine {
     return null;
   }
 
+  // ─── Auto-refresh bot balance from real broker after trade ───
+  async _refreshBotBalance(bot) {
+    if (!bot.brokerId || !brokerService.connections.has(bot.brokerId)) return;
+    try {
+      const balances = await brokerService.getBalances(bot.brokerId);
+      // Find USDT, USD, USDC — whatever the stablecoin balance is
+      const stableNames = ['USDT', 'USD', 'USDC', 'BUSD', 'FDUSD'];
+      const stableBal = balances.find(b => stableNames.includes(b.asset?.toUpperCase()));
+      if (stableBal) {
+        const newBalance = parseFloat(stableBal.free || stableBal.total || 0);
+        if (newBalance > 0 && newBalance !== bot.balance) {
+          this._log(bot.id, `💰 Balance actualizado: $${bot.balance?.toFixed(2)} → $${newBalance.toFixed(2)}`);
+          bot.balance = newBalance;
+          // Also update in store
+          try {
+            const { default: useStore } = await import('../store/useStore');
+            const store = useStore.getState();
+            const bots = store.bots || [];
+            const updated = bots.map(b => b.id === bot.id ? { ...b, balance: newBalance } : b);
+            useStore.setState({ bots: updated });
+          } catch {}
+        }
+      }
+    } catch (err) {
+      // Non-critical, just log
+      console.warn('[tradingEngine] Balance refresh failed:', err.message);
+    }
+  }
+
   // ─── Position sizing ───
   _calculatePositionSize(bot, price) {
     const balance = bot.balance || 1000;
     const riskPercent = parseFloat(bot.riskPercent || 2) / 100;
-    const amount = (balance * riskPercent) / price;
+    let usdAmount = balance * riskPercent;
+
+    // Enforce minimum order size ($1.10 for most exchanges)
+    const MIN_ORDER_USD = 1.10;
+    if (usdAmount < MIN_ORDER_USD) {
+      usdAmount = Math.min(MIN_ORDER_USD, balance * 0.95);
+      this._log(bot.id, `⚠️ Monto calculado muy bajo ($${(balance * riskPercent).toFixed(2)}), ajustado a $${usdAmount.toFixed(2)}`);
+    }
+
+    // Cap at 95% of balance (leave room for fees)
+    if (usdAmount > balance * 0.95) {
+      usdAmount = balance * 0.95;
+    }
+
+    // Log position size for transparency
+    this._log(bot.id, `💰 Tamaño orden: $${usdAmount.toFixed(2)} USD (${riskPercent * 100}% de $${balance})`);
+
+    const amount = usdAmount / price;
     return Math.round(amount * 1e8) / 1e8;
   }
 

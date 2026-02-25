@@ -52,6 +52,7 @@ const depositMonitor = require("./services/depositMonitor");
 const redemptionMonitor = require("./services/redemptionMonitor");
 const priceOracle = require("./services/priceOracle");
 const marginEngine = require("./services/marginEngine");
+const vaultEngine = require("./services/vaultEngine");
 const { generalLimiter } = require("./middleware/rateLimiter");
 
 // ── Import Routes ────────────────────────────────────────────────────────────
@@ -66,6 +67,7 @@ const stripeRoutes = require("./routes/stripe");
 const stripeWebhookRoutes = require("./routes/stripeWebhook");
 const redeemRoutes = require("./routes/redeem");
 const marginRoutes = require("./routes/margin");
+const vaultRoutes = require("./routes/vault");
 
 // ── Express App ──────────────────────────────────────────────────────────────
 const app = express();
@@ -188,6 +190,7 @@ app.use("/api/webhook", webhookRoutes);
 app.use("/api/stripe", stripeRoutes);
 app.use("/api/redeem", redeemRoutes);
 app.use("/api/margin", marginRoutes);
+app.use("/api/vault", vaultRoutes);
 // Note: Stripe webhook is mounted earlier (before express.json) for raw body
 
 // Fee endpoint (defined as /fees in supply router, so mount at /api)
@@ -302,6 +305,10 @@ async function start() {
     marginEngine.initialize(db);
     marginEngine.startLiquidationEngine();
     logger.info("Margin Engine + Liquidation Engine started ✓");
+
+    logger.info("Initializing Vault Engine...");
+    vaultEngine.initialize(db);
+    logger.info("Vault Engine started ✓");
 
     // 8. Start HTTP server
     const server = app.listen(config.port, () => {

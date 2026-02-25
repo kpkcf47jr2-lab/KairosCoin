@@ -1,19 +1,30 @@
-// Kairos Trade — Sidebar Navigation (Premium v2)
+// Kairos Trade — Sidebar Navigation (Premium v2.1 — Kairos First)
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
 import {
   LayoutDashboard, BarChart3, Bot, Link2, Brain, History,
   Settings, Wallet, LogOut, ChevronLeft, ChevronRight, Zap,
-  Play, Bell, Crown, User, Sparkles
+  Play, Bell, Crown, User, Sparkles, Activity, BookOpen,
+  Shield, Grid3x3, CreditCard, TrendingUp, Vault
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 
 const SECTIONS = [
   {
+    label: 'Kairos',
+    kairos: true,
+    items: [
+      { id: 'kairos-broker', icon: TrendingUp, label: 'Kairos Broker', desc: 'Trading con apalancamiento', kairos: true },
+      { id: 'kairos-vault', icon: Vault, label: 'Kairos Vault', desc: 'Provee liquidez y gana yield', kairos: true },
+      { id: 'buy-kairos', icon: CreditCard, label: 'Comprar KAIROS', desc: 'Con tarjeta de crédito', kairos: true },
+    ],
+  },
+  {
     label: 'Principal',
     items: [
       { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard', desc: 'Panel de control' },
       { id: 'chart', icon: BarChart3, label: 'Trading', desc: 'Gráficos en vivo' },
+      { id: 'multichart', icon: Grid3x3, label: 'Multi-Chart', desc: 'Vista profesional' },
       { id: 'simulator', icon: Play, label: 'Simulador', desc: 'Paper trading' },
     ],
   },
@@ -23,6 +34,14 @@ const SECTIONS = [
       { id: 'bots', icon: Bot, label: 'Bots', desc: 'Trading automático' },
       { id: 'strategies', icon: Zap, label: 'Estrategias', desc: 'Crear y gestionar' },
       { id: 'ai', icon: Sparkles, label: 'Kairos AI', desc: 'Asistente IA', accent: true },
+    ],
+  },
+  {
+    label: 'Analytics',
+    items: [
+      { id: 'portfolio', icon: Activity, label: 'Portfolio', desc: 'P&L y rendimiento' },
+      { id: 'journal', icon: BookOpen, label: 'Journal', desc: 'Diario de trades' },
+      { id: 'risk', icon: Shield, label: 'Riesgo', desc: 'Gestión de riesgo' },
     ],
   },
   {
@@ -58,6 +77,7 @@ export default function Sidebar() {
     const isActive = currentPage === item.id;
     const badge = getBadge(item.id);
     const isHovered = hoveredItem === item.id;
+    const isKairos = item.kairos;
 
     return (
       <div className="relative">
@@ -70,7 +90,9 @@ export default function Sidebar() {
             ${sidebarOpen ? 'px-3 py-3 gap-3.5' : 'px-0 py-3 justify-center'}
             ${isActive
               ? 'text-white'
-              : 'text-[var(--text-dim)] hover:text-[var(--text)]'
+              : isKairos
+                ? 'text-blue-300/80 hover:text-blue-200'
+                : 'text-[var(--text-dim)] hover:text-[var(--text)]'
             }`}
         >
           {/* Active background */}
@@ -78,10 +100,25 @@ export default function Sidebar() {
             <div
               className="absolute inset-0 rounded-xl"
               style={{
-                background: item.accent
-                  ? 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(96,165,250,0.06))'
-                  : 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(59,130,246,0.02))',
-                border: '1px solid rgba(59,130,246,0.1)',
+                background: isKairos
+                  ? 'linear-gradient(135deg, rgba(59,130,246,0.20), rgba(37,99,235,0.10))'
+                  : item.accent
+                    ? 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(96,165,250,0.06))'
+                    : 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(59,130,246,0.02))',
+                border: isKairos
+                  ? '1px solid rgba(59,130,246,0.25)'
+                  : '1px solid rgba(59,130,246,0.1)',
+              }}
+            />
+          )}
+
+          {/* Kairos hover glow */}
+          {isKairos && !isActive && isHovered && (
+            <div
+              className="absolute inset-0 rounded-xl"
+              style={{
+                background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(37,99,235,0.04))',
+                border: '1px solid rgba(59,130,246,0.12)',
               }}
             />
           )}
@@ -90,7 +127,9 @@ export default function Sidebar() {
           {isActive && (
             <div
               className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-6 rounded-r-full"
-              style={{ background: 'linear-gradient(180deg, #60A5FA, #3B82F6)' }}
+              style={{ background: isKairos
+                ? 'linear-gradient(180deg, #60A5FA, #2563EB)'
+                : 'linear-gradient(180deg, #60A5FA, #3B82F6)' }}
             />
           )}
 
@@ -98,14 +137,22 @@ export default function Sidebar() {
           <div className={`relative z-10 flex items-center justify-center shrink-0 rounded-lg transition-all duration-200
             ${sidebarOpen ? 'w-8 h-8' : 'w-9 h-9'}
             ${isActive
-              ? (item.accent ? 'bg-[var(--gold)]/20' : 'bg-white/[0.06]')
-              : 'bg-transparent group-hover:bg-white/[0.04]'
+              ? isKairos
+                ? 'bg-blue-500/20'
+                : (item.accent ? 'bg-[var(--gold)]/20' : 'bg-white/[0.06]')
+              : isKairos
+                ? 'bg-blue-500/10'
+                : 'bg-transparent group-hover:bg-white/[0.04]'
             }`}
           >
             <Icon
               size={sidebarOpen ? 18 : 20}
               strokeWidth={isActive ? 2 : 1.5}
-              className={`transition-colors ${isActive && item.accent ? 'text-[var(--gold-light)]' : ''}`}
+              className={`transition-colors ${
+                isKairos
+                  ? (isActive ? 'text-blue-400' : 'text-blue-400/70')
+                  : (isActive && item.accent ? 'text-[var(--gold-light)]' : '')
+              }`}
             />
             {badge > 0 && !sidebarOpen && (
               <span className="absolute -top-0.5 -right-0.5 w-[14px] h-[14px] bg-[var(--gold)] rounded-full text-[8px] font-bold text-white flex items-center justify-center">
@@ -118,10 +165,15 @@ export default function Sidebar() {
           {sidebarOpen && (
             <div className="relative z-10 flex-1 min-w-0 text-left">
               <div className="flex items-center gap-2">
-                <span className={`text-[14px] truncate leading-tight ${isActive ? 'font-bold' : 'font-medium'}`}>
+                <span className={`text-[14px] truncate leading-tight ${isActive ? 'font-bold' : 'font-medium'} ${isKairos && !isActive ? 'text-blue-300/90' : ''}`}>
                   {item.label}
                 </span>
-                {item.accent && (
+                {isKairos && (
+                  <span className="text-[8px] font-bold bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                    Kairos
+                  </span>
+                )}
+                {item.accent && !isKairos && (
                   <span className="text-[8px] font-bold bg-[var(--gold)]/20 text-[var(--gold-light)] px-1.5 py-0.5 rounded-full uppercase tracking-wider">
                     Pro
                   </span>
@@ -134,7 +186,10 @@ export default function Sidebar() {
               </div>
               {!compact && item.desc && (
                 <span className={`text-[11px] leading-tight truncate block mt-0.5 transition-colors
-                  ${isActive ? 'text-[var(--text-dim)]' : 'text-[var(--text-dim)]/50'}`}>
+                  ${isKairos
+                    ? (isActive ? 'text-blue-300/60' : 'text-blue-400/40')
+                    : (isActive ? 'text-[var(--text-dim)]' : 'text-[var(--text-dim)]/50')
+                  }`}>
                   {item.desc}
                 </span>
               )}
@@ -163,16 +218,17 @@ export default function Sidebar() {
     );
   };
 
-  const SectionLabel = ({ label }) => (
+  const SectionLabel = ({ label, kairos = false }) => (
     sidebarOpen ? (
       <div className="flex items-center gap-2 px-3 mb-2.5 mt-1">
-        <p className="text-[11px] font-bold text-[var(--text-dim)]/60 uppercase tracking-[0.14em] whitespace-nowrap">
+        <p className={`text-[11px] font-bold uppercase tracking-[0.14em] whitespace-nowrap
+          ${kairos ? 'text-blue-400/80' : 'text-[var(--text-dim)]/60'}`}>
           {label}
         </p>
-        <div className="flex-1 h-px bg-[var(--border)]/50" />
+        <div className={`flex-1 h-px ${kairos ? 'bg-blue-500/20' : 'bg-[var(--border)]/50'}`} />
       </div>
     ) : (
-      <div className="mx-auto w-6 h-px bg-[var(--border)]/60 my-3" />
+      <div className={`mx-auto w-6 h-px my-3 ${kairos ? 'bg-blue-500/30' : 'bg-[var(--border)]/60'}`} />
     )
   );
 
@@ -191,11 +247,7 @@ export default function Sidebar() {
         className={`flex items-center shrink-0 ${sidebarOpen ? 'px-7 gap-3.5 h-[68px]' : 'justify-center h-[68px]'}`}
         style={{ borderBottom: '1px solid rgba(30,34,45,0.6)' }}
       >
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 relative"
-          style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)' }}>
-          <span className="text-white font-extrabold text-base">K</span>
-          <div className="absolute inset-0 rounded-xl" style={{ boxShadow: '0 0 20px rgba(59,130,246,0.2)' }} />
-        </div>
+        <img src="/kairos-logo.png" alt="Kairos" className="w-10 h-10 object-contain shrink-0" />
         {sidebarOpen && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1, duration: 0.2 }}>
             <div className="flex flex-col">
@@ -240,7 +292,7 @@ export default function Sidebar() {
         style={{ scrollbarWidth: 'none' }}>
         {SECTIONS.map((section, si) => (
           <div key={section.label} className={si > 0 ? 'mt-6' : 'mt-1'}>
-            <SectionLabel label={section.label} />
+            <SectionLabel label={section.label} kairos={section.kairos} />
             <div className="space-y-1">
               {section.items.map(item => <NavItem key={item.id} item={item} />)}
             </div>

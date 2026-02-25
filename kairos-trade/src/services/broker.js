@@ -217,6 +217,303 @@ class BrokerService {
       .join('');
   }
 
+  // ─── HMAC-SHA256 → Base64 (for Kraken, OKX, KuCoin) ───
+  async _hmacSignB64(secret, message, isB64Secret = false) {
+    const encoder = new TextEncoder();
+    let keyData;
+    if (isB64Secret) {
+      const bin = atob(secret);
+      keyData = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) keyData[i] = bin.charCodeAt(i);
+    } else {
+      keyData = encoder.encode(secret);
+    }
+    const key = await crypto.subtle.importKey(
+      'raw', keyData,
+      { name: 'HMAC', hash: 'SHA-256' },
+      false, ['sign']
+    );
+    const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(message));
+    return btoa(String.fromCharCode(...new Uint8Array(sig)));
+  }
+
+  // ─── HMAC-SHA512 → Base64 (for Kraken) ───
+  async _hmacSignSHA512B64(secretB64, message) {
+    const bin = atob(secretB64);
+    const keyData = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) keyData[i] = bin.charCodeAt(i);
+    const key = await crypto.subtle.importKey(
+      'raw', keyData,
+      { name: 'HMAC', hash: 'SHA-512' },
+      false, ['sign']
+    );
+    // Kraken expects: HMAC-SHA512( base64decode(secret), path + SHA256(nonce + postData) )
+    const msgData = typeof message === 'string' ? new TextEncoder().encode(message) : message;
+    const sig = await crypto.subtle.sign('HMAC', key, msgData);
+    return btoa(String.fromCharCode(...new Uint8Array(sig)));
+  }
+
+  // ─── SHA-256 digest (for Kraken nonce signing) ───
+  async _sha256(message) {
+    const data = new TextEncoder().encode(message);
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    return new Uint8Array(hash);
+  }
+
+  // ─── Universal Proxy Request (for non-Binance/Coinbase brokers) ───
+  async _proxyRequest(url, method, headers = {}, body = null) {
+    const res = await fetch('/api/broker-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, method, headers, body }),
+    });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { error: text }; }
+    if (!res.ok) throw new Error(data.error || data.message || data.msg || `HTTP ${res.status}`);
+    return data;
+  }
+
+  // ════════════════════════════════════════════════════════
+  // ─── BYBIT v5 (HMAC-SHA256) ───
+  // ════════════════════════════════════════════════════════
+  async _bybitRequest(creds, method, endpoint, params = {}) {
+    const timestamp = Date.now().toString();
+    const recvWindow = '5000';
+    let queryString = '';
+    let bodyStr = '';
+
+    if (method === 'GET') {
+      queryString = Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => `${k}=${v}`)
+        .join('&');
+    } else {
+      bodyStr = JSON.stringify(params);
+    }
+
+    const preSign = `${timestamp}${creds.apiKey}${recvWindow}${method === 'GET' ? queryString : bodyStr}`;
+    const signature = await this._hmacSign(creds.apiSecret, preSign);
+
+    const url = `${BROKERS.bybit.baseUrl}${endpoint}${queryString ? '?' + queryString : ''}`;
+    const headers = {
+      'X-BAPI-API-KEY': creds.apiKey,
+      'X-BAPI-SIGN': signature,
+      'X-BAPI-SIGN-TYPE': '2',
+      'X-BAPI-TIMESTAMP': timestamp,
+      'X-BAPI-RECV-WINDOW': recvWindow,
+      'Content-Type': 'application/json',
+    };
+
+    const data = await this._proxyRequest(url, method, headers, method !== 'GET' ? params : null);
+    if (data.retCode !== 0 && data.retCode !== undefined) {
+      throw new Error(`Bybit: ${data.retMsg || 'Unknown error'} (${data.retCode})`);
+    }
+    return data.result || data;
+  }
+
+  // ════════════════════════════════════════════════════════
+  // ─── KRAKEN (HMAC-SHA512 with nonce) ───
+  // ════════════════════════════════════════════════════════
+  async _krakenRequest(creds, endpoint, params = {}) {
+    const nonce = Date.now().toString();
+    const postData = new URLSearchParams({ ...params, nonce }).toString();
+
+    // Kraken signature: HMAC-SHA512( base64decode(secret), path + SHA256(nonce + postData) )
+    const sha256Hash = await this._sha256(nonce + postData);
+    const pathBytes = new TextEncoder().encode(endpoint);
+    const sigInput = new Uint8Array(pathBytes.length + sha256Hash.length);
+    sigInput.set(pathBytes, 0);
+    sigInput.set(sha256Hash, pathBytes.length);
+    const signature = await this._hmacSignSHA512B64(creds.apiSecret, sigInput);
+
+    const url = `${BROKERS.kraken.baseUrl}${endpoint}`;
+    const headers = {
+      'API-Key': creds.apiKey,
+      'API-Sign': signature,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+
+    const data = await this._proxyRequest(url, 'POST', headers, postData);
+    if (data.error && data.error.length > 0) {
+      throw new Error(`Kraken: ${data.error.join(', ')}`);
+    }
+    return data.result || data;
+  }
+
+  // ════════════════════════════════════════════════════════
+  // ─── KUCOIN (HMAC-SHA256 + passphrase) ───
+  // ════════════════════════════════════════════════════════
+  async _kucoinRequest(creds, method, endpoint, params = {}) {
+    const timestamp = Date.now().toString();
+    let bodyStr = '';
+    let queryString = '';
+
+    if (method === 'GET' || method === 'DELETE') {
+      queryString = Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => `${k}=${v}`)
+        .join('&');
+      if (queryString) endpoint = `${endpoint}?${queryString}`;
+    } else {
+      bodyStr = JSON.stringify(params);
+    }
+
+    const preSign = `${timestamp}${method}${endpoint}${bodyStr}`;
+    const signature = await this._hmacSignB64(creds.apiSecret, preSign);
+    const passphrase = await this._hmacSignB64(creds.apiSecret, creds.passphrase || '');
+
+    const url = `${BROKERS.kucoin.baseUrl}${endpoint}`;
+    const headers = {
+      'KC-API-KEY': creds.apiKey,
+      'KC-API-SIGN': signature,
+      'KC-API-TIMESTAMP': timestamp,
+      'KC-API-PASSPHRASE': passphrase,
+      'KC-API-KEY-VERSION': '2',
+      'Content-Type': 'application/json',
+    };
+
+    const data = await this._proxyRequest(url, method, headers, method !== 'GET' && method !== 'DELETE' ? params : null);
+    if (data.code && data.code !== '200000') {
+      throw new Error(`KuCoin: ${data.msg || 'Unknown error'} (${data.code})`);
+    }
+    return data.data || data;
+  }
+
+  // ════════════════════════════════════════════════════════
+  // ─── OKX (HMAC-SHA256 + passphrase, ISO timestamp) ───
+  // ════════════════════════════════════════════════════════
+  async _okxRequest(creds, method, endpoint, params = {}) {
+    const timestamp = new Date().toISOString();
+    let bodyStr = '';
+    let queryString = '';
+
+    if (method === 'GET') {
+      queryString = Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => `${k}=${v}`)
+        .join('&');
+      if (queryString) endpoint = `${endpoint}?${queryString}`;
+    } else {
+      bodyStr = JSON.stringify(params);
+    }
+
+    const preSign = `${timestamp}${method}${endpoint}${bodyStr}`;
+    const signature = await this._hmacSignB64(creds.apiSecret, preSign);
+
+    const url = `${BROKERS.okx.baseUrl}${endpoint}`;
+    const headers = {
+      'OK-ACCESS-KEY': creds.apiKey,
+      'OK-ACCESS-SIGN': signature,
+      'OK-ACCESS-TIMESTAMP': timestamp,
+      'OK-ACCESS-PASSPHRASE': creds.passphrase || '',
+      'Content-Type': 'application/json',
+    };
+
+    const data = await this._proxyRequest(url, method, headers, method !== 'GET' ? params : null);
+    if (data.code && data.code !== '0') {
+      throw new Error(`OKX: ${data.msg || 'Unknown error'} (${data.code})`);
+    }
+    return data.data || data;
+  }
+
+  // ════════════════════════════════════════════════════════
+  // ─── BINGX (HMAC-SHA256, query string signing) ───
+  // ════════════════════════════════════════════════════════
+  async _bingxRequest(creds, method, endpoint, params = {}) {
+    const timestamp = Date.now().toString();
+    const allParams = { ...params, timestamp };
+    const queryString = Object.entries(allParams)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .filter(([, v]) => v !== undefined && v !== null)
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+      .join('&');
+
+    const signature = await this._hmacSign(creds.apiSecret, queryString);
+    const signedQuery = `${queryString}&signature=${signature}`;
+
+    const url = `${BROKERS.bingx.baseUrl}${endpoint}?${signedQuery}`;
+    const headers = {
+      'X-BX-APIKEY': creds.apiKey,
+      'Content-Type': 'application/json',
+    };
+
+    const data = await this._proxyRequest(url, method, headers, method !== 'GET' ? params : null);
+    if (data.code && data.code !== 0) {
+      throw new Error(`BingX: ${data.msg || 'Unknown error'} (${data.code})`);
+    }
+    return data.data || data;
+  }
+
+  // ════════════════════════════════════════════════════════
+  // ─── BITGET (HMAC-SHA256 + passphrase, like OKX) ───
+  // ════════════════════════════════════════════════════════
+  async _bitgetRequest(creds, method, endpoint, params = {}) {
+    const timestamp = Date.now().toString();
+    let bodyStr = '';
+    let queryString = '';
+
+    if (method === 'GET') {
+      queryString = Object.entries(params)
+        .filter(([, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => `${k}=${v}`)
+        .join('&');
+      if (queryString) endpoint = `${endpoint}?${queryString}`;
+    } else {
+      bodyStr = JSON.stringify(params);
+    }
+
+    const preSign = `${timestamp}${method}${endpoint}${bodyStr}`;
+    const signature = await this._hmacSignB64(creds.apiSecret, preSign);
+
+    const url = `${BROKERS.bitget.baseUrl}${endpoint}`;
+    const headers = {
+      'ACCESS-KEY': creds.apiKey,
+      'ACCESS-SIGN': signature,
+      'ACCESS-TIMESTAMP': timestamp,
+      'ACCESS-PASSPHRASE': creds.passphrase || '',
+      'Content-Type': 'application/json',
+      'locale': 'en-US',
+    };
+
+    const data = await this._proxyRequest(url, method, headers, method !== 'GET' ? params : null);
+    if (data.code && data.code !== '00000') {
+      throw new Error(`Bitget: ${data.msg || 'Unknown error'} (${data.code})`);
+    }
+    return data.data || data;
+  }
+
+  // ════════════════════════════════════════════════════════
+  // ─── MEXC (HMAC-SHA256, Binance-style query signing) ───
+  // ════════════════════════════════════════════════════════
+  async _mexcRequest(creds, method, endpoint, params = {}) {
+    const timestamp = Date.now();
+    const allParams = { ...params, timestamp, recvWindow: 5000 };
+    const queryString = Object.entries(allParams)
+      .filter(([, v]) => v !== undefined && v !== null)
+      .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+      .join('&');
+
+    const signature = await this._hmacSign(creds.apiSecret, queryString);
+    const signedQuery = `${queryString}&signature=${signature}`;
+
+    const url = method === 'GET'
+      ? `${BROKERS.mexc.baseUrl}${endpoint}?${signedQuery}`
+      : `${BROKERS.mexc.baseUrl}${endpoint}`;
+
+    const headers = {
+      'X-MEXC-APIKEY': creds.apiKey,
+      'Content-Type': 'application/json',
+    };
+
+    const body = method !== 'GET' ? signedQuery : null;
+    const data = await this._proxyRequest(url, method, headers, body);
+    if (data.code && data.code !== 0 && data.code !== 200) {
+      throw new Error(`MEXC: ${data.msg || 'Unknown error'} (${data.code})`);
+    }
+    return data;
+  }
+
   // ─── Binance Signed Request ───
   async _binanceSignedRequest(creds, method, endpoint, params = {}) {
     const timestamp = Date.now();
@@ -289,8 +586,7 @@ class BrokerService {
           };
         }
         case 'coinbase': {
-          // Real test: list accounts via Coinbase CDP API
-          const accounts = await this._coinbaseRequest(creds, 'GET', '/api/v3/brokerage/accounts');
+          const accounts = await this._coinbaseRequest(creds, 'GET', '/api/v3/brokerage/accounts?limit=250');
           this.connections.set(broker.id, {
             creds, config, connected: true,
             permissions: ['read', 'trade'],
@@ -301,6 +597,48 @@ class BrokerService {
             message: `Connected to Coinbase (${(accounts.accounts || []).length} accounts)`,
             permissions: ['read', 'trade'],
           };
+        }
+        case 'bybit': {
+          const wallet = await this._bybitRequest(creds, 'GET', '/v5/account/wallet-balance', { accountType: 'UNIFIED' });
+          const coins = wallet?.list?.[0]?.coin?.length || 0;
+          this.connections.set(broker.id, { creds, config, connected: true, permissions: ['read', 'trade'] });
+          return { success: true, message: `Connected to Bybit (${coins} assets)`, permissions: ['read', 'trade'] };
+        }
+        case 'kraken': {
+          const balance = await this._krakenRequest(creds, '/0/private/Balance');
+          const assets = Object.keys(balance || {}).length;
+          this.connections.set(broker.id, { creds, config, connected: true, permissions: ['read', 'trade'] });
+          return { success: true, message: `Connected to Kraken (${assets} assets)`, permissions: ['read', 'trade'] };
+        }
+        case 'kucoin': {
+          const accounts = await this._kucoinRequest(creds, 'GET', '/api/v1/accounts');
+          const count = Array.isArray(accounts) ? accounts.length : 0;
+          this.connections.set(broker.id, { creds, config, connected: true, permissions: ['read', 'trade'] });
+          return { success: true, message: `Connected to KuCoin (${count} accounts)`, permissions: ['read', 'trade'] };
+        }
+        case 'okx': {
+          const bal = await this._okxRequest(creds, 'GET', '/api/v5/account/balance');
+          const assets = Array.isArray(bal) && bal[0]?.details ? bal[0].details.length : 0;
+          this.connections.set(broker.id, { creds, config, connected: true, permissions: ['read', 'trade'] });
+          return { success: true, message: `Connected to OKX (${assets} assets)`, permissions: ['read', 'trade'] };
+        }
+        case 'bingx': {
+          const bal = await this._bingxRequest(creds, 'GET', '/openApi/spot/v1/account/balance');
+          const assets = Array.isArray(bal?.balances) ? bal.balances.filter(b => parseFloat(b.free) > 0).length : 0;
+          this.connections.set(broker.id, { creds, config, connected: true, permissions: ['read', 'trade'] });
+          return { success: true, message: `Connected to BingX (${assets} assets)`, permissions: ['read', 'trade'] };
+        }
+        case 'bitget': {
+          const acct = await this._bitgetRequest(creds, 'GET', '/api/v2/spot/account/assets');
+          const assets = Array.isArray(acct) ? acct.filter(a => parseFloat(a.available) > 0).length : 0;
+          this.connections.set(broker.id, { creds, config, connected: true, permissions: ['read', 'trade'] });
+          return { success: true, message: `Connected to Bitget (${assets} assets)`, permissions: ['read', 'trade'] };
+        }
+        case 'mexc': {
+          const acct = await this._mexcRequest(creds, 'GET', '/api/v3/account');
+          const assets = Array.isArray(acct?.balances) ? acct.balances.filter(b => parseFloat(b.free) > 0).length : 0;
+          this.connections.set(broker.id, { creds, config, connected: true, permissions: ['read', 'trade'] });
+          return { success: true, message: `Connected to MEXC (${assets} assets)`, permissions: ['read', 'trade'] };
         }
         default: {
           await fetch(config.baseUrl);
@@ -337,19 +675,125 @@ class BrokerService {
 
     if (conn.config.id === 'coinbase') {
       try {
-        const data = await this._coinbaseRequest(conn.creds, 'GET', '/api/v3/brokerage/accounts');
-        return (data.accounts || [])
-          .filter(a => parseFloat(a.available_balance?.value || 0) > 0 || parseFloat(a.hold?.value || 0) > 0)
+        const data = await this._coinbaseRequest(conn.creds, 'GET', '/api/v3/brokerage/accounts?limit=250');
+        console.log('[COINBASE BALANCES] Raw accounts count:', data.accounts?.length);
+        const allAccounts = (data.accounts || []).map(a => ({
+          asset: a.currency,
+          free: a.available_balance?.value || '0',
+          locked: a.hold?.value || '0',
+          total: (parseFloat(a.available_balance?.value || 0) + parseFloat(a.hold?.value || 0)).toString(),
+          name: a.name,
+        }));
+        console.log('[COINBASE BALANCES] All accounts:', allAccounts.map(a => `${a.asset}: free=${a.free} locked=${a.locked}`).join(', '));
+        const filtered = allAccounts.filter(a => parseFloat(a.free) > 0 || parseFloat(a.locked) > 0);
+        console.log('[COINBASE BALANCES] Non-zero:', filtered.map(a => `${a.asset}: $${a.free}`).join(', '));
+        return filtered;
+      } catch (err) { console.error('Coinbase getBalances:', err); throw err; }
+    }
+
+    if (conn.config.id === 'bybit') {
+      try {
+        const wallet = await this._bybitRequest(conn.creds, 'GET', '/v5/account/wallet-balance', { accountType: 'UNIFIED' });
+        const coins = wallet?.list?.[0]?.coin || [];
+        return coins
+          .filter(c => parseFloat(c.walletBalance) > 0)
+          .map(c => ({
+            asset: c.coin,
+            free: c.availableToWithdraw || c.walletBalance || '0',
+            locked: (parseFloat(c.walletBalance || 0) - parseFloat(c.availableToWithdraw || 0)).toString(),
+            total: c.walletBalance || '0',
+          }));
+      } catch (err) { console.error('Bybit getBalances:', err); throw err; }
+    }
+
+    if (conn.config.id === 'kraken') {
+      try {
+        const balance = await this._krakenRequest(conn.creds, '/0/private/Balance');
+        // Kraken uses prefixes: XXBT for BTC, ZUSD for USD, etc.
+        const krakenMap = { XXBT: 'BTC', XETH: 'ETH', ZUSD: 'USD', XXRP: 'XRP', XLTC: 'LTC', XXLM: 'XLM', XDOGE: 'DOGE' };
+        return Object.entries(balance || {})
+          .filter(([, v]) => parseFloat(v) > 0)
+          .map(([k, v]) => ({
+            asset: krakenMap[k] || k.replace(/^[XZ]/, ''),
+            free: v,
+            locked: '0',
+            total: v,
+          }));
+      } catch (err) { console.error('Kraken getBalances:', err); throw err; }
+    }
+
+    if (conn.config.id === 'kucoin') {
+      try {
+        const accounts = await this._kucoinRequest(conn.creds, 'GET', '/api/v1/accounts', { type: 'trade' });
+        return (Array.isArray(accounts) ? accounts : [])
+          .filter(a => parseFloat(a.balance) > 0)
           .map(a => ({
             asset: a.currency,
-            free: a.available_balance?.value || '0',
-            locked: a.hold?.value || '0',
-            total: (parseFloat(a.available_balance?.value || 0) + parseFloat(a.hold?.value || 0)).toString(),
+            free: a.available || '0',
+            locked: a.holds || '0',
+            total: a.balance || '0',
           }));
-      } catch (err) {
-        console.error('Coinbase getBalances error:', err);
-        throw err;
-      }
+      } catch (err) { console.error('KuCoin getBalances:', err); throw err; }
+    }
+
+    if (conn.config.id === 'okx') {
+      try {
+        const bal = await this._okxRequest(conn.creds, 'GET', '/api/v5/account/balance');
+        const details = Array.isArray(bal) && bal[0]?.details ? bal[0].details : [];
+        return details
+          .filter(d => parseFloat(d.cashBal) > 0)
+          .map(d => ({
+            asset: d.ccy,
+            free: d.availBal || d.cashBal || '0',
+            locked: d.frozenBal || '0',
+            total: d.cashBal || '0',
+          }));
+      } catch (err) { console.error('OKX getBalances:', err); throw err; }
+    }
+
+    if (conn.config.id === 'bingx') {
+      try {
+        const data = await this._bingxRequest(conn.creds, 'GET', '/openApi/spot/v1/account/balance');
+        const balances = data?.balances || (Array.isArray(data) ? data : []);
+        return balances
+          .filter(b => parseFloat(b.free || b.available || 0) > 0)
+          .map(b => ({
+            asset: b.asset || b.currency,
+            free: b.free || b.available || '0',
+            locked: b.locked || b.freeze || '0',
+            total: (parseFloat(b.free || b.available || 0) + parseFloat(b.locked || b.freeze || 0)).toString(),
+          }));
+      } catch (err) { console.error('BingX getBalances:', err); throw err; }
+    }
+
+    if (conn.config.id === 'bitget') {
+      try {
+        const data = await this._bitgetRequest(conn.creds, 'GET', '/api/v2/spot/account/assets');
+        const assets = Array.isArray(data) ? data : [];
+        return assets
+          .filter(a => parseFloat(a.available || 0) > 0)
+          .map(a => ({
+            asset: a.coin || a.coinName,
+            free: a.available || '0',
+            locked: a.frozen || a.lock || '0',
+            total: (parseFloat(a.available || 0) + parseFloat(a.frozen || a.lock || 0)).toString(),
+          }));
+      } catch (err) { console.error('Bitget getBalances:', err); throw err; }
+    }
+
+    if (conn.config.id === 'mexc') {
+      try {
+        const acct = await this._mexcRequest(conn.creds, 'GET', '/api/v3/account');
+        const balances = Array.isArray(acct?.balances) ? acct.balances : [];
+        return balances
+          .filter(b => parseFloat(b.free || 0) > 0)
+          .map(b => ({
+            asset: b.asset,
+            free: b.free || '0',
+            locked: b.locked || '0',
+            total: (parseFloat(b.free || 0) + parseFloat(b.locked || 0)).toString(),
+          }));
+      } catch (err) { console.error('MEXC getBalances:', err); throw err; }
     }
 
     // Fallback for unsupported brokers
@@ -405,6 +849,7 @@ class BrokerService {
           status: result.status?.toLowerCase(),
           timestamp: new Date(result.transactTime || Date.now()).toISOString(),
           broker: 'Binance',
+          real: true,
           raw: result,
         };
       } catch (err) {
@@ -447,32 +892,58 @@ class BrokerService {
           order_configuration: orderConfig,
         };
 
+        console.log('[COINBASE ORDER] Sending:', JSON.stringify(orderBody, null, 2));
         const result = await this._coinbaseRequest(conn.creds, 'POST', '/api/v3/brokerage/orders', orderBody);
+        console.log('[COINBASE ORDER] Response:', JSON.stringify(result, null, 2));
+
+        // Coinbase returns { success: true/false, success_response: {...}, error_response: {...} }
+        if (!result.success) {
+          const errMsg = result.error_response?.error || result.failure_response?.error 
+            || result.error_response?.message || result.error || 'Unknown error';
+          const errDetail = result.error_response?.error_details || result.failure_response?.message || '';
+          console.error('[COINBASE ORDER] FAILED:', errMsg, errDetail);
+          throw new Error(`Coinbase order failed: ${errMsg}${errDetail ? ' — ' + errDetail : ''}`);
+        }
 
         const orderResult = result.success_response || result;
-        const orderId = orderResult.order_id || orderResult.id || Date.now().toString(36);
-
-        // Fetch filled details if available
-        let filledPrice = parseFloat(price || 0);
-        let filledQty = parseFloat(quantity);
-        let orderStatus = 'pending';
-
-        if (result.success) {
-          // Get order details to confirm fill
-          try {
-            const details = await this._coinbaseRequest(conn.creds, 'GET', `/api/v3/brokerage/orders/historical/${orderId}`);
-            const order = details.order || details;
-            filledPrice = parseFloat(order.average_filled_price || order.filled_price || price || 0);
-            filledQty = parseFloat(order.filled_size || order.filled_value || quantity);
-            orderStatus = (order.status || 'FILLED').toLowerCase();
-          } catch {
-            orderStatus = 'filled'; // Market orders usually fill immediately
-          }
-        } else {
-          // Order might have error
-          const errMsg = result.error_response?.error || result.error || 'Unknown error';
-          throw new Error(`Coinbase order failed: ${errMsg}`);
+        const orderId = orderResult.order_id || orderResult.id;
+        if (!orderId) {
+          console.error('[COINBASE ORDER] No order_id in response:', result);
+          throw new Error('Coinbase: no order_id returned');
         }
+        console.log('[COINBASE ORDER] Order created:', orderId);
+
+        // Wait briefly for market order to fill, then fetch details
+        let filledPrice = 0;
+        let filledQty = 0;
+        let orderStatus = 'unknown';
+
+        // Retry up to 3 times to get fill details (market orders fill within ms)
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            if (attempt > 0) await new Promise(r => setTimeout(r, 500));
+            const details = await this._coinbaseRequest(conn.creds, 'GET', `/api/v3/brokerage/orders/historical/${orderId}`);
+            console.log(`[COINBASE ORDER] Details attempt ${attempt + 1}:`, JSON.stringify(details, null, 2));
+            const ord = details.order || details;
+            orderStatus = (ord.status || '').toUpperCase();
+            filledPrice = parseFloat(ord.average_filled_price || 0);
+            filledQty = parseFloat(ord.filled_size || 0);
+            if (orderStatus === 'FILLED' || orderStatus === 'CANCELLED' || filledQty > 0) break;
+          } catch (detailErr) {
+            console.warn(`[COINBASE ORDER] Detail fetch attempt ${attempt + 1} failed:`, detailErr.message);
+          }
+        }
+
+        // If we still couldn't confirm fill, mark as unconfirmed
+        if (filledQty === 0 && filledPrice === 0) {
+          console.warn('[COINBASE ORDER] Could not confirm fill for', orderId, '- status:', orderStatus);
+          // Use local price as estimate but flag it
+          filledPrice = parseFloat(price || 0);
+          filledQty = parseFloat(quantity);
+          orderStatus = 'UNCONFIRMED';
+        }
+
+        console.log(`[COINBASE ORDER] Final: orderId=${orderId} status=${orderStatus} filledPrice=${filledPrice} filledQty=${filledQty}`);
 
         return {
           id: orderId,
@@ -484,18 +955,266 @@ class BrokerService {
           price: filledPrice,
           filledPrice,
           filledQty,
-          status: orderStatus,
+          status: orderStatus.toLowerCase(),
+          confirmed: orderStatus !== 'UNCONFIRMED',
           timestamp: new Date().toISOString(),
           broker: 'Coinbase',
           real: true,
         };
       } catch (err) {
-        console.error('Coinbase placeOrder error:', err);
+        console.error('[COINBASE ORDER] placeOrder error:', err.message);
         throw err;
       }
     }
 
-    // Simulated execution for unsupported brokers
+    // ─── BYBIT v5 ───
+    if (conn.config.id === 'bybit') {
+      try {
+        const productId = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1$2').toUpperCase();
+        const orderParams = {
+          category: 'spot',
+          symbol: productId,
+          side: side.charAt(0).toUpperCase() + side.slice(1).toLowerCase(),
+          orderType: type === 'market' ? 'Market' : 'Limit',
+          qty: quantity.toString(),
+        };
+        if (type === 'market' && side.toLowerCase() === 'buy') {
+          // Bybit spot market buy: use quote qty
+          orderParams.marketUnit = 'quoteCoin';
+          orderParams.qty = (parseFloat(quantity) * parseFloat(price || 0)).toFixed(2);
+        }
+        if (type === 'limit') {
+          orderParams.price = parseFloat(price).toFixed(2);
+          orderParams.timeInForce = 'GTC';
+        }
+        const result = await this._bybitRequest(conn.creds, 'POST', '/v5/order/create', orderParams);
+        const orderId = result.orderId || Date.now().toString(36);
+        // Get fill details
+        let filledPrice = parseFloat(price || 0);
+        let filledQty = parseFloat(quantity);
+        try {
+          await new Promise(r => setTimeout(r, 500)); // Wait for fill
+          const detail = await this._bybitRequest(conn.creds, 'GET', '/v5/order/realtime', { category: 'spot', orderId });
+          const o = detail?.list?.[0];
+          if (o) {
+            filledPrice = parseFloat(o.avgPrice || o.price || price || 0);
+            filledQty = parseFloat(o.cumExecQty || quantity);
+          }
+        } catch {}
+        return {
+          id: orderId, symbol: productId, side: side.toLowerCase(), type,
+          quantity: filledQty, price: filledPrice, filledPrice, filledQty,
+          status: 'filled', timestamp: new Date().toISOString(), broker: 'Bybit', real: true,
+        };
+      } catch (err) { console.error('Bybit placeOrder:', err); throw err; }
+    }
+
+    // ─── KRAKEN ───
+    if (conn.config.id === 'kraken') {
+      try {
+        // Kraken pair format: XBTUSDT, ETHUSDT
+        const krakenPair = symbol.replace('BTC', 'XBT');
+        const params = {
+          pair: krakenPair,
+          type: side.toLowerCase(),
+          ordertype: type === 'market' ? 'market' : 'limit',
+          volume: quantity.toString(),
+        };
+        if (type === 'limit') params.price = parseFloat(price).toFixed(2);
+        const result = await this._krakenRequest(conn.creds, '/0/private/AddOrder', params);
+        const txid = result?.txid?.[0] || Date.now().toString(36);
+        return {
+          id: txid, symbol: krakenPair, side: side.toLowerCase(), type,
+          quantity: parseFloat(quantity), price: parseFloat(price || 0),
+          filledPrice: parseFloat(price || 0), filledQty: parseFloat(quantity),
+          status: 'filled', timestamp: new Date().toISOString(), broker: 'Kraken', real: true,
+        };
+      } catch (err) { console.error('Kraken placeOrder:', err); throw err; }
+    }
+
+    // ─── KUCOIN ───
+    if (conn.config.id === 'kucoin') {
+      try {
+        // KuCoin pair: BTC-USDT
+        const productId = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const params = {
+          clientOid: crypto.randomUUID(),
+          symbol: productId,
+          side: side.toLowerCase(),
+          type: type === 'market' ? 'market' : 'limit',
+        };
+        if (type === 'market') {
+          if (side.toLowerCase() === 'buy') {
+            params.funds = (parseFloat(quantity) * parseFloat(price || 0)).toFixed(2);
+          } else {
+            params.size = quantity.toString();
+          }
+        } else {
+          params.price = parseFloat(price).toFixed(2);
+          params.size = quantity.toString();
+        }
+        const result = await this._kucoinRequest(conn.creds, 'POST', '/api/v1/orders', params);
+        const orderId = result?.orderId || Date.now().toString(36);
+        return {
+          id: orderId, symbol: productId, side: side.toLowerCase(), type,
+          quantity: parseFloat(quantity), price: parseFloat(price || 0),
+          filledPrice: parseFloat(price || 0), filledQty: parseFloat(quantity),
+          status: 'filled', timestamp: new Date().toISOString(), broker: 'KuCoin', real: true,
+        };
+      } catch (err) { console.error('KuCoin placeOrder:', err); throw err; }
+    }
+
+    // ─── OKX ───
+    if (conn.config.id === 'okx') {
+      try {
+        // OKX pair: BTC-USDT
+        const productId = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const params = {
+          instId: productId,
+          tdMode: 'cash', // spot
+          side: side.toLowerCase(),
+          ordType: type === 'market' ? 'market' : 'limit',
+          sz: quantity.toString(),
+        };
+        if (type === 'market' && side.toLowerCase() === 'buy') {
+          params.tgtCcy = 'quote_ccy';
+          params.sz = (parseFloat(quantity) * parseFloat(price || 0)).toFixed(2);
+        }
+        if (type === 'limit') params.px = parseFloat(price).toFixed(2);
+        const result = await this._okxRequest(conn.creds, 'POST', '/api/v5/trade/order', params);
+        const orderId = Array.isArray(result) ? result[0]?.ordId : result?.ordId || Date.now().toString(36);
+        if (Array.isArray(result) && result[0]?.sCode !== '0') {
+          throw new Error(`OKX order failed: ${result[0]?.sMsg}`);
+        }
+        return {
+          id: orderId, symbol: productId, side: side.toLowerCase(), type,
+          quantity: parseFloat(quantity), price: parseFloat(price || 0),
+          filledPrice: parseFloat(price || 0), filledQty: parseFloat(quantity),
+          status: 'filled', timestamp: new Date().toISOString(), broker: 'OKX', real: true,
+        };
+      } catch (err) { console.error('OKX placeOrder:', err); throw err; }
+    }
+
+    // ─── BINGX ───
+    if (conn.config.id === 'bingx') {
+      try {
+        // BingX pair: BTC-USDT
+        const productId = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const params = {
+          symbol: productId,
+          side: side.toUpperCase(),
+          type: type === 'market' ? 'MARKET' : 'LIMIT',
+        };
+        if (type === 'market') {
+          if (side.toLowerCase() === 'buy') {
+            params.quoteOrderQty = (parseFloat(quantity) * parseFloat(price || 0)).toFixed(2);
+          } else {
+            params.quantity = parseFloat(quantity).toString();
+          }
+        } else {
+          params.price = parseFloat(price).toFixed(2);
+          params.quantity = parseFloat(quantity).toString();
+        }
+        const result = await this._bingxRequest(conn.creds, 'POST', '/openApi/spot/v1/trade/order', params);
+        const orderId = result?.orderId || result?.data?.orderId || Date.now().toString(36);
+        return {
+          id: orderId?.toString(), symbol: productId, side: side.toLowerCase(), type,
+          quantity: parseFloat(quantity), price: parseFloat(price || 0),
+          filledPrice: parseFloat(result?.price || price || 0),
+          filledQty: parseFloat(result?.executedQty || quantity),
+          status: 'filled', timestamp: new Date().toISOString(), broker: 'BingX', real: true,
+        };
+      } catch (err) { console.error('BingX placeOrder:', err); throw err; }
+    }
+
+    // ─── BITGET ───
+    if (conn.config.id === 'bitget') {
+      try {
+        const productId = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1$2').toUpperCase();
+        const params = {
+          symbol: productId,
+          side: side.toLowerCase(),
+          orderType: type === 'market' ? 'market' : 'limit',
+          force: 'gtc',
+          size: quantity.toString(),
+        };
+        if (type === 'market' && side.toLowerCase() === 'buy') {
+          params.size = (parseFloat(quantity) * parseFloat(price || 0)).toFixed(2);
+        }
+        if (type === 'limit') params.price = parseFloat(price).toFixed(2);
+        const result = await this._bitgetRequest(conn.creds, 'POST', '/api/v2/spot/trade/place-order', params);
+        const orderId = result?.orderId || Date.now().toString(36);
+        return {
+          id: orderId?.toString(), symbol: productId, side: side.toLowerCase(), type,
+          quantity: parseFloat(quantity), price: parseFloat(price || 0),
+          filledPrice: parseFloat(price || 0), filledQty: parseFloat(quantity),
+          status: 'filled', timestamp: new Date().toISOString(), broker: 'Bitget', real: true,
+        };
+      } catch (err) { console.error('Bitget placeOrder:', err); throw err; }
+    }
+
+    // ─── MEXC ───
+    if (conn.config.id === 'mexc') {
+      try {
+        // MEXC uses Binance-style symbols: BTCUSDT
+        const productId = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1$2').toUpperCase();
+        const params = {
+          symbol: productId,
+          side: side.toUpperCase(),
+          type: type === 'market' ? 'MARKET' : 'LIMIT',
+        };
+        if (type === 'market') {
+          if (side.toLowerCase() === 'buy') {
+            params.quoteOrderQty = (parseFloat(quantity) * parseFloat(price || 0)).toFixed(2);
+          } else {
+            params.quantity = parseFloat(quantity).toString();
+          }
+        } else {
+          params.price = parseFloat(price).toFixed(2);
+          params.quantity = parseFloat(quantity).toString();
+          params.timeInForce = 'GTC';
+        }
+        const result = await this._mexcRequest(conn.creds, 'POST', '/api/v3/order', params);
+        const orderId = result?.orderId || Date.now().toString(36);
+        return {
+          id: orderId?.toString(), symbol: productId, side: side.toLowerCase(), type,
+          quantity: parseFloat(quantity), price: parseFloat(price || 0),
+          filledPrice: parseFloat(result?.price || price || 0),
+          filledQty: parseFloat(result?.executedQty || quantity),
+          status: 'filled', timestamp: new Date().toISOString(), broker: 'MEXC', real: true,
+        };
+      } catch (err) { console.error('MEXC placeOrder:', err); throw err; }
+    }
+
+    // ─── WALLET / DEX ───
+    if (conn.config.id === 'wallet') {
+      try {
+        const chainId = conn.chainId || 56;
+        const privateKey = conn.creds.apiSecret;
+        const result = await walletBroker.placeOrder(privateKey, chainId, {
+          symbol, side, type: 'market', quantity, price
+        });
+        if (!result.success) throw new Error(result.error || 'DEX swap failed');
+        return {
+          id: result.txHash || Date.now().toString(36),
+          symbol: result.symbol || symbol,
+          side: side.toLowerCase(),
+          type: 'market',
+          quantity: parseFloat(result.amountIn || quantity),
+          price: parseFloat(result.effectivePrice || price || 0),
+          filledPrice: parseFloat(result.effectivePrice || price || 0),
+          filledQty: parseFloat(result.amountOut || quantity),
+          status: 'filled',
+          timestamp: new Date().toISOString(),
+          broker: 'Kairos Wallet',
+          real: true,
+          txHash: result.txHash,
+          chain: result.chain,
+        };
+      } catch (err) { console.error('Wallet DEX placeOrder:', err); throw err; }
+    }
+
+    // Simulated execution for any remaining unsupported brokers
     return {
       id: Date.now().toString(36),
       symbol, side, type,
@@ -509,20 +1228,67 @@ class BrokerService {
     };
   }
 
-  // ─── Cancel REAL order on Binance ───
+  // ─── Cancel order ───
   async cancelOrder(brokerId, orderId, symbol) {
     const conn = this.connections.get(brokerId);
     if (!conn) throw new Error('Broker not connected');
 
     if (conn.config.id === 'binance') {
       try {
-        const result = await this._binanceSignedRequest(conn.creds, 'DELETE', '/api/v3/order', {
-          symbol, orderId,
-        });
+        const result = await this._binanceSignedRequest(conn.creds, 'DELETE', '/api/v3/order', { symbol, orderId });
         return { success: true, orderId: result.orderId, status: result.status };
-      } catch (err) {
-        return { success: false, message: err.message };
-      }
+      } catch (err) { return { success: false, message: err.message }; }
+    }
+    if (conn.config.id === 'coinbase') {
+      try {
+        await this._coinbaseRequest(conn.creds, 'POST', '/api/v3/brokerage/orders/batch_cancel', { order_ids: [orderId] });
+        return { success: true, orderId };
+      } catch (err) { return { success: false, message: err.message }; }
+    }
+    if (conn.config.id === 'bybit') {
+      try {
+        await this._bybitRequest(conn.creds, 'POST', '/v5/order/cancel', { category: 'spot', symbol, orderId });
+        return { success: true, orderId };
+      } catch (err) { return { success: false, message: err.message }; }
+    }
+    if (conn.config.id === 'kraken') {
+      try {
+        await this._krakenRequest(conn.creds, '/0/private/CancelOrder', { txid: orderId });
+        return { success: true, orderId };
+      } catch (err) { return { success: false, message: err.message }; }
+    }
+    if (conn.config.id === 'kucoin') {
+      try {
+        await this._kucoinRequest(conn.creds, 'DELETE', `/api/v1/orders/${orderId}`);
+        return { success: true, orderId };
+      } catch (err) { return { success: false, message: err.message }; }
+    }
+    if (conn.config.id === 'okx') {
+      try {
+        await this._okxRequest(conn.creds, 'POST', '/api/v5/trade/cancel-order', { instId: symbol, ordId: orderId });
+        return { success: true, orderId };
+      } catch (err) { return { success: false, message: err.message }; }
+    }
+    if (conn.config.id === 'bingx') {
+      try {
+        await this._bingxRequest(conn.creds, 'POST', '/openApi/spot/v1/trade/cancel', { symbol, orderId });
+        return { success: true, orderId };
+      } catch (err) { return { success: false, message: err.message }; }
+    }
+    if (conn.config.id === 'bitget') {
+      try {
+        await this._bitgetRequest(conn.creds, 'POST', '/api/v2/spot/trade/cancel-order', { symbol, orderId });
+        return { success: true, orderId };
+      } catch (err) { return { success: false, message: err.message }; }
+    }
+    if (conn.config.id === 'mexc') {
+      try {
+        await this._mexcRequest(conn.creds, 'DELETE', '/api/v3/order', { symbol, orderId });
+        return { success: true, orderId };
+      } catch (err) { return { success: false, message: err.message }; }
+    }
+    if (conn.config.id === 'wallet') {
+      return { success: false, message: 'DEX orders are instant swaps and cannot be cancelled' };
     }
 
     return { success: true, orderId, simulated: true };
@@ -553,6 +1319,31 @@ class BrokerService {
       }
     }
 
+    if (conn.config.id === 'coinbase') {
+      try {
+        const productId = symbol
+          ? symbol.replace(/([A-Z]+)(USDT|USDC|USD|BTC|ETH)$/i, '$1-$2').toUpperCase()
+          : undefined;
+        let url = '/api/v3/brokerage/orders/historical/batch?order_status=OPEN';
+        if (productId) url += `&product_id=${productId}`;
+        const data = await this._coinbaseRequest(conn.creds, 'GET', url);
+        return (data.orders || []).map(o => ({
+          id: o.order_id,
+          symbol: o.product_id,
+          side: o.side?.toLowerCase(),
+          type: o.order_type?.toLowerCase(),
+          quantity: parseFloat(o.order_configuration?.limit_limit_gtc?.base_size || 0),
+          price: parseFloat(o.order_configuration?.limit_limit_gtc?.limit_price || o.average_filled_price || 0),
+          filledQty: parseFloat(o.filled_size || 0),
+          status: o.status?.toLowerCase(),
+          time: o.created_time,
+        }));
+      } catch (err) {
+        console.error('[COINBASE] getOpenOrders error:', err.message);
+        return [];
+      }
+    }
+
     return [];
   }
 
@@ -577,6 +1368,33 @@ class BrokerService {
           isMaker: t.isMaker,
         }));
       } catch (err) {
+        return [];
+      }
+    }
+
+    if (conn.config.id === 'coinbase') {
+      try {
+        const productId = symbol
+          ? symbol.replace(/([A-Z]+)(USDT|USDC|USD|BTC|ETH)$/i, '$1-$2').toUpperCase()
+          : undefined;
+        let url = `/api/v3/brokerage/orders/historical/fills?limit=${limit}`;
+        if (productId) url += `&product_id=${productId}`;
+        const data = await this._coinbaseRequest(conn.creds, 'GET', url);
+        console.log('[COINBASE] Trade history fills:', data);
+        return (data.fills || []).map(f => ({
+          id: f.trade_id || f.entry_id,
+          orderId: f.order_id,
+          symbol: f.product_id,
+          side: f.side?.toLowerCase(),
+          price: parseFloat(f.price || 0),
+          quantity: parseFloat(f.size || f.size_in_quote || 0),
+          commission: parseFloat(f.commission || 0),
+          commissionAsset: f.product_id?.split('-')?.[1] || 'USD',
+          time: f.trade_time,
+          isMaker: false,
+        }));
+      } catch (err) {
+        console.error('[COINBASE] getTradeHistory error:', err.message);
         return [];
       }
     }

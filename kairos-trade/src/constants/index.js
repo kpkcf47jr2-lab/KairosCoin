@@ -1,5 +1,5 @@
 // Kairos Trade — Constants
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '2.0.0';
 export const APP_NAME = 'Kairos Trade';
 
 // Supported brokers
@@ -57,6 +57,43 @@ export const BROKERS = {
     wsUrl: 'wss://ws.okx.com:8443/ws/v5/public',
     supportedMarkets: ['spot', 'futures', 'options'],
     requiredFields: ['apiKey', 'apiSecret', 'passphrase'],
+  },
+  bingx: {
+    id: 'bingx',
+    name: 'BingX',
+    logo: '🔶',
+    baseUrl: 'https://open-api.bingx.com',
+    wsUrl: 'wss://open-api-ws.bingx.com/market',
+    supportedMarkets: ['spot', 'futures'],
+    requiredFields: ['apiKey', 'apiSecret'],
+  },
+  bitget: {
+    id: 'bitget',
+    name: 'Bitget',
+    logo: '🔷',
+    baseUrl: 'https://api.bitget.com',
+    wsUrl: 'wss://ws.bitget.com/spot/v1/stream/public',
+    supportedMarkets: ['spot', 'futures', 'copy'],
+    requiredFields: ['apiKey', 'apiSecret', 'passphrase'],
+  },
+  mexc: {
+    id: 'mexc',
+    name: 'MEXC',
+    logo: '🔻',
+    baseUrl: 'https://api.mexc.com',
+    wsUrl: 'wss://wbs.mexc.com/ws',
+    supportedMarkets: ['spot', 'futures'],
+    requiredFields: ['apiKey', 'apiSecret'],
+  },
+  wallet: {
+    id: 'wallet',
+    name: 'Kairos Wallet',
+    logo: '👛',
+    baseUrl: 'dex',
+    wsUrl: '',
+    supportedMarkets: ['dex'],
+    requiredFields: ['apiKey', 'apiSecret'],
+    isDex: true,
   },
 };
 

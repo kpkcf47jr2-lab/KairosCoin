@@ -1,14 +1,19 @@
 // Kairos Trade — Settings Panel
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Key, Shield, Globe, Bell, Volume2, Percent, Wallet } from 'lucide-react';
+import { Settings, Key, Shield, Globe, Bell, Volume2, Percent, Wallet, Send, CheckCircle, XCircle } from 'lucide-react';
 import useStore from '../../store/useStore';
 import aiService from '../../services/ai';
+import { telegramService } from '../../services/telegram';
 
 export default function SettingsPanel() {
   const { settings, updateSettings, user } = useStore();
   const [apiKey, setApiKey] = useState('');
   const [saved, setSaved] = useState(false);
+  const [tgToken, setTgToken] = useState(settings.telegramBotToken || '');
+  const [tgChatId, setTgChatId] = useState(settings.telegramChatId || '');
+  const [tgStatus, setTgStatus] = useState(null); // null, 'testing', 'ok', 'error'
+  const [tgError, setTgError] = useState('');
 
   const handleSaveApiKey = () => {
     if (apiKey.trim()) {
@@ -16,6 +21,20 @@ export default function SettingsPanel() {
       updateSettings({ openaiKey: apiKey.trim() });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    }
+  };
+
+  const handleSaveTelegram = async () => {
+    setTgStatus('testing');
+    setTgError('');
+    telegramService.configure(tgToken.trim(), tgChatId.trim());
+    const result = await telegramService.testConnection();
+    if (result.ok) {
+      updateSettings({ telegramBotToken: tgToken.trim(), telegramChatId: tgChatId.trim() });
+      setTgStatus('ok');
+    } else {
+      setTgStatus('error');
+      setTgError(result.error);
     }
   };
 
@@ -120,6 +139,49 @@ export default function SettingsPanel() {
         </div>
       </div>
 
+      {/* Telegram */}
+      <div className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl p-4">
+        <h2 className="text-sm font-bold mb-3 flex items-center gap-2">
+          <Send size={16} className="text-[var(--gold)]" /> Telegram Notifications
+        </h2>
+        <p className="text-xs text-[var(--text-dim)] mb-3">
+          Recibe alertas de trades, bots y señales directamente en tu Telegram.
+          Crea un bot con <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" className="text-[var(--gold)] hover:underline">@BotFather</a> y
+          obtén tu Chat ID con <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" className="text-[var(--gold)] hover:underline">@userinfobot</a>.
+        </p>
+        <div className="space-y-2 mb-3">
+          <input
+            type="text"
+            value={tgToken}
+            onChange={(e) => setTgToken(e.target.value)}
+            placeholder="Bot Token (de @BotFather)"
+            className="w-full text-sm font-mono"
+          />
+          <input
+            type="text"
+            value={tgChatId}
+            onChange={(e) => setTgChatId(e.target.value)}
+            placeholder="Chat ID (de @userinfobot)"
+            className="w-full text-sm font-mono"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSaveTelegram}
+            disabled={!tgToken.trim() || !tgChatId.trim() || tgStatus === 'testing'}
+            className="px-4 py-2 bg-[var(--gold)] text-white rounded-xl text-sm font-bold disabled:opacity-50"
+          >
+            {tgStatus === 'testing' ? '⏳ Probando...' : tgStatus === 'ok' ? '✅ Conectado' : 'Conectar & Probar'}
+          </button>
+          {tgStatus === 'ok' && <CheckCircle size={16} className="text-emerald-400" />}
+          {tgStatus === 'error' && (
+            <span className="flex items-center gap-1 text-xs text-red-400">
+              <XCircle size={14} /> {tgError}
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Wallet integration */}
       <div className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl p-4">
         <h2 className="text-sm font-bold mb-3 flex items-center gap-2">
@@ -140,7 +202,7 @@ export default function SettingsPanel() {
 
       {/* Version */}
       <div className="text-center text-xs text-[var(--text-dim)] pb-4">
-        <p>Kairos Trade v1.0.0 • Kairos 777 Inc</p>
+        <p>Kairos Trade v2.0.0 • Kairos 777 Inc</p>
         <p className="text-[var(--gold)] mt-1">Powered by Kairos AI</p>
       </div>
     </div>

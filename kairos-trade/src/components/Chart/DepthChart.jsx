@@ -2,8 +2,8 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import { BarChart3 } from 'lucide-react';
-
-const DEPTH_URL = 'https://api.binance.com/api/v3/depth';
+import { toApiPair } from '../../utils/pairUtils';
+import { marketData } from '../../services/marketData';
 
 export default function DepthChart({ pair = 'BTCUSDT', height = 260 }) {
   const canvasRef = useRef(null);
@@ -13,7 +13,9 @@ export default function DepthChart({ pair = 'BTCUSDT', height = 260 }) {
 
   const fetchDepth = useCallback(async () => {
     try {
-      const res = await fetch(`${DEPTH_URL}?symbol=${pair}&limit=100`);
+      const apiPair = toApiPair(pair);
+      const base = await marketData._getAPI();
+      const res = await fetch(`${base}/depth?symbol=${apiPair}&limit=100`);
       if (!res.ok) return;
       const json = await res.json();
       setData(json);

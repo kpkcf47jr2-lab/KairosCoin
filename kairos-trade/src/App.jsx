@@ -1,4 +1,4 @@
-// Kairos Trade — Main Application (Premium v2)
+// Kairos Trade — Main Application (Premium v2.1 — Kairos Broker)
 import { useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -25,6 +25,14 @@ import SimulatorScreen from './components/Trading/SimulatorScreen';
 import SettingsPanel from './components/Settings/SettingsPanel';
 import AlertPanel from './components/Alerts/AlertPanel';
 import OrdersPanel from './components/Trading/OrdersPanel';
+import PortfolioAnalytics from './components/Portfolio/PortfolioAnalytics';
+import MultiChart from './components/Chart/MultiChart';
+import TradeJournal from './components/Journal/TradeJournal';
+import RiskDashboard from './components/Risk/RiskDashboard';
+import KairosBroker from './components/Kairos/KairosBroker';
+import BuyKairos from './components/Kairos/BuyKairos';
+import KairosVault from './components/Kairos/KairosVault';
+import { telegramService } from './services/telegram';
 
 // Sub-component: Trading view with chart/depth toggle + orders panel
 import { useState as useStateTrade } from 'react';
@@ -60,10 +68,17 @@ function TradingView() {
 }
 
 function App() {
-  const { isAuthenticated, currentPage, aiPanelOpen, seedDefaultStrategies } = useStore();
+  const { isAuthenticated, currentPage, aiPanelOpen, seedDefaultStrategies, settings } = useStore();
 
   // Seed factory strategies on first load
   useEffect(() => { seedDefaultStrategies(); }, []);
+
+  // Initialize Telegram from saved settings
+  useEffect(() => {
+    if (settings?.telegramBotToken && settings?.telegramChatId) {
+      telegramService.configure(settings.telegramBotToken, settings.telegramChatId);
+    }
+  }, [settings?.telegramBotToken, settings?.telegramChatId]);
 
   if (!isAuthenticated) {
     return <AuthScreen />;
@@ -80,6 +95,13 @@ function App() {
       case 'strategies': return <StrategyBuilder />;
       case 'history': return <TradeHistory />;
       case 'alerts': return <AlertPanel />;
+      case 'portfolio': return <PortfolioAnalytics />;
+      case 'multichart': return <MultiChart />;
+      case 'journal': return <TradeJournal />;
+      case 'risk': return <RiskDashboard />;
+      case 'kairos-broker': return <KairosBroker />;
+      case 'kairos-vault': return <KairosVault />;
+      case 'buy-kairos': return <BuyKairos />;
       case 'wallet': return (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">

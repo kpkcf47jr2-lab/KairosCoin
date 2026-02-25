@@ -15,6 +15,15 @@ const { v4: uuidv4 } = require("uuid");
 const logger = require("../utils/logger");
 const priceOracle = require("./priceOracle");
 
+// Lazy-loaded to avoid circular dependency
+let vaultEngine = null;
+function getVaultEngine() {
+  if (!vaultEngine) {
+    try { vaultEngine = require("./vaultEngine"); } catch (e) { /* not available yet */ }
+  }
+  return vaultEngine;
+}
+
 let db = null;
 let liquidationInterval = null;
 const LIQUIDATION_CHECK_MS = 5000; // Check every 5 seconds
@@ -441,6 +450,17 @@ function closePosition(walletAddress, positionId) {
     positionId, wallet: addr, pair: position.pair, side: position.side,
     entryPrice: position.entry_price, exitPrice, pnl: netPnl.toFixed(2),
   });
+
+  // Auto-distribute trading fees to the vault
+  const totalFees = position.entry_fee + exitFee;
+  if (totalFees > 0) {
+    try {
+      const ve = getVaultEngine();
+      if (ve) ve.distributeFees(totalFees);
+    } catch (err) {
+      logger.warn("Fee distribution to vault failed", { error: err.message });
+    }
+  }
 
   return {
     positionId,

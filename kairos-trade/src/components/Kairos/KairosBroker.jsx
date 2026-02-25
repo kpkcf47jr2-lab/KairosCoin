@@ -10,10 +10,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Shield, Zap, DollarSign, Loader2,
   AlertTriangle, CheckCircle2, ArrowUpRight, ArrowDownRight,
-  Wallet, Lock, BarChart3, Target, Activity, Crown, History,
+  Wallet, Lock, BarChart3, Target, Activity, History,
   RefreshCw, Plus, Minus, X, Eye, ChevronDown,
   ChevronUp, Settings
 } from 'lucide-react';
+import { ethers } from 'ethers';
 import useStore from '../../store/useStore';
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ async function api(endpoint, options = {}) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function KairosBroker() {
-  const { showToast, user } = useStore();
+  const { showToast, user, login } = useStore();
 
   // ── Wallet from Kairos account (auto-connected) ──
   const walletAddress = user?.walletAddress || '';
@@ -277,8 +278,8 @@ export default function KairosBroker() {
       <div className="bg-gradient-to-r from-blue-900/40 to-blue-800/20 border border-blue-500/30 rounded-xl p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Crown className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden">
+              <img src="/kairos-logo.png" alt="Kairos" className="w-10 h-10 object-contain" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-white flex items-center gap-2">
@@ -304,14 +305,28 @@ export default function KairosBroker() {
         </div>
       </div>
 
-      {/* No wallet — user needs to re-register (legacy accounts) */}
+      {/* No wallet — auto-generate for legacy accounts */}
       {!isConnected && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
           <Wallet className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-          <h2 className="text-lg font-medium text-white mb-2">Wallet no disponible</h2>
+          <h2 className="text-lg font-medium text-white mb-2">Wallet no detectada</h2>
           <p className="text-zinc-400 text-sm mb-6 max-w-md mx-auto">
-            Tu cuenta no tiene una wallet Kairos asociada. Cierra sesión y crea una nueva cuenta para generar tu wallet automáticamente.
+            Tu cuenta necesita una wallet Kairos. Haz clic abajo para generar una automáticamente.
           </p>
+          <button onClick={() => {
+            try {
+              const wallet = ethers.Wallet.createRandom();
+              const updated = { ...user, walletAddress: wallet.address, encryptedKey: btoa(wallet.privateKey) };
+              login(updated);
+              localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress: wallet.address, encryptedKey: btoa(wallet.privateKey) }));
+              showToast('Wallet generada: ' + wallet.address.slice(0,6) + '...' + wallet.address.slice(-4), 'success');
+            } catch (err) {
+              showToast('Error generando wallet: ' + err.message, 'error');
+            }
+          }}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-colors">
+            Generar Mi Kairos Wallet
+          </button>
         </div>
       )}
 

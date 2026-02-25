@@ -169,7 +169,7 @@ export function executeScript(code, candles) {
   const { sandbox, getSignal, getConfig, getLogs } = buildContext(candles);
 
   try {
-    // Build sandboxed function — block dangerous globals
+    // Block dangerous globals by passing them as undefined parameters
     const blockedGlobals = [
       'window', 'document', 'globalThis', 'self',
       'fetch', 'XMLHttpRequest', 'WebSocket',
@@ -183,13 +183,10 @@ export function executeScript(code, candles) {
     const argNames = [...Object.keys(sandbox), ...blockedGlobals];
     const argValues = [
       ...Object.values(sandbox),
-      ...blockedGlobals.map(() => undefined), // Block all dangerous globals
+      ...blockedGlobals.map(() => undefined),
     ];
 
-    // Wrap in strict mode
-    const wrappedCode = `"use strict";\n${code}`;
-
-    const fn = new Function(...argNames, wrappedCode);
+    const fn = new Function(...argNames, code);
     fn(...argValues);
 
     return {

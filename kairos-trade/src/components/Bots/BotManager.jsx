@@ -1,7 +1,7 @@
 // Kairos Trade — Bot Management Panel (Elite v3)
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bot, Plus, Play, Pause, Square, Trash2, Settings, TrendingUp, TrendingDown, AlertCircle, Grid3x3, DollarSign, Zap, Code2, Edit3, BarChart3, Link2, ArrowRight } from 'lucide-react';
+import { Bot, Plus, Play, Pause, Square, Trash2, Settings, TrendingUp, TrendingDown, AlertCircle, Grid3x3, DollarSign, Zap, Code2, Edit3, BarChart3, Link2, ArrowRight, ChevronDown } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { tradingEngine } from '../../services/tradingEngine';
 import gridBotEngine from '../../services/gridBot';
@@ -25,11 +25,14 @@ export default function BotManager() {
   const [editingStrategy, setEditingStrategy] = useState(null);
   const [botType, setBotType] = useState('signal');
   const [logs, setLogs] = useState([]);
+  const [showLiveActivity, setShowLiveActivity] = useState(false);
   const [createError, setCreateError] = useState('');
   const [brokerBalances, setBrokerBalances] = useState({});
+  const [livePnL, setLivePnL] = useState({});  // Real-time P&L per bot
   const [form, setForm] = useState({
     name: '', pair: 'BTCKAIROS', timeframe: '1h', strategyId: '', brokerId: '',
     balance: '1000', riskPercent: '2', maxTrades: '10',
+    trailingStop: false, trailingStopPct: '1.5', trailingActivation: '0.5',
     // Grid bot fields
     upperPrice: '', lowerPrice: '', gridLines: '10',
     // DCA bot fields
@@ -62,6 +65,23 @@ export default function BotManager() {
     const interval = setInterval(fetchBrokerBalances, 30000);
     return () => clearInterval(interval);
   }, [fetchBrokerBalances]);
+
+  // Poll live P&L from trading engine every second
+  useEffect(() => {
+    const tick = setInterval(() => {
+      const activeBots = bots.filter(b => b.status === 'active');
+      if (activeBots.length === 0) return;
+      const updates = {};
+      activeBots.forEach(bot => {
+        const live = tradingEngine.getLiveData(bot.id);
+        if (live) updates[bot.id] = live;
+      });
+      if (Object.keys(updates).length > 0) {
+        setLivePnL(prev => ({ ...prev, ...updates }));
+      }
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [bots]);
 
   // Auto-restart active bots on mount (survives navigation + page refresh)
   useEffect(() => {
@@ -157,6 +177,9 @@ export default function BotManager() {
         timeframe: form.timeframe, strategy,
         balance: parseFloat(form.balance), riskPercent: parseFloat(form.riskPercent),
         maxTrades: parseInt(form.maxTrades),
+        trailingStop: form.trailingStop,
+        trailingStopPct: form.trailingStop ? parseFloat(form.trailingStopPct) : undefined,
+        trailingActivation: form.trailingStop ? parseFloat(form.trailingActivation) : undefined,
       });
     } else if (botType === 'script') {
       // Custom script bot — uses Kairos Script engine
@@ -175,6 +198,9 @@ export default function BotManager() {
         balance: parseFloat(form.balance), riskPercent: parseFloat(form.riskPercent),
         maxTrades: parseInt(form.maxTrades),
         scriptName: customStrategy.name,
+        trailingStop: form.trailingStop,
+        trailingStopPct: form.trailingStop ? parseFloat(form.trailingStopPct) : undefined,
+        trailingActivation: form.trailingStop ? parseFloat(form.trailingActivation) : undefined,
       });
     } else if (botType === 'grid') {
       if (!form.upperPrice || !form.lowerPrice) {
@@ -205,8 +231,14 @@ export default function BotManager() {
   };
 
   const addTrade = (bot, trade) => {
+    // Don't count errors as trades
+    if (trade.status === 'error') {
+      setLogs(prev => [...prev.slice(-100), { type: 'error', bot: bot.name, message: `Error: ${trade.error}`, time: new Date().toLocaleTimeString() }]);
+      return;
+    }
+
     setLogs(prev => [...prev.slice(-100), { type: 'trade', bot: bot.name, ...trade, time: new Date().toLocaleTimeString() }]);
-    // Update bot stats — only count closed trades for P&L
+    // Update bot stats — only count successful trades
     const current = useStore.getState().bots.find(b => b.id === bot.id);
     if (current) {
       const trades = (current.trades || 0) + 1;
@@ -344,20 +376,49 @@ export default function BotManager() {
 
               {/* Signal bot fields */}
               {botType === 'signal' && (
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Timeframe</label>
-                    <select value={form.timeframe} onChange={(e) => setForm({ ...form, timeframe: e.target.value })} className="w-full">
-                      {TIMEFRAMES.map(tf => <option key={tf.value} value={tf.value}>{tf.label}</option>)}
-                    </select>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Timeframe</label>
+                      <select value={form.timeframe} onChange={(e) => setForm({ ...form, timeframe: e.target.value })} className="w-full">
+                        {TIMEFRAMES.map(tf => <option key={tf.value} value={tf.value}>{tf.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Balance ($)</label>
+                      <input type="number" value={form.balance} onChange={(e) => setForm({ ...form, balance: e.target.value })} className="w-full" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Riesgo (%)</label>
+                      <input type="number" value={form.riskPercent} onChange={(e) => setForm({ ...form, riskPercent: e.target.value })} className="w-full" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Balance ($)</label>
-                    <input type="number" value={form.balance} onChange={(e) => setForm({ ...form, balance: e.target.value })} className="w-full" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Riesgo (%)</label>
-                    <input type="number" value={form.riskPercent} onChange={(e) => setForm({ ...form, riskPercent: e.target.value })} className="w-full" />
+                  {/* Trailing Stop */}
+                  <div className="bg-[var(--dark)] rounded-lg p-3 border border-[var(--border)]">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-xs font-bold flex items-center gap-1">📐 Trailing Stop</p>
+                        <p className="text-[10px] text-[var(--text-dim)]">SL que se mueve protegiendo ganancias</p>
+                      </div>
+                      <button
+                        onClick={() => setForm({ ...form, trailingStop: !form.trailingStop })}
+                        className={`w-10 h-5 rounded-full transition-colors relative ${form.trailingStop ? 'bg-[var(--gold)]' : 'bg-[var(--dark-4)]'}`}
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${form.trailingStop ? 'left-5' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+                    {form.trailingStop && (
+                      <div className="grid grid-cols-2 gap-3 mt-2">
+                        <div>
+                          <label className="text-[10px] text-[var(--text-dim)] mb-1 block">Trail Distance (%)</label>
+                          <input type="number" step="0.1" value={form.trailingStopPct} onChange={(e) => setForm({ ...form, trailingStopPct: e.target.value })} className="w-full" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[var(--text-dim)] mb-1 block">Activación (%)</label>
+                          <input type="number" step="0.1" value={form.trailingActivation} onChange={(e) => setForm({ ...form, trailingActivation: e.target.value })} className="w-full" />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -380,6 +441,33 @@ export default function BotManager() {
                       <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Riesgo (%)</label>
                       <input type="number" value={form.riskPercent} onChange={(e) => setForm({ ...form, riskPercent: e.target.value })} className="w-full" />
                     </div>
+                  </div>
+                  {/* Trailing Stop */}
+                  <div className="bg-[var(--dark)] rounded-lg p-3 border border-[var(--border)]">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-xs font-bold flex items-center gap-1">📐 Trailing Stop</p>
+                        <p className="text-[10px] text-[var(--text-dim)]">SL que se mueve protegiendo ganancias</p>
+                      </div>
+                      <button
+                        onClick={() => setForm({ ...form, trailingStop: !form.trailingStop })}
+                        className={`w-10 h-5 rounded-full transition-colors relative ${form.trailingStop ? 'bg-[var(--gold)]' : 'bg-[var(--dark-4)]'}`}
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 transition-transform ${form.trailingStop ? 'left-5' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+                    {form.trailingStop && (
+                      <div className="grid grid-cols-2 gap-3 mt-2">
+                        <div>
+                          <label className="text-[10px] text-[var(--text-dim)] mb-1 block">Trail Distance (%)</label>
+                          <input type="number" step="0.1" value={form.trailingStopPct} onChange={(e) => setForm({ ...form, trailingStopPct: e.target.value })} className="w-full" />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-[var(--text-dim)] mb-1 block">Activación (%)</label>
+                          <input type="number" step="0.1" value={form.trailingActivation} onChange={(e) => setForm({ ...form, trailingActivation: e.target.value })} className="w-full" />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Strategy selector or create new */}
@@ -565,16 +653,35 @@ export default function BotManager() {
                 </div>
 
                 {/* Stats row */}
+                {/* Stats row — with LIVE unrealized P&L */}
+                {(() => {
+                  const live = livePnL[bot.id];
+                  const closedPnl = parseFloat(bot.pnl) || 0;
+                  const unrealized = live?.unrealizedPnl || 0;
+                  const totalPnl = closedPnl + unrealized;
+                  const pnlPct = live?.pnlPercent || 0;
+                  const initial = parseFloat(bot.balance) || 0;
+                  const currentBal = initial + totalPnl;
+                  const isUp = totalPnl >= 0;
+                  const hasPosition = !!live?.position;
+                  return (
                 <div className="grid grid-cols-4 gap-px" style={{ background: 'var(--border)', borderTop: '1px solid var(--border)' }}>
                   <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
                     <p className="text-xs text-[var(--text-dim)] mb-1">Trades</p>
                     <p className="text-lg font-bold">{bot.trades || 0}</p>
                   </div>
                   <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
-                    <p className="text-xs text-[var(--text-dim)] mb-1">P&L</p>
-                    <p className={`text-lg font-bold ${(bot.pnl || 0) >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
-                      {(bot.pnl || 0) >= 0 ? '+' : ''}${(bot.pnl || 0).toFixed(2)}
+                    <p className="text-xs text-[var(--text-dim)] mb-1">
+                      {hasPosition ? '📊 P&L Vivo' : 'P&L'}
                     </p>
+                    <p className={`text-lg font-bold ${isUp ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
+                      {isUp ? '+' : ''}${totalPnl.toFixed(2)}
+                    </p>
+                    {hasPosition && (
+                      <p className={`text-[10px] font-bold ${pnlPct >= 0 ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
+                        {pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%
+                      </p>
+                    )}
                   </div>
                   <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
                     <p className="text-xs text-[var(--text-dim)] mb-1">Win Rate</p>
@@ -582,24 +689,18 @@ export default function BotManager() {
                   </div>
                   <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
                     <p className="text-xs text-[var(--text-dim)] mb-1">Balance</p>
-                    {(() => {
-                      const initial = parseFloat(bot.balance) || 0;
-                      const pnl = parseFloat(bot.pnl) || 0;
-                      const current = initial + pnl;
-                      const isUp = current >= initial;
-                      return (
-                        <div>
-                          <p className={`text-lg font-bold ${isUp ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
-                            ${current.toFixed(2)}
-                          </p>
-                          <p className="text-[10px] text-[var(--text-dim)]">
-                            Inicio: ${initial.toFixed(2)}
-                          </p>
-                        </div>
-                      );
-                    })()}
+                    <div>
+                      <p className={`text-lg font-bold ${currentBal >= initial ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
+                        ${currentBal.toFixed(2)}
+                      </p>
+                      <p className="text-[10px] text-[var(--text-dim)]">
+                        Inicio: ${initial.toFixed(2)}
+                      </p>
+                    </div>
                   </div>
                 </div>
+                  );
+                })()}
 
                 {/* Action buttons — bigger */}
                 <div className="flex gap-3 p-4 flex-wrap items-center" style={{ borderTop: '1px solid var(--border)' }}>
@@ -635,25 +736,51 @@ export default function BotManager() {
         </div>
       )}
 
-      {/* Live logs */}
+      {/* Live logs — collapsible */}
       {logs.length > 0 && (
         <div className="rounded-2xl overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-          <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--border)' }}>
+          <button
+            onClick={() => setShowLiveActivity(prev => !prev)}
+            className="w-full flex items-center justify-between p-4 cursor-pointer hover:bg-[var(--gold)]/5 transition-colors"
+            style={{ borderBottom: showLiveActivity ? '1px solid var(--border)' : 'none' }}
+          >
             <h3 className="text-base font-bold flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-[var(--green)] animate-pulse" />
               Actividad en Vivo
+              <span className="text-xs font-normal text-[var(--text-dim)] ml-1">({logs.length})</span>
             </h3>
-            <button onClick={() => setLogs([])} className="text-sm text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors px-3 py-1 rounded-lg hover:bg-[var(--gold)]/10">Limpiar</button>
-          </div>
-          <div className="max-h-56 overflow-y-auto p-4 space-y-1.5 font-mono text-xs">
-            {logs.slice(-50).reverse().map((log, i) => (
-              <div key={i} className="flex items-start gap-2 py-0.5">
-                <span className="text-[var(--text-dim)] shrink-0">{log.time}</span>
-                <span className="text-[var(--gold)] shrink-0 font-semibold">[{log.bot}]</span>
-                <span className="text-[var(--text-secondary)]">{log.message || `${log.side?.toUpperCase()} ${log.quantity} @ $${log.price}`}</span>
-              </div>
-            ))}
-          </div>
+            <div className="flex items-center gap-2">
+              {showLiveActivity && (
+                <span onClick={(e) => { e.stopPropagation(); setLogs([]); }} className="text-sm text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors px-3 py-1 rounded-lg hover:bg-[var(--gold)]/10">Limpiar</span>
+              )}
+              <ChevronDown
+                size={18}
+                className="text-[var(--text-dim)] transition-transform duration-300"
+                style={{ transform: showLiveActivity ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              />
+            </div>
+          </button>
+          <AnimatePresence initial={false}>
+            {showLiveActivity && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="max-h-56 overflow-y-auto p-4 space-y-1.5 font-mono text-xs">
+                  {logs.slice(-50).reverse().map((log, i) => (
+                    <div key={i} className="flex items-start gap-2 py-0.5">
+                      <span className="text-[var(--text-dim)] shrink-0">{log.time}</span>
+                      <span className="text-[var(--gold)] shrink-0 font-semibold">[{log.bot}]</span>
+                      <span className="text-[var(--text-secondary)]">{log.message || `${log.side?.toUpperCase()} ${log.quantity} @ $${log.price}`}</span>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 

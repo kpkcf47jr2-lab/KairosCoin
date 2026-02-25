@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle, XCircle, Shield, RefreshCw, Wallet,
-  Trash2, X, Lock, ChevronRight, ChevronLeft,
+  Trash2, X, Lock, ChevronRight, ChevronLeft, ChevronDown,
   Eye, EyeOff, Loader2, ExternalLink,
-  ArrowRight, Info, Key, Zap
+  ArrowRight, Info, Key, Zap, Coins
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { BROKERS } from '../../constants';
@@ -91,6 +91,18 @@ const BROKER_CATALOG = [
     ],
   },
   {
+    id: 'bingx', name: 'BingX', logo: '🔶',
+    color: '#F7931A', desc: 'Social trading y copy trading',
+    features: ['Spot', 'Futuros', 'Copy'], users: '10M+',
+    apiUrl: 'https://bingx.com/en-us/account/api/',
+    steps: [
+      { title: 'Inicia sesión en BingX', desc: 'Ve a bingx.com e inicia sesión.' },
+      { title: 'Ve a API Management', desc: 'Account → API Management → "Create API".' },
+      { title: 'Configura permisos', desc: 'Activa "Read" y "Trade". No actives "Withdraw".' },
+      { title: 'Copia tus claves', desc: 'Copia el API Key y Secret Key.' },
+    ],
+  },
+  {
     id: 'bitget', name: 'Bitget', logo: '🔷',
     color: '#00CED1', desc: 'Copy trading #1 del mundo',
     features: ['Spot', 'Futuros', 'Copy'], users: '25M+',
@@ -113,6 +125,19 @@ const BROKER_CATALOG = [
       { title: 'Ve a API Management', desc: 'Account → API Management → "Create API Key".' },
       { title: 'Configura permisos', desc: 'Marca "Read" y "Trade". Sin permisos de retiro.' },
       { title: 'Copia tus claves', desc: 'Copia API Key y Secret Key.' },
+    ],
+  },
+  {
+    id: 'wallet', name: 'Kairos Wallet', logo: '👛',
+    color: '#D4AF37', desc: 'Trading DEX on-chain con tu wallet',
+    features: ['DEX', 'PancakeSwap', 'Multi-Chain'], users: 'DeFi',
+    isDex: true,
+    apiUrl: 'https://kairos-wallet.netlify.app',
+    steps: [
+      { title: 'Obtén tu dirección', desc: 'Abre Kairos Wallet y copia tu dirección de wallet.' },
+      { title: 'Exporta tu clave privada', desc: 'En Settings → Export Private Key. Guárdala de forma segura.' },
+      { title: 'Selecciona la cadena', desc: 'Elige la red: BSC (default), Ethereum, Polygon, Arbitrum, etc.' },
+      { title: 'Pega tus datos', desc: 'Wallet Address como API Key, Private Key como Secret.' },
     ],
   },
 ];
@@ -139,19 +164,23 @@ export default function BrokerManager() {
   const [balances, setBalances] = useState({});
   const [loadingBalances, setLoadingBalances] = useState({});
   const [expandedBroker, setExpandedBroker] = useState(null);
+  const [showCrypto, setShowCrypto] = useState({});
 
   // ─── Fetch balances ───
   const fetchBalances = useCallback(async (broker) => {
     setLoadingBalances(prev => ({ ...prev, [broker.id]: true }));
     try {
       const result = await brokerService.getBalances(broker.id);
+      console.log(`[BROKER BALANCE] ${broker.brokerId} raw:`, result);
       // getBalances returns array directly, not { success, balances }
       if (Array.isArray(result)) {
         setBalances(prev => ({ ...prev, [broker.id]: result }));
       } else if (result?.success) {
         setBalances(prev => ({ ...prev, [broker.id]: result.balances }));
       }
-    } catch {}
+    } catch (err) {
+      console.error(`[BROKER BALANCE] ${broker.brokerId} error:`, err.message);
+    }
     setLoadingBalances(prev => ({ ...prev, [broker.id]: false }));
   }, []);
 
@@ -219,12 +248,25 @@ export default function BrokerManager() {
     setBalances(prev => { const n = { ...prev }; delete n[id]; return n; });
   };
 
+  const STABLES = ['USD', 'USDT', 'USDC', 'BUSD', 'FDUSD', 'KAIROS'];
+
   const totalUSD = (brokerId) => {
     const bals = balances[brokerId] || [];
     return bals.reduce((sum, b) => {
-      if (['USDT', 'USDC', 'BUSD', 'FDUSD', 'KAIROS'].includes(b.asset)) return sum + parseFloat(b.free) + parseFloat(b.locked || 0);
+      // Include USD (Coinbase), USDT, USDC, BUSD, FDUSD, KAIROS as stablecoins
+      if (STABLES.includes(b.asset)) {
+        return sum + parseFloat(b.free) + parseFloat(b.locked || 0);
+      }
       return sum;
     }, 0);
+  };
+
+  // Separate stablecoins vs crypto for display
+  const splitBalances = (brokerId) => {
+    const bals = balances[brokerId] || [];
+    const stables = bals.filter(b => STABLES.includes(b.asset));
+    const crypto = bals.filter(b => !STABLES.includes(b.asset));
+    return { stables, crypto };
   };
 
   const connectedIds = brokers.map(b => b.brokerId);
@@ -317,33 +359,93 @@ export default function BrokerManager() {
 
                 {/* Expanded balances */}
                 <AnimatePresence>
-                  {isExpanded && broker.connected && (
-                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                      <div className="px-4 pb-4 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
-                        <div className="flex items-center justify-between pt-3">
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-dim)] flex items-center gap-2">
-                            <Wallet size={13} className="text-[var(--gold)]" /> Balances
-                          </h4>
-                          <button onClick={() => fetchBalances(broker)}
-                            className="text-[10px] text-[var(--text-dim)] hover:text-[var(--gold)] flex items-center gap-1">
-                            <RefreshCw size={11} className={loadingBalances[broker.id] ? 'animate-spin' : ''} /> Actualizar
-                          </button>
-                        </div>
-                        {bals.length > 0 ? (
-                          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
-                            {bals.slice(0, 15).map(b => (
-                              <div key={b.asset} className="rounded-lg p-2" style={{ background: 'var(--surface-2)' }}>
-                                <span className="text-[10px] font-bold text-[var(--gold)]">{b.asset}</span>
-                                <p className="text-xs font-bold mt-0.5">{parseFloat(b.free).toFixed(b.asset === 'BTC' ? 8 : 2)}</p>
-                              </div>
-                            ))}
+                  {isExpanded && broker.connected && (() => {
+                    const { stables, crypto } = splitBalances(broker.id);
+                    const cryptoOpen = showCrypto[broker.id] || false;
+                    const decimals = (asset) => ['BTC', 'ETH', 'WBTC'].includes(asset) ? 8 : ['SOL', 'BNB', 'AVAX'].includes(asset) ? 4 : 2;
+                    return (
+                      <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                        <div className="px-4 pb-4 space-y-3" style={{ borderTop: '1px solid var(--border)' }}>
+                          {/* Header */}
+                          <div className="flex items-center justify-between pt-3">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-dim)] flex items-center gap-2">
+                              <Wallet size={13} className="text-[var(--gold)]" /> Balance Total: <span className="text-[var(--gold)]">${usd.toFixed(2)}</span>
+                            </h4>
+                            <button onClick={() => fetchBalances(broker)}
+                              className="text-[10px] text-[var(--text-dim)] hover:text-[var(--gold)] flex items-center gap-1">
+                              <RefreshCw size={11} className={loadingBalances[broker.id] ? 'animate-spin' : ''} /> Actualizar
+                            </button>
                           </div>
-                        ) : (
-                          <p className="text-xs text-[var(--text-dim)] py-2">{loadingBalances[broker.id] ? 'Cargando...' : 'Sin balances'}</p>
-                        )}
-                      </div>
-                    </motion.div>
-                  )}
+
+                          {/* Stablecoins - always visible */}
+                          {stables.length > 0 && (
+                            <div>
+                              <p className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                <span className="text-green-400">$</span> Stablecoins / Fiat
+                              </p>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                {stables.map(b => (
+                                  <div key={b.asset} className="rounded-lg p-2.5 flex items-center justify-between" style={{ background: 'rgba(0,220,130,0.04)', border: '1px solid rgba(0,220,130,0.1)' }}>
+                                    <div>
+                                      <span className="text-[10px] font-bold text-[var(--green)]">{b.asset}</span>
+                                      <p className="text-sm font-bold mt-0.5">${parseFloat(b.free).toFixed(2)}</p>
+                                    </div>
+                                    {parseFloat(b.locked || 0) > 0 && (
+                                      <div className="text-right">
+                                        <span className="text-[9px] text-[var(--text-dim)]">En uso</span>
+                                        <p className="text-[10px] text-yellow-400">${parseFloat(b.locked).toFixed(2)}</p>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Crypto assets - collapsible */}
+                          {crypto.length > 0 && (
+                            <div>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowCrypto(prev => ({ ...prev, [broker.id]: !cryptoOpen })); }}
+                                className="w-full flex items-center justify-between py-1.5 text-left group"
+                              >
+                                <p className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider flex items-center gap-1">
+                                  <Coins size={11} className="text-[var(--gold)]" /> Criptomonedas ({crypto.length})
+                                </p>
+                                <ChevronDown size={12} className={`text-[var(--text-dim)] transition-transform ${cryptoOpen ? 'rotate-180' : ''}`} />
+                              </button>
+                              <AnimatePresence>
+                                {cryptoOpen && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                  >
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pt-1.5">
+                                      {crypto.map(b => (
+                                        <div key={b.asset} className="rounded-lg p-2.5" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                                          <span className="text-[10px] font-bold text-[var(--gold)]">{b.asset}</span>
+                                          <p className="text-xs font-bold mt-0.5">{parseFloat(b.free).toFixed(decimals(b.asset))}</p>
+                                          {parseFloat(b.locked || 0) > 0 && (
+                                            <p className="text-[9px] text-yellow-400 mt-0.5">En uso: {parseFloat(b.locked).toFixed(decimals(b.asset))}</p>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )}
+
+                          {bals.length === 0 && (
+                            <p className="text-xs text-[var(--text-dim)] py-2">{loadingBalances[broker.id] ? 'Cargando balances...' : 'Sin balances disponibles'}</p>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })()}
                 </AnimatePresence>
               </div>
             );
@@ -531,9 +633,13 @@ export default function BrokerManager() {
               {step === FLOW.KEYS && (
                 <div className="p-5 space-y-4">
                   <div className="text-center mb-1">
-                    <p className="text-sm font-bold">Pega tus API Keys de {selectedBroker.name}</p>
+                    <p className="text-sm font-bold">
+                      {selectedBroker.isDex ? 'Conecta tu Wallet' : `Pega tus API Keys de ${selectedBroker.name}`}
+                    </p>
                     <p className="text-[11px] text-[var(--text-dim)] mt-1">
-                      Las claves se encriptan y almacenan solo en tu dispositivo
+                      {selectedBroker.isDex
+                        ? 'Tu clave privada se almacena solo en tu dispositivo, encriptada'
+                        : 'Las claves se encriptan y almacenan solo en tu dispositivo'}
                     </p>
                   </div>
 
@@ -547,38 +653,60 @@ export default function BrokerManager() {
                         type="text"
                         value={keyForm.label}
                         onChange={(e) => setKeyForm({ ...keyForm, label: e.target.value })}
-                        placeholder={`Mi cuenta ${selectedBroker.name}`}
+                        placeholder={selectedBroker.isDex ? 'Mi Wallet DeFi' : `Mi cuenta ${selectedBroker.name}`}
                         className="w-full text-sm rounded-xl"
                         style={{ background: 'rgba(24,26,32,0.6)', border: '1px solid rgba(30,34,45,0.5)', padding: '10px 14px' }}
                       />
                     </div>
 
-                    {/* API Key */}
+                    {/* Chain selector (wallet only) */}
+                    {selectedBroker.isDex && (
+                      <div>
+                        <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider flex items-center gap-1">
+                          🔗 Red / Blockchain <span className="text-[var(--red)]">*</span>
+                        </label>
+                        <select
+                          value={keyForm.passphrase || '56'}
+                          onChange={(e) => setKeyForm({ ...keyForm, passphrase: e.target.value })}
+                          className="w-full text-sm rounded-xl"
+                          style={{ background: 'rgba(24,26,32,0.6)', border: '1px solid rgba(30,34,45,0.5)', padding: '10px 14px', color: 'var(--text)' }}
+                        >
+                          <option value="56">🟡 BSC (BNB Smart Chain) — PancakeSwap</option>
+                          <option value="1">🔵 Ethereum — Uniswap</option>
+                          <option value="137">🟣 Polygon — QuickSwap</option>
+                          <option value="42161">⚪ Arbitrum — SushiSwap</option>
+                          <option value="43114">🔴 Avalanche — Trader Joe</option>
+                          <option value="8453">🔵 Base — BaseSwap</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {/* API Key / Wallet Address */}
                     <div>
                       <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider flex items-center gap-1">
-                        <Key size={10} className="text-[var(--gold)]" /> API Key <span className="text-[var(--red)]">*</span>
+                        <Key size={10} className="text-[var(--gold)]" /> {selectedBroker.isDex ? 'Wallet Address' : 'API Key'} <span className="text-[var(--red)]">*</span>
                       </label>
                       <input
                         type="text"
                         value={keyForm.apiKey}
                         onChange={(e) => setKeyForm({ ...keyForm, apiKey: e.target.value })}
-                        placeholder="Pega tu API Key aquí"
+                        placeholder={selectedBroker.isDex ? '0x... tu dirección de wallet' : 'Pega tu API Key aquí'}
                         className="w-full text-sm font-mono rounded-xl"
                         style={{ background: 'rgba(24,26,32,0.6)', border: '1px solid rgba(30,34,45,0.5)', padding: '10px 14px' }}
                         autoFocus
                       />
                     </div>
 
-                    {/* API Secret */}
+                    {/* API Secret / Private Key */}
                     <div className="relative">
                       <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider flex items-center gap-1">
-                        <Lock size={10} className="text-[var(--gold)]" /> API Secret <span className="text-[var(--red)]">*</span>
+                        <Lock size={10} className="text-[var(--gold)]" /> {selectedBroker.isDex ? 'Private Key' : 'API Secret'} <span className="text-[var(--red)]">*</span>
                       </label>
                       <input
                         type={showSecret ? 'text' : 'password'}
                         value={keyForm.apiSecret}
                         onChange={(e) => setKeyForm({ ...keyForm, apiSecret: e.target.value })}
-                        placeholder="Pega tu API Secret aquí"
+                        placeholder={selectedBroker.isDex ? '0x... tu clave privada' : 'Pega tu API Secret aquí'}
                         className="w-full text-sm font-mono rounded-xl pr-10"
                         style={{ background: 'rgba(24,26,32,0.6)', border: '1px solid rgba(30,34,45,0.5)', padding: '10px 14px' }}
                       />
@@ -588,8 +716,8 @@ export default function BrokerManager() {
                       </button>
                     </div>
 
-                    {/* Passphrase (if needed) */}
-                    {selectedBroker.needsPassphrase && (
+                    {/* Passphrase (if needed, not for wallet) */}
+                    {selectedBroker.needsPassphrase && !selectedBroker.isDex && (
                       <div>
                         <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider flex items-center gap-1">
                           <Shield size={10} className="text-[var(--gold)]" /> Passphrase <span className="text-[var(--red)]">*</span>
@@ -614,11 +742,21 @@ export default function BrokerManager() {
                   )}
 
                   {/* Permissions reminder */}
-                  <div className="rounded-lg px-3 py-2 flex items-start gap-2" style={{ background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.08)' }}>
+                  <div className="rounded-lg px-3 py-2 flex items-start gap-2" style={{ background: selectedBroker.isDex ? 'rgba(212,175,55,0.06)' : 'rgba(59,130,246,0.04)', border: `1px solid ${selectedBroker.isDex ? 'rgba(212,175,55,0.12)' : 'rgba(59,130,246,0.08)'}` }}>
                     <Info size={13} className="text-[var(--gold)] shrink-0 mt-0.5" />
                     <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">
-                      Asegúrate de que tu API Key tenga permisos de <strong className="text-[var(--text)]">lectura</strong> y <strong className="text-[var(--text)]">trading</strong>. 
-                      <strong className="text-[var(--red)]"> Nunca actives permisos de retiro.</strong>
+                      {selectedBroker.isDex ? (
+                        <>
+                          Tu clave privada da <strong className="text-[var(--red)]">acceso total</strong> a tu wallet. 
+                          Se almacena solo en tu dispositivo, encriptada. 
+                          <strong className="text-[var(--gold)]"> Trading via PancakeSwap/Uniswap DEX.</strong>
+                        </>
+                      ) : (
+                        <>
+                          Asegúrate de que tu API Key tenga permisos de <strong className="text-[var(--text)]">lectura</strong> y <strong className="text-[var(--text)]">trading</strong>. 
+                          <strong className="text-[var(--red)]"> Nunca actives permisos de retiro.</strong>
+                        </>
+                      )}
                     </p>
                   </div>
 
