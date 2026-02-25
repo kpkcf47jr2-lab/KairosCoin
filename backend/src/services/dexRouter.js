@@ -1,25 +1,32 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-//  KairosCoin Backend — DEX Router Service
-//  Routes perpetual trading orders to GMX V2 on Arbitrum
+//  KairosCoin Backend — DEX Router Service (HYBRID MODE)
+//  SQLite position tracking with real market prices + optional GMX V2 mirroring
 //
 //  Architecture:
-//  1. User deposits KAIROS → KairosPerps contract (Arbitrum)
-//  2. User submits order → Backend validates & prepares
-//  3. Relayer wallet executes on GMX V2 (real DEX)
-//  4. Position confirmed → recorded on KairosPerps contract
-//  5. Close/Liquidation → settled on-chain
+//  1. User submits order via API → Backend validates & records in SQLite
+//  2. Positions tracked locally with real prices from priceOracle
+//  3. If relayer has enough USDC + ETH → mirror on GMX V2 (optional)
+//  4. KairosPerps contract used optionally for on-chain transparency
+//  5. Liquidation monitor checks every 10s against real prices
 //
-//  GMX V2 flow:
-//  - Send collateral to OrderVault
-//  - Call ExchangeRouter.createOrder() 
-//  - Keepers execute order → position opens on GMX
-//  - Backend monitors via events/polling
+//  HYBRID flow:
+//  - SQLite is the source of truth for all positions
+//  - Each new user gets 10,000 KAIROS demo balance (virtual)
+//  - GMX V2 mirroring attempted when relayer has funds — failures don't block trades
+//  - On-chain KairosPerps recording is best-effort (try/catch)
 //
 //  "In God We Trust"
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const { ethers } = require("ethers");
+const Database = require("better-sqlite3");
+const path = require("path");
+const fs = require("fs");
 const logger = require("../utils/logger");
+
+// ── SQLite Database ──────────────────────────────────────────────────────────
+const DB_PATH = path.join(__dirname, "../../data/kairos.db");
+let db = null;
 
 // ── GMX V2 Contract Addresses on Arbitrum ────────────────────────────────────
 const GMX_CONTRACTS = {
@@ -32,7 +39,6 @@ const GMX_CONTRACTS = {
 };
 
 // ── GMX V2 Market Addresses (Arbitrum) ───────────────────────────────────────
-// Market = trading pair on GMX V2
 const GMX_MARKETS = {
   "BTC/USD":  "0x47c031236e19d024b42f8AE6DA7A02043e22CF03", // BTC/USD [WBTC-USDC]
   "ETH/USD":  "0x70d95587d40A2caf56bd97485aB3Eec10Bee6336", // ETH/USD [WETH-USDC]
@@ -42,6 +48,18 @@ const GMX_MARKETS = {
   "LINK/USD": "0x7f1fa204bb700853D36994DA19F830b6Ad18455C", // LINK/USD
   "AVAX/USD": "0xD9535bB5f58A1a75032416F2dFe7880C30575a41", // AVAX/USD
   "MATIC/USD":"0x2b3a5F8a2b8B6bDB5c0F3B2f5C1A8a8e7b8D6f9c", // MATIC/USD (if available)
+};
+
+// Map trading pair → Binance symbol for price lookup
+const PAIR_TO_SYMBOL = {
+  "BTC/USD":   "BTCUSDT",
+  "ETH/USD":   "ETHUSDT",
+  "ARB/USD":   "ARBUSDT",
+  "SOL/USD":   "SOLUSDT",
+  "DOGE/USD":  "DOGEUSDT",
+  "LINK/USD":  "LINKUSDT",
+  "AVAX/USD":  "AVAXUSDT",
+  "MATIC/USD": "MATICUSDT",
 };
 
 // ── Tokens on Arbitrum ───────────────────────────────────────────────────────
@@ -54,7 +72,7 @@ const TOKENS = {
   KAIROS: "0x14D41707269c7D8b8DFa5095b38824a46dA05da3", // KairosCoin on Arbitrum
 };
 
-// ── KairosPerps Contract (will be set after deployment) ──────────────────────
+// ── KairosPerps Contract (optional, for on-chain transparency) ───────────────
 let KAIROS_PERPS_ADDRESS = process.env.KAIROS_PERPS_ADDRESS || "0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9";
 
 // ── Minimal ABIs ─────────────────────────────────────────────────────────────
@@ -115,8 +133,76 @@ const OrderType = {
   Liquidation: 7,
 };
 
-// Position tracking (local cache for quick lookups)
-const positionCache = new Map(); // positionId → { gmxKey, pair, side, ... }
+// Fee constants
+const OPEN_FEE_RATE  = 0.001; // 0.10%
+const CLOSE_FEE_RATE = 0.001; // 0.10%
+const DEFAULT_BALANCE = 10000; // 10,000 KAIROS demo balance for new users
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  SQLITE INITIALIZATION
+// ═════════════════════════════════════════════════════════════════════════════
+
+function initializeDatabase() {
+  const dbDir = path.dirname(DB_PATH);
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
+
+  db = new Database(DB_PATH);
+  db.pragma("journal_mode = WAL");
+  db.pragma("busy_timeout = 5000");
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS dex_accounts (
+      wallet TEXT PRIMARY KEY,
+      balance REAL DEFAULT ${DEFAULT_BALANCE},
+      locked REAL DEFAULT 0,
+      total_deposited REAL DEFAULT ${DEFAULT_BALANCE},
+      total_pnl REAL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS dex_positions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      trader TEXT NOT NULL,
+      pair TEXT NOT NULL,
+      side TEXT NOT NULL,
+      leverage INTEGER NOT NULL,
+      collateral REAL NOT NULL,
+      size_usd REAL NOT NULL,
+      entry_price REAL NOT NULL,
+      exit_price REAL DEFAULT 0,
+      pnl REAL DEFAULT 0,
+      open_fee REAL DEFAULT 0,
+      close_fee REAL DEFAULT 0,
+      liquidation_price REAL NOT NULL,
+      gmx_order_key TEXT DEFAULT '',
+      status TEXT DEFAULT 'OPEN',
+      opened_at TEXT DEFAULT (datetime('now')),
+      closed_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS dex_trades (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      position_id INTEGER NOT NULL,
+      trader TEXT NOT NULL,
+      pair TEXT NOT NULL,
+      side TEXT NOT NULL,
+      action TEXT NOT NULL,
+      price REAL NOT NULL,
+      size_usd REAL NOT NULL,
+      fee REAL DEFAULT 0,
+      pnl REAL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_dex_positions_trader ON dex_positions(trader);
+    CREATE INDEX IF NOT EXISTS idx_dex_positions_status ON dex_positions(status);
+    CREATE INDEX IF NOT EXISTS idx_dex_trades_trader ON dex_trades(trader);
+  `);
+
+  logger.info(`DEX Router: SQLite database initialized at ${DB_PATH}`);
+}
 
 // ═════════════════════════════════════════════════════════════════════════════
 //  INITIALIZATION
@@ -124,39 +210,45 @@ const positionCache = new Map(); // positionId → { gmxKey, pair, side, ... }
 
 function initialize() {
   try {
+    // 1. Initialize SQLite (always — this is the primary data store)
+    initializeDatabase();
+
+    // 2. Initialize Arbitrum connection + GMX (optional)
     const rpcUrl = process.env.ARBITRUM_RPC_URL || "https://arb1.arbitrum.io/rpc";
     const relayerKey = process.env.RELAYER_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || process.env.OWNER_PRIVATE_KEY;
     KAIROS_PERPS_ADDRESS = process.env.KAIROS_PERPS_ADDRESS || KAIROS_PERPS_ADDRESS || "0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9";
 
     if (!relayerKey) {
-      logger.warn("DEX Router: No relayer private key configured — running in read-only mode");
-      provider = new ethers.JsonRpcProvider(rpcUrl);
-      isInitialized = false;
-      return;
-    }
-
-    provider = new ethers.JsonRpcProvider(rpcUrl);
-    relayerWallet = new ethers.Wallet(relayerKey, provider);
-    
-    // Connect to GMX V2 contracts
-    exchangeRouter = new ethers.Contract(GMX_CONTRACTS.exchangeRouter, EXCHANGE_ROUTER_ABI, relayerWallet);
-    reader = new ethers.Contract(GMX_CONTRACTS.reader, READER_ABI, provider);
-    
-    // Connect to KairosPerps if deployed
-    if (KAIROS_PERPS_ADDRESS) {
-      kairosPerps = new ethers.Contract(KAIROS_PERPS_ADDRESS, KAIROS_PERPS_ABI, relayerWallet);
-      logger.info(`DEX Router: Connected to KairosPerps at ${KAIROS_PERPS_ADDRESS}`);
+      logger.warn("DEX Router: No relayer private key configured — GMX mirroring disabled");
+      try { provider = new ethers.JsonRpcProvider(rpcUrl); } catch { /* ignore */ }
     } else {
-      logger.warn("DEX Router: KairosPerps address not set — contract functions unavailable");
+      try {
+        provider = new ethers.JsonRpcProvider(rpcUrl);
+        relayerWallet = new ethers.Wallet(relayerKey, provider);
+
+        // Connect to GMX V2 contracts
+        exchangeRouter = new ethers.Contract(GMX_CONTRACTS.exchangeRouter, EXCHANGE_ROUTER_ABI, relayerWallet);
+        reader = new ethers.Contract(GMX_CONTRACTS.reader, READER_ABI, provider);
+
+        // Connect to KairosPerps if deployed
+        if (KAIROS_PERPS_ADDRESS) {
+          kairosPerps = new ethers.Contract(KAIROS_PERPS_ADDRESS, KAIROS_PERPS_ABI, relayerWallet);
+          logger.info(`DEX Router: Connected to KairosPerps at ${KAIROS_PERPS_ADDRESS}`);
+        }
+
+        logger.info(`DEX Router: Relayer wallet: ${relayerWallet.address}`);
+        logger.info(`DEX Router: GMX V2 Exchange Router: ${GMX_CONTRACTS.exchangeRouter}`);
+      } catch (err) {
+        logger.warn(`DEX Router: Arbitrum/GMX setup failed (non-fatal): ${err.message}`);
+      }
     }
 
     isInitialized = true;
-    logger.info(`DEX Router: Initialized — Relayer: ${relayerWallet.address}`);
-    logger.info(`DEX Router: Connected to Arbitrum, GMX V2 Exchange Router: ${GMX_CONTRACTS.exchangeRouter}`);
-    
+    logger.info("DEX Router: Initialized in HYBRID mode (SQLite + optional GMX)");
+
     // Start liquidation monitor
     startLiquidationMonitor();
-    
+
   } catch (err) {
     logger.error("DEX Router: Initialization failed:", err.message);
     isInitialized = false;
@@ -164,37 +256,78 @@ function initialize() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  PRICE FEEDS — Get real prices from GMX V2 / Chainlink via Arbitrum
+//  PRICE FEEDS — Real prices from priceOracle (Binance/CoinGecko)
 // ═════════════════════════════════════════════════════════════════════════════
 
-// Use the existing priceOracle for prices (already gets from Binance/CoinGecko)
 const priceOracle = require("./priceOracle");
 
-/// Get current price for a pair (from our existing oracle)
+/**
+ * Get current price for a trading pair (e.g. "BTC/USD")
+ * Maps pair → Binance symbol (BTCUSDT) for lookup
+ */
 function getPrice(pair) {
   const prices = priceOracle.getAllPrices();
-  const pairKey = pair.replace("/", "");
-  return prices[pairKey]?.price || null;
+  // Try direct Binance symbol mapping first
+  const symbol = PAIR_TO_SYMBOL[pair];
+  if (symbol && prices[symbol]) {
+    return prices[symbol].price;
+  }
+  // Fallback: try stripping "/" and appending "T"
+  const pairKey = pair.replace("/", "") + "T";
+  if (prices[pairKey]) {
+    return prices[pairKey].price;
+  }
+  // Fallback: try without T
+  const pairKeyNoT = pair.replace("/", "");
+  if (prices[pairKeyNoT]) {
+    return prices[pairKeyNoT].price;
+  }
+  return null;
 }
 
-/// Get all prices
+/**
+ * Get all current prices from the oracle
+ */
 function getAllPrices() {
   return priceOracle.getAllPrices();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  ORDER EXECUTION — Route to GMX V2
+//  ACCOUNT HELPERS — SQLite
 // ═════════════════════════════════════════════════════════════════════════════
 
 /**
- * Open a leveraged position on GMX V2
- * 
+ * Ensure account exists in dex_accounts. Create with default balance if new.
+ */
+function ensureAccount(wallet) {
+  const normalized = wallet.toLowerCase();
+  const existing = db.prepare("SELECT * FROM dex_accounts WHERE wallet = ?").get(normalized);
+  if (existing) return existing;
+
+  db.prepare(
+    "INSERT INTO dex_accounts (wallet, balance, locked, total_deposited, total_pnl) VALUES (?, ?, 0, ?, 0)"
+  ).run(normalized, DEFAULT_BALANCE, DEFAULT_BALANCE);
+
+  logger.info(`DEX Router: New account created for ${wallet} with ${DEFAULT_BALANCE} KAIROS demo balance`);
+  return db.prepare("SELECT * FROM dex_accounts WHERE wallet = ?").get(normalized);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  ORDER EXECUTION — SQLite primary + optional GMX V2 mirroring
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Open a leveraged position
+ *
  * Flow:
- * 1. Validate order parameters
- * 2. Calculate execution fee + collateral needed on GMX
- * 3. Create order on GMX V2 via ExchangeRouter
- * 4. Record position on KairosPerps contract
- * 5. Return position details
+ * 1. Validate inputs (pair, leverage, collateral)
+ * 2. Get real price from priceOracle
+ * 3. Ensure account exists, check balance
+ * 4. Calculate position size, fees, liquidation price
+ * 5. Insert position into SQLite
+ * 6. Try GMX V2 mirror if relayer has enough funds (non-blocking)
+ * 7. Try KairosPerps on-chain recording (non-blocking)
+ * 8. Return position object
  *
  * @param {string} trader - Trader's wallet address
  * @param {string} pair - Trading pair (e.g., "BTC/USD")
@@ -205,180 +338,200 @@ function getAllPrices() {
  */
 async function openPosition(trader, pair, side, leverage, collateralKairos) {
   if (!isInitialized) throw new Error("DEX Router not initialized");
-  
-  logger.info(`DEX Router: Opening ${side} ${pair} ${leverage}x with ${collateralKairos} KAIROS for ${trader}`);
-  
-  // 1. Validate
+
+  logger.info(`DEX Router: Opening ${side} ${pair} ${leverage}x — ${collateralKairos} KAIROS — ${trader}`);
+
+  // 1. Validate inputs
   const marketAddress = GMX_MARKETS[pair];
   if (!marketAddress) throw new Error(`Unsupported pair: ${pair}. Available: ${Object.keys(GMX_MARKETS).join(", ")}`);
   if (leverage < 2 || leverage > 50) throw new Error("Leverage must be 2-50x");
   if (collateralKairos < 10) throw new Error("Minimum collateral: 10 KAIROS");
-  
-  // 2. Get current price
+
+  // 2. Get real-time price
   const currentPrice = getPrice(pair);
   if (!currentPrice) throw new Error(`Price unavailable for ${pair}`);
-  
+
   const isLong = side === "LONG";
   const sizeUsd = collateralKairos * leverage;
-  const entryPrice18 = ethers.parseUnits(currentPrice.toString(), 18);
-  
-  // 3. Prepare GMX V2 order
-  // The relayer uses USDC as collateral on GMX (since KAIROS isn't listed on GMX)
-  // KAIROS collateral is locked in KairosPerps contract, relayer mirrors with USDC on GMX
-  const collateralToken = TOKENS.USDC;
-  const collateralDecimals = 6; // USDC has 6 decimals
-  const collateralAmountGMX = ethers.parseUnits(collateralKairos.toFixed(6), collateralDecimals);
-  
-  // Size in USD with 30 decimals (GMX V2 format)
-  const sizeDeltaUsd = ethers.parseUnits(sizeUsd.toString(), 30);
-  
-  // Execution fee (ETH for keepers) — typically ~0.001 ETH
-  const executionFee = ethers.parseEther("0.0012");
-  
-  // Acceptable price: for longs allow 0.5% slippage up, for shorts 0.5% down
-  const slippageBps = 50; // 0.5%
-  const priceWith30Dec = ethers.parseUnits(currentPrice.toString(), 30); 
-  const acceptablePrice = isLong
-    ? priceWith30Dec + (priceWith30Dec * BigInt(slippageBps) / 10000n)
-    : priceWith30Dec - (priceWith30Dec * BigInt(slippageBps) / 10000n);
+  const openFee = sizeUsd * OPEN_FEE_RATE;
+  const liquidationPrice = calculateLiquidationPrice(isLong, currentPrice, leverage);
 
-  let gmxOrderKey = ethers.ZeroHash; // Will be filled if GMX execution succeeds
+  // 3. Ensure account + check balance
+  const account = ensureAccount(trader);
+  const availableBalance = account.balance - account.locked;
+  const totalCost = collateralKairos + openFee;
+  if (availableBalance < totalCost) {
+    throw new Error(`Insufficient balance: available ${availableBalance.toFixed(2)} KAIROS, need ${totalCost.toFixed(2)} (${collateralKairos} collateral + ${openFee.toFixed(2)} fee)`);
+  }
 
-  try {
-    // 4. Check relayer has enough USDC + ETH
-    const relayerUsdcBalance = await getRelayerBalance(TOKENS.USDC, collateralDecimals);
-    const relayerEthBalance = await provider.getBalance(relayerWallet.address);
-    
-    if (relayerUsdcBalance < parseFloat(collateralKairos)) {
-      logger.warn(`DEX Router: Relayer USDC insufficient (${relayerUsdcBalance} < ${collateralKairos}). Recording position without GMX execution.`);
-      // Still record on KairosPerps — GMX execution can happen later
-    } else if (relayerEthBalance < executionFee) {
-      logger.warn(`DEX Router: Relayer ETH insufficient for execution fee`);
-    } else {
-      // 5. Execute on GMX V2 via multicall
-      gmxOrderKey = await executeGMXOrder(
-        marketAddress,
-        collateralToken,
-        collateralAmountGMX,
-        sizeDeltaUsd,
-        isLong,
-        acceptablePrice,
-        executionFee
-      );
-      logger.info(`DEX Router: GMX order submitted — key: ${gmxOrderKey}`);
+  // 4. Lock collateral + deduct open fee
+  const traderNorm = trader.toLowerCase();
+  db.prepare(
+    "UPDATE dex_accounts SET balance = balance - ?, locked = locked + ? WHERE wallet = ?"
+  ).run(openFee, collateralKairos, traderNorm);
+
+  // 5. Insert position into SQLite
+  const insertResult = db.prepare(`
+    INSERT INTO dex_positions (trader, pair, side, leverage, collateral, size_usd, entry_price, open_fee, liquidation_price, gmx_order_key, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '', 'OPEN')
+  `).run(traderNorm, pair, side, leverage, collateralKairos, sizeUsd, currentPrice, openFee, liquidationPrice);
+
+  const positionId = insertResult.lastInsertRowid;
+
+  // 6. Record trade log
+  db.prepare(`
+    INSERT INTO dex_trades (position_id, trader, pair, side, action, price, size_usd, fee)
+    VALUES (?, ?, ?, ?, 'OPEN', ?, ?, ?)
+  `).run(positionId, traderNorm, pair, side, currentPrice, sizeUsd, openFee);
+
+  logger.info(`DEX Router: Position #${positionId} inserted — ${side} ${pair} ${leverage}x, size $${sizeUsd.toFixed(2)}, entry $${currentPrice}`);
+
+  // 7. Try GMX V2 mirroring (non-blocking)
+  let gmxOrderKey = "";
+  if (relayerWallet && exchangeRouter) {
+    try {
+      const collateralToken = TOKENS.USDC;
+      const collateralDecimals = 6;
+      const collateralAmountGMX = ethers.parseUnits(collateralKairos.toFixed(6), collateralDecimals);
+      const sizeDeltaUsd = ethers.parseUnits(sizeUsd.toString(), 30);
+      const executionFee = ethers.parseEther("0.0012");
+      const slippageBps = 50;
+      const priceWith30Dec = ethers.parseUnits(currentPrice.toString(), 30);
+      const acceptablePrice = isLong
+        ? priceWith30Dec + (priceWith30Dec * BigInt(slippageBps) / 10000n)
+        : priceWith30Dec - (priceWith30Dec * BigInt(slippageBps) / 10000n);
+
+      const relayerUsdcBalance = await getRelayerBalance(TOKENS.USDC, collateralDecimals);
+      const relayerEthBalance = await provider.getBalance(relayerWallet.address);
+
+      if (relayerUsdcBalance >= collateralKairos && relayerEthBalance >= executionFee) {
+        gmxOrderKey = await executeGMXOrder(
+          marketAddress,
+          collateralToken,
+          collateralAmountGMX,
+          sizeDeltaUsd,
+          isLong,
+          acceptablePrice,
+          executionFee
+        );
+        // Update position with GMX order key
+        db.prepare("UPDATE dex_positions SET gmx_order_key = ? WHERE id = ?").run(gmxOrderKey, positionId);
+        logger.info(`DEX Router: GMX order submitted — key: ${gmxOrderKey}`);
+      } else {
+        logger.warn(`DEX Router: GMX mirror skipped — relayer USDC: ${relayerUsdcBalance.toFixed(2)}, ETH: ${ethers.formatEther(relayerEthBalance)}`);
+      }
+    } catch (err) {
+      logger.warn(`DEX Router: GMX mirror failed (non-fatal): ${err.message}`);
     }
-    
-    // 6. Record on KairosPerps contract
-    let positionId = 0;
-    if (kairosPerps) {
+  }
+
+  // 8. Try on-chain KairosPerps recording (non-blocking)
+  if (kairosPerps) {
+    try {
+      const entryPrice18 = ethers.parseUnits(currentPrice.toString(), 18);
       const tx = await kairosPerps.openPosition(
         trader,
         pair,
-        isLong ? 0 : 1, // Side enum: 0=LONG, 1=SHORT
+        isLong ? 0 : 1,
         leverage,
         ethers.parseUnits(collateralKairos.toString(), 18),
         entryPrice18,
-        gmxOrderKey
+        gmxOrderKey || ethers.ZeroHash
       );
-      const receipt = await tx.wait();
-      
-      // Extract positionId from event
-      const event = receipt.logs.find(l => {
-        try {
-          const parsed = kairosPerps.interface.parseLog(l);
-          return parsed?.name === "PositionOpened";
-        } catch { return false; }
-      });
-      
-      if (event) {
-        const parsed = kairosPerps.interface.parseLog(event);
-        positionId = Number(parsed.args.positionId);
-      }
-      
-      logger.info(`DEX Router: Position #${positionId} recorded on KairosPerps`);
+      await tx.wait();
+      logger.info(`DEX Router: Position #${positionId} recorded on-chain (KairosPerps)`);
+    } catch (err) {
+      logger.warn(`DEX Router: On-chain recording failed (non-fatal): ${err.message}`);
     }
-    
-    // 7. Cache position locally
-    const position = {
-      id: positionId,
-      trader,
-      pair,
-      side,
-      leverage,
-      collateral: collateralKairos,
-      sizeUsd,
-      entryPrice: currentPrice,
-      gmxOrderKey,
-      status: "OPEN",
-      openedAt: new Date().toISOString(),
-      liquidationPrice: calculateLiquidationPrice(isLong, currentPrice, leverage),
-    };
-    
-    positionCache.set(positionId, position);
-    
-    return position;
-    
-  } catch (err) {
-    logger.error(`DEX Router: Failed to open position — ${err.message}`);
-    throw err;
   }
+
+  // 9. Return position
+  return {
+    id: Number(positionId),
+    trader: traderNorm,
+    pair,
+    side,
+    leverage,
+    collateral: collateralKairos,
+    sizeUsd,
+    entryPrice: currentPrice,
+    openFee,
+    liquidationPrice,
+    gmxOrderKey,
+    status: "OPEN",
+    openedAt: new Date().toISOString(),
+    source: "sqlite",
+  };
 }
 
 /**
  * Close an existing position
+ *
+ * @param {number} positionId - Position ID from dex_positions table
+ * @returns {Object} Closed position with P&L
  */
 async function closePosition(positionId) {
   if (!isInitialized) throw new Error("DEX Router not initialized");
-  
+
   logger.info(`DEX Router: Closing position #${positionId}`);
-  
-  // Get position from contract
-  let position;
-  if (kairosPerps) {
-    const pos = await kairosPerps.getPosition(positionId);
-    position = {
-      id: Number(pos.id),
-      trader: pos.trader,
-      pair: pos.pair,
-      side: pos.side === 0n ? "LONG" : "SHORT",
-      leverage: Number(pos.leverage),
-      collateral: parseFloat(ethers.formatUnits(pos.collateralAmount, 18)),
-      sizeUsd: parseFloat(ethers.formatUnits(pos.sizeUsd, 18)),
-      entryPrice: parseFloat(ethers.formatUnits(pos.entryPrice, 18)),
-      gmxOrderKey: pos.gmxOrderKey,
-      status: ["OPEN", "CLOSED", "LIQUIDATED"][pos.status],
-    };
-  } else {
-    position = positionCache.get(positionId);
-  }
-  
-  if (!position || position.status !== "OPEN") {
-    throw new Error(`Position #${positionId} not found or not open`);
-  }
-  
-  // Get current exit price
+
+  // 1. Get position from SQLite
+  const position = db.prepare("SELECT * FROM dex_positions WHERE id = ?").get(positionId);
+  if (!position) throw new Error(`Position #${positionId} not found`);
+  if (position.status !== "OPEN") throw new Error(`Position #${positionId} is already ${position.status}`);
+
+  // 2. Get current exit price
   const exitPrice = getPrice(position.pair);
   if (!exitPrice) throw new Error(`Price unavailable for ${position.pair}`);
-  
-  const exitPrice18 = ethers.parseUnits(exitPrice.toString(), 18);
-  let gmxCloseKey = ethers.ZeroHash;
-  
-  try {
-    // Close on GMX V2 if original order was placed
-    if (position.gmxOrderKey !== ethers.ZeroHash) {
+
+  // 3. Calculate P&L
+  const isLong = position.side === "LONG";
+  let pnl;
+  if (isLong) {
+    pnl = ((exitPrice - position.entry_price) / position.entry_price) * position.size_usd;
+  } else {
+    pnl = ((position.entry_price - exitPrice) / position.entry_price) * position.size_usd;
+  }
+
+  // 4. Deduct close fee
+  const closeFee = position.size_usd * CLOSE_FEE_RATE;
+  const netPnl = pnl - closeFee;
+
+  // 5. Update position in SQLite
+  const now = new Date().toISOString();
+  db.prepare(`
+    UPDATE dex_positions SET status = 'CLOSED', exit_price = ?, pnl = ?, close_fee = ?, closed_at = ?
+    WHERE id = ?
+  `).run(exitPrice, netPnl, closeFee, now, positionId);
+
+  // 6. Unlock collateral + apply P&L to account balance
+  const returnAmount = position.collateral + netPnl;
+  db.prepare(
+    "UPDATE dex_accounts SET balance = balance + ?, locked = locked - ?, total_pnl = total_pnl + ? WHERE wallet = ?"
+  ).run(returnAmount > 0 ? returnAmount : 0, position.collateral, netPnl, position.trader);
+
+  // 7. Record close trade
+  db.prepare(`
+    INSERT INTO dex_trades (position_id, trader, pair, side, action, price, size_usd, fee, pnl)
+    VALUES (?, ?, ?, ?, 'CLOSE', ?, ?, ?, ?)
+  `).run(positionId, position.trader, position.pair, position.side, exitPrice, position.size_usd, closeFee, netPnl);
+
+  logger.info(`DEX Router: Position #${positionId} closed — exit $${exitPrice}, P&L: ${netPnl >= 0 ? "+" : ""}${netPnl.toFixed(2)} KAIROS`);
+
+  // 8. Try GMX close if original had GMX order key (non-blocking)
+  let gmxCloseKey = "";
+  if (position.gmx_order_key && position.gmx_order_key !== "" && relayerWallet && exchangeRouter) {
+    try {
       const marketAddress = GMX_MARKETS[position.pair];
       if (marketAddress) {
-        const sizeDeltaUsd = ethers.parseUnits(position.sizeUsd.toString(), 30);
+        const sizeDeltaUsd = ethers.parseUnits(position.size_usd.toString(), 30);
         const executionFee = ethers.parseEther("0.0012");
-        const isLong = position.side === "LONG";
-        
-        // Acceptable price for closing
         const priceWith30Dec = ethers.parseUnits(exitPrice.toString(), 30);
         const slippageBps = 50;
         const acceptablePrice = isLong
           ? priceWith30Dec - (priceWith30Dec * BigInt(slippageBps) / 10000n)
           : priceWith30Dec + (priceWith30Dec * BigInt(slippageBps) / 10000n);
-        
+
         gmxCloseKey = await executeGMXCloseOrder(
           marketAddress,
           TOKENS.USDC,
@@ -389,54 +542,49 @@ async function closePosition(positionId) {
         );
         logger.info(`DEX Router: GMX close order — key: ${gmxCloseKey}`);
       }
+    } catch (err) {
+      logger.warn(`DEX Router: GMX close mirror failed (non-fatal): ${err.message}`);
     }
-    
-    // Record close on KairosPerps
-    let pnl = 0;
-    if (kairosPerps) {
-      const tx = await kairosPerps.closePosition(positionId, exitPrice18, gmxCloseKey);
-      const receipt = await tx.wait();
-      
-      const event = receipt.logs.find(l => {
-        try {
-          const parsed = kairosPerps.interface.parseLog(l);
-          return parsed?.name === "PositionClosed";
-        } catch { return false; }
-      });
-      
-      if (event) {
-        const parsed = kairosPerps.interface.parseLog(event);
-        pnl = parseFloat(ethers.formatUnits(parsed.args.pnl, 18));
-      }
-      
-      logger.info(`DEX Router: Position #${positionId} closed — P&L: ${pnl} KAIROS`);
-    } else {
-      // Calculate P&L locally
-      pnl = calculatePnl(position.side, position.entryPrice, exitPrice, position.sizeUsd);
-    }
-    
-    // Update cache
-    const closedPosition = {
-      ...position,
-      exitPrice,
-      pnl,
-      status: "CLOSED",
-      closedAt: new Date().toISOString(),
-      gmxCloseOrderKey: gmxCloseKey,
-    };
-    
-    positionCache.set(positionId, closedPosition);
-    
-    return closedPosition;
-    
-  } catch (err) {
-    logger.error(`DEX Router: Failed to close position #${positionId} — ${err.message}`);
-    throw err;
   }
+
+  // 9. Try on-chain close (non-blocking)
+  if (kairosPerps) {
+    try {
+      const exitPrice18 = ethers.parseUnits(exitPrice.toString(), 18);
+      const tx = await kairosPerps.closePosition(positionId, exitPrice18, gmxCloseKey || ethers.ZeroHash);
+      await tx.wait();
+      logger.info(`DEX Router: Position #${positionId} closed on-chain (KairosPerps)`);
+    } catch (err) {
+      logger.warn(`DEX Router: On-chain close failed (non-fatal): ${err.message}`);
+    }
+  }
+
+  // 10. Return closed position
+  return {
+    id: Number(positionId),
+    trader: position.trader,
+    pair: position.pair,
+    side: position.side,
+    leverage: position.leverage,
+    collateral: position.collateral,
+    sizeUsd: position.size_usd,
+    entryPrice: position.entry_price,
+    exitPrice,
+    pnl: netPnl,
+    openFee: position.open_fee,
+    closeFee,
+    liquidationPrice: position.liquidation_price,
+    gmxOrderKey: position.gmx_order_key,
+    gmxCloseOrderKey: gmxCloseKey,
+    status: "CLOSED",
+    openedAt: position.opened_at,
+    closedAt: now,
+    source: "sqlite",
+  };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  GMX V2 ORDER EXECUTION
+//  GMX V2 ORDER EXECUTION (optional mirroring)
 // ═════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -501,7 +649,7 @@ async function executeGMXOrder(market, collateralToken, collateralAmount, sizeDe
   );
 
   const receipt = await tx.wait();
-  
+
   // Extract order key from events
   const orderKey = extractOrderKey(receipt);
   return orderKey;
@@ -528,7 +676,7 @@ async function executeGMXCloseOrder(market, collateralToken, sizeDeltaUsd, isLon
     },
     numbers: {
       sizeDeltaUsd: sizeDeltaUsd,
-      initialCollateralDeltaAmount: 0, // Not adding/removing collateral
+      initialCollateralDeltaAmount: 0,
       triggerPrice: 0,
       acceptablePrice: acceptablePrice,
       executionFee: executionFee,
@@ -558,13 +706,9 @@ async function executeGMXCloseOrder(market, collateralToken, sizeDeltaUsd, isLon
  * Extract order key from GMX V2 transaction receipt
  */
 function extractOrderKey(receipt) {
-  // GMX V2 emits OrderCreated event with the order key
-  // The key is typically the first topic of the event
   for (const log of receipt.logs) {
     try {
-      // OrderCreated event topic
       if (log.topics && log.topics.length > 1) {
-        // Try to extract order key — it's usually in the event data
         return log.topics[1] || ethers.ZeroHash;
       }
     } catch { /* skip */ }
@@ -573,14 +717,14 @@ function extractOrderKey(receipt) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  LIQUIDATION MONITOR
+//  LIQUIDATION MONITOR — checks open positions every 10s against real prices
 // ═════════════════════════════════════════════════════════════════════════════
 
 let liquidationInterval = null;
 
 function startLiquidationMonitor() {
   if (liquidationInterval) clearInterval(liquidationInterval);
-  
+
   liquidationInterval = setInterval(async () => {
     try {
       await checkLiquidations();
@@ -588,200 +732,267 @@ function startLiquidationMonitor() {
       logger.error("DEX Router: Liquidation check error:", err.message);
     }
   }, 10000); // Check every 10 seconds
-  
+
   logger.info("DEX Router: Liquidation monitor started (10s interval)");
 }
 
 async function checkLiquidations() {
-  if (!kairosPerps) return;
-  
-  // Check cached open positions
-  for (const [posId, pos] of positionCache) {
-    if (pos.status !== "OPEN") continue;
-    
+  if (!db) return;
+
+  const openPositions = db.prepare("SELECT * FROM dex_positions WHERE status = 'OPEN'").all();
+
+  for (const pos of openPositions) {
     const currentPrice = getPrice(pos.pair);
     if (!currentPrice) continue;
-    
-    try {
-      const currentPrice18 = ethers.parseUnits(currentPrice.toString(), 18);
-      const isLiquidatable = await kairosPerps.isLiquidatable(posId, currentPrice18);
-      
-      if (isLiquidatable) {
-        logger.warn(`DEX Router: LIQUIDATING position #${posId} (${pos.pair} ${pos.side}) at $${currentPrice}`);
-        
-        const tx = await kairosPerps.liquidatePosition(posId, currentPrice18);
-        await tx.wait();
-        
-        pos.status = "LIQUIDATED";
-        pos.exitPrice = currentPrice;
-        pos.closedAt = new Date().toISOString();
-        
-        logger.info(`DEX Router: Position #${posId} liquidated successfully`);
-      }
-    } catch (err) {
-      // Don't log for "not liquidatable" — just for real errors
-      if (!err.message.includes("not liquidatable")) {
-        logger.error(`DEX Router: Liquidation check error for #${posId}: ${err.message}`);
+
+    const isLong = pos.side === "LONG";
+    let shouldLiquidate = false;
+
+    if (isLong && currentPrice <= pos.liquidation_price) {
+      shouldLiquidate = true;
+    } else if (!isLong && currentPrice >= pos.liquidation_price) {
+      shouldLiquidate = true;
+    }
+
+    if (shouldLiquidate) {
+      logger.warn(`DEX Router: LIQUIDATING position #${pos.id} (${pos.pair} ${pos.side}) at $${currentPrice} (liq price: $${pos.liquidation_price})`);
+
+      try {
+        // Calculate P&L at liquidation (should be near -100% of collateral)
+        let pnl;
+        if (isLong) {
+          pnl = ((currentPrice - pos.entry_price) / pos.entry_price) * pos.size_usd;
+        } else {
+          pnl = ((pos.entry_price - currentPrice) / pos.entry_price) * pos.size_usd;
+        }
+        const netPnl = pnl; // No close fee on liquidation
+
+        const now = new Date().toISOString();
+
+        // Update position
+        db.prepare(`
+          UPDATE dex_positions SET status = 'LIQUIDATED', exit_price = ?, pnl = ?, closed_at = ?
+          WHERE id = ?
+        `).run(currentPrice, netPnl, now, pos.id);
+
+        // Account: lose the locked collateral
+        db.prepare(
+          "UPDATE dex_accounts SET locked = locked - ?, total_pnl = total_pnl + ? WHERE wallet = ?"
+        ).run(pos.collateral, netPnl, pos.trader);
+
+        // Trade log
+        db.prepare(`
+          INSERT INTO dex_trades (position_id, trader, pair, side, action, price, size_usd, fee, pnl)
+          VALUES (?, ?, ?, ?, 'LIQUIDATE', ?, ?, 0, ?)
+        `).run(pos.id, pos.trader, pos.pair, pos.side, currentPrice, pos.size_usd, netPnl);
+
+        logger.info(`DEX Router: Position #${pos.id} liquidated — P&L: ${netPnl.toFixed(2)} KAIROS`);
+
+        // Try on-chain liquidation (non-blocking)
+        if (kairosPerps) {
+          try {
+            const currentPrice18 = ethers.parseUnits(currentPrice.toString(), 18);
+            const tx = await kairosPerps.liquidatePosition(pos.id, currentPrice18);
+            await tx.wait();
+            logger.info(`DEX Router: Position #${pos.id} liquidated on-chain`);
+          } catch (err) {
+            logger.warn(`DEX Router: On-chain liquidation failed (non-fatal): ${err.message}`);
+          }
+        }
+      } catch (err) {
+        logger.error(`DEX Router: Liquidation of #${pos.id} failed: ${err.message}`);
       }
     }
   }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  ACCOUNT FUNCTIONS — Read from KairosPerps contract
+//  ACCOUNT FUNCTIONS — Read from SQLite
 // ═════════════════════════════════════════════════════════════════════════════
 
 /**
- * Get trader's account from KairosPerps contract
+ * Get trader's account from dex_accounts table
  */
 async function getAccount(traderAddress) {
-  if (!kairosPerps) {
+  if (!db) {
     return {
-      totalCollateral: 0,
-      lockedCollateral: 0,
-      availableCollateral: 0,
+      wallet: traderAddress.toLowerCase(),
+      balance: 0,
+      locked: 0,
+      available: 0,
+      totalDeposited: 0,
+      totalPnl: 0,
       openPositionCount: 0,
       source: "offline",
     };
   }
-  
-  try {
-    const [total, locked, available, openCount] = await kairosPerps.getAccount(traderAddress);
-    return {
-      totalCollateral: parseFloat(ethers.formatUnits(total, 18)),
-      lockedCollateral: parseFloat(ethers.formatUnits(locked, 18)),
-      availableCollateral: parseFloat(ethers.formatUnits(available, 18)),
-      openPositionCount: Number(openCount),
-      source: "on-chain",
-    };
-  } catch (err) {
-    logger.error(`DEX Router: getAccount error: ${err.message}`);
-    return { totalCollateral: 0, lockedCollateral: 0, availableCollateral: 0, openPositionCount: 0, source: "error" };
-  }
+
+  const account = ensureAccount(traderAddress);
+  const openCount = db.prepare(
+    "SELECT COUNT(*) as cnt FROM dex_positions WHERE trader = ? AND status = 'OPEN'"
+  ).get(traderAddress.toLowerCase());
+
+  return {
+    wallet: account.wallet,
+    balance: account.balance,
+    locked: account.locked,
+    available: account.balance - account.locked,
+    totalDeposited: account.total_deposited,
+    totalPnl: account.total_pnl,
+    openPositionCount: openCount.cnt,
+    source: "sqlite",
+  };
 }
 
 /**
- * Get all positions for a trader
+ * Get all OPEN positions for a trader with live unrealizedPnl
  */
 async function getPositions(traderAddress) {
-  if (!kairosPerps) return [];
-  
-  try {
-    const ids = await kairosPerps.getUserPositionIds(traderAddress);
-    const positions = [];
-    
-    for (const id of ids) {
-      const pos = await kairosPerps.getPosition(id);
-      if (pos.status === 0n) { // OPEN
-        const currentPrice = getPrice(pos.pair);
-        const unrealizedPnl = currentPrice 
-          ? calculatePnl(
-              pos.side === 0n ? "LONG" : "SHORT",
-              parseFloat(ethers.formatUnits(pos.entryPrice, 18)),
-              currentPrice,
-              parseFloat(ethers.formatUnits(pos.sizeUsd, 18))
-            )
-          : 0;
-        
-        positions.push({
-          id: Number(pos.id),
-          pair: pos.pair,
-          side: pos.side === 0n ? "LONG" : "SHORT",
-          leverage: Number(pos.leverage),
-          collateral: parseFloat(ethers.formatUnits(pos.collateralAmount, 18)),
-          sizeUsd: parseFloat(ethers.formatUnits(pos.sizeUsd, 18)),
-          entryPrice: parseFloat(ethers.formatUnits(pos.entryPrice, 18)),
-          currentPrice: currentPrice || 0,
-          unrealizedPnl,
-          unrealizedPnlPct: unrealizedPnl / parseFloat(ethers.formatUnits(pos.collateralAmount, 18)) * 100,
-          liquidationPrice: parseFloat(ethers.formatUnits(pos.liquidationPrice, 18)),
-          gmxOrderKey: pos.gmxOrderKey,
-          openedAt: new Date(Number(pos.openedAt) * 1000).toISOString(),
-          status: "OPEN",
-          source: "on-chain",
-        });
-      }
+  if (!db) return [];
+
+  const traderNorm = traderAddress.toLowerCase();
+  const rows = db.prepare(
+    "SELECT * FROM dex_positions WHERE trader = ? AND status = 'OPEN' ORDER BY opened_at DESC"
+  ).all(traderNorm);
+
+  return rows.map((pos) => {
+    const currentPrice = getPrice(pos.pair) || 0;
+    let unrealizedPnl = 0;
+    if (currentPrice > 0) {
+      unrealizedPnl = calculatePnl(pos.side, pos.entry_price, currentPrice, pos.size_usd);
     }
-    
-    return positions;
-  } catch (err) {
-    logger.error(`DEX Router: getPositions error: ${err.message}`);
-    return [];
-  }
+    const unrealizedPnlPct = pos.collateral > 0 ? (unrealizedPnl / pos.collateral) * 100 : 0;
+
+    return {
+      id: pos.id,
+      trader: pos.trader,
+      pair: pos.pair,
+      side: pos.side,
+      leverage: pos.leverage,
+      collateral: pos.collateral,
+      sizeUsd: pos.size_usd,
+      entryPrice: pos.entry_price,
+      currentPrice,
+      unrealizedPnl,
+      unrealizedPnlPct,
+      openFee: pos.open_fee,
+      liquidationPrice: pos.liquidation_price,
+      gmxOrderKey: pos.gmx_order_key,
+      status: pos.status,
+      openedAt: pos.opened_at,
+      source: "sqlite",
+    };
+  });
 }
 
 /**
- * Get position history (closed + liquidated)
+ * Get position history (CLOSED + LIQUIDATED)
  */
 async function getHistory(traderAddress) {
-  if (!kairosPerps) return [];
-  
-  try {
-    const ids = await kairosPerps.getUserPositionIds(traderAddress);
-    const history = [];
-    
-    for (const id of ids) {
-      const pos = await kairosPerps.getPosition(id);
-      if (pos.status !== 0n) { // CLOSED or LIQUIDATED
-        history.push({
-          id: Number(pos.id),
-          pair: pos.pair,
-          side: pos.side === 0n ? "LONG" : "SHORT",
-          leverage: Number(pos.leverage),
-          collateral: parseFloat(ethers.formatUnits(pos.collateralAmount, 18)),
-          sizeUsd: parseFloat(ethers.formatUnits(pos.sizeUsd, 18)),
-          entryPrice: parseFloat(ethers.formatUnits(pos.entryPrice, 18)),
-          exitPrice: parseFloat(ethers.formatUnits(pos.exitPrice, 18)),
-          pnl: parseFloat(ethers.formatUnits(pos.realizedPnl, 18)),
-          openFee: parseFloat(ethers.formatUnits(pos.openFee, 18)),
-          closeFee: parseFloat(ethers.formatUnits(pos.closeFee, 18)),
-          status: pos.status === 1n ? "CLOSED" : "LIQUIDATED",
-          openedAt: new Date(Number(pos.openedAt) * 1000).toISOString(),
-          closedAt: new Date(Number(pos.closedAt) * 1000).toISOString(),
-          source: "on-chain",
-        });
-      }
-    }
-    
-    return history.reverse(); // Most recent first
-  } catch (err) {
-    logger.error(`DEX Router: getHistory error: ${err.message}`);
-    return [];
-  }
+  if (!db) return [];
+
+  const traderNorm = traderAddress.toLowerCase();
+  const rows = db.prepare(
+    "SELECT * FROM dex_positions WHERE trader = ? AND status IN ('CLOSED', 'LIQUIDATED') ORDER BY closed_at DESC"
+  ).all(traderNorm);
+
+  return rows.map((pos) => ({
+    id: pos.id,
+    trader: pos.trader,
+    pair: pos.pair,
+    side: pos.side,
+    leverage: pos.leverage,
+    collateral: pos.collateral,
+    sizeUsd: pos.size_usd,
+    entryPrice: pos.entry_price,
+    exitPrice: pos.exit_price,
+    pnl: pos.pnl,
+    openFee: pos.open_fee,
+    closeFee: pos.close_fee,
+    liquidationPrice: pos.liquidation_price,
+    gmxOrderKey: pos.gmx_order_key,
+    status: pos.status,
+    openedAt: pos.opened_at,
+    closedAt: pos.closed_at,
+    source: "sqlite",
+  }));
 }
 
 /**
- * Get global protocol stats
+ * Get global protocol stats (aggregated from SQLite)
  */
 async function getGlobalStats() {
-  if (!kairosPerps) {
+  if (!db) {
     return {
       openInterestLong: 0,
       openInterestShort: 0,
       totalFees: 0,
       volume: 0,
       positionsOpened: 0,
+      positionsClosed: 0,
       liquidations: 0,
-      contractBalance: 0,
+      totalAccounts: 0,
       source: "offline",
     };
   }
-  
+
   try {
-    const stats = await kairosPerps.globalStats();
+    const oiLong = db.prepare(
+      "SELECT COALESCE(SUM(size_usd), 0) as total FROM dex_positions WHERE side = 'LONG' AND status = 'OPEN'"
+    ).get();
+
+    const oiShort = db.prepare(
+      "SELECT COALESCE(SUM(size_usd), 0) as total FROM dex_positions WHERE side = 'SHORT' AND status = 'OPEN'"
+    ).get();
+
+    const fees = db.prepare(
+      "SELECT COALESCE(SUM(open_fee), 0) + COALESCE(SUM(close_fee), 0) as total FROM dex_positions"
+    ).get();
+
+    const volume = db.prepare(
+      "SELECT COALESCE(SUM(size_usd), 0) as total FROM dex_positions"
+    ).get();
+
+    const opened = db.prepare(
+      "SELECT COUNT(*) as cnt FROM dex_positions"
+    ).get();
+
+    const closed = db.prepare(
+      "SELECT COUNT(*) as cnt FROM dex_positions WHERE status = 'CLOSED'"
+    ).get();
+
+    const liqs = db.prepare(
+      "SELECT COUNT(*) as cnt FROM dex_positions WHERE status = 'LIQUIDATED'"
+    ).get();
+
+    const accounts = db.prepare(
+      "SELECT COUNT(*) as cnt FROM dex_accounts"
+    ).get();
+
     return {
-      openInterestLong: parseFloat(ethers.formatUnits(stats.openInterestLong, 18)),
-      openInterestShort: parseFloat(ethers.formatUnits(stats.openInterestShort, 18)),
-      totalFees: parseFloat(ethers.formatUnits(stats.totalFees, 18)),
-      volume: parseFloat(ethers.formatUnits(stats.volume, 18)),
-      positionsOpened: Number(stats.positionsOpened),
-      liquidations: Number(stats.liquidations),
-      contractBalance: parseFloat(ethers.formatUnits(stats.contractBalance, 18)),
-      source: "on-chain",
+      openInterestLong: oiLong.total,
+      openInterestShort: oiShort.total,
+      totalFees: fees.total,
+      volume: volume.total,
+      positionsOpened: opened.cnt,
+      positionsClosed: closed.cnt,
+      liquidations: liqs.cnt,
+      totalAccounts: accounts.cnt,
+      source: "sqlite",
     };
   } catch (err) {
     logger.error(`DEX Router: getGlobalStats error: ${err.message}`);
-    return { openInterestLong: 0, openInterestShort: 0, totalFees: 0, volume: 0, positionsOpened: 0, liquidations: 0, contractBalance: 0, source: "error" };
+    return {
+      openInterestLong: 0,
+      openInterestShort: 0,
+      totalFees: 0,
+      volume: 0,
+      positionsOpened: 0,
+      positionsClosed: 0,
+      liquidations: 0,
+      totalAccounts: 0,
+      source: "error",
+    };
   }
 }
 
@@ -800,7 +1011,7 @@ function calculatePnl(side, entryPrice, exitPrice, sizeUsd) {
 function calculateLiquidationPrice(isLong, entryPrice, leverage) {
   const marginFraction = 1 / leverage;
   const maintenanceMargin = 0.01; // 1%
-  
+
   if (isLong) {
     return entryPrice * (1 - marginFraction + maintenanceMargin);
   } else {
@@ -827,13 +1038,22 @@ function getSupportedPairs() {
 }
 
 function getStatus() {
+  const openCount = db ? db.prepare("SELECT COUNT(*) as cnt FROM dex_positions WHERE status = 'OPEN'").get().cnt : 0;
+  const totalCount = db ? db.prepare("SELECT COUNT(*) as cnt FROM dex_positions").get().cnt : 0;
+
   return {
     initialized: isInitialized,
+    mode: "HYBRID (SQLite + optional GMX)",
     relayer: relayerWallet?.address || null,
     kairosPerps: KAIROS_PERPS_ADDRESS || null,
     gmxExchangeRouter: GMX_CONTRACTS.exchangeRouter,
     supportedPairs: Object.keys(GMX_MARKETS),
     network: "Arbitrum One (42161)",
+    database: db ? "connected" : "offline",
+    openPositions: openCount,
+    totalPositions: totalCount,
+    fees: { openRate: OPEN_FEE_RATE, closeRate: CLOSE_FEE_RATE },
+    defaultBalance: DEFAULT_BALANCE,
   };
 }
 

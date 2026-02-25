@@ -92,11 +92,11 @@ router.get("/account", requireWallet, async (req, res) => {
       success: true,
       data: {
         ...account,
-        equity: account.totalCollateral + unrealizedPnl,
+        equity: (account.balance || 0) + unrealizedPnl,
         unrealizedPnl,
-        freeMargin: account.availableCollateral + unrealizedPnl,
+        freeMargin: (account.available || 0) + unrealizedPnl,
         openPositions: positions.length,
-        execution: "GMX V2 (Arbitrum)",
+        execution: "Hybrid (SQLite + GMX V2)",
       },
     });
   } catch (err) {
