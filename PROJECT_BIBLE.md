@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 24, 2026 (Session 10 — KairosPerps DEX Integration + Broker Redesign)
+#  Last Updated: February 25, 2026 (Session 11 — DEX Router Activation + KairosPerps Funded)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -85,14 +85,15 @@
 - **Tech:** React 18 + Vite 6 + Tailwind 4 + Zustand + lightweight-charts v4.1 + Framer Motion + Lucide Icons
 - **Purpose:** AI-powered automated trading platform with real-time charts, bots, paper trading, technical alerts
 - **Data Source:** Binance public WebSocket + REST API (no key needed)
-- **Status:** v3.0 Real Trading Engine (commit `37a0f5f`)
+- **Status:** v3.0 Real Trading Engine + KairosBroker DEX (commit `d476f1d`)
 - **Bot Execution:** Real-time WebSocket per bot, Coinbase real order execution, position tracking + P&L
+- **KairosBroker:** DEX perpetual trading via GMX V2 on Arbitrum — dual mode (DEX/Internal toggle)
 - **Deploy:** `npx netlify deploy --prod --dir=kairos-trade/dist --site=b7b3fd54-863a-4e6f-a334-460b1092045b --auth=nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93`
 
 ### GitHub Repository
 - **Repo:** `kpkcf47jr2-lab/KairosCoin`
 - **Branch:** main
-- **Latest Commit:** `37a0f5f` (Feb 24, 2026)
+- **Latest Commit:** `d476f1d` (Feb 25, 2026)
 
 ### PancakeSwap Liquidity
 - **Pair Address:** `0xfCb17119D559E47803105581A28584813FAffb49`
