@@ -1,6 +1,6 @@
 // Kairos Trade — Zustand Store
 import { create } from 'zustand';
-import { STORAGE_KEYS } from '../constants';
+import { STORAGE_KEYS, ADMIN_CONFIG } from '../constants';
 
 const loadJSON = (key, fallback) => {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; }
@@ -9,16 +9,44 @@ const loadJSON = (key, fallback) => {
 
 const saveJSON = (key, data) => localStorage.setItem(key, JSON.stringify(data));
 
+// ── Auto-detect admin on page load and upgrade stored user ──
+const autoUpgradeAdmin = (user) => {
+  if (!user?.email) return user;
+  if (ADMIN_CONFIG.emails.includes(user.email.toLowerCase())) {
+    const upgraded = {
+      ...user,
+      name: ADMIN_CONFIG.companyName,
+      plan: ADMIN_CONFIG.plan,
+      role: 'admin',
+    };
+    saveJSON(STORAGE_KEYS.AUTH, upgraded);
+    return upgraded;
+  }
+  return user;
+};
+
+const initialUser = autoUpgradeAdmin(loadJSON(STORAGE_KEYS.AUTH, null));
+
 const useStore = create((set, get) => ({
   // ─── Auth ───
-  user: loadJSON(STORAGE_KEYS.AUTH, null),
-  isAuthenticated: !!loadJSON(STORAGE_KEYS.AUTH, null),
+  user: initialUser,
+  isAuthenticated: !!initialUser?.accessToken,
 
   login: (userData) => {
     saveJSON(STORAGE_KEYS.AUTH, userData);
     set({ user: userData, isAuthenticated: true });
   },
-  logout: () => {
+  logout: async () => {
+    const user = get().user;
+    // Revoke server session if we have a token
+    if (user?.accessToken) {
+      try {
+        await fetch('https://kairos-api-u6k5.onrender.com/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${user.accessToken}`, 'Content-Type': 'application/json' },
+        });
+      } catch (e) { /* ignore — just clearing local state */ }
+    }
     localStorage.removeItem(STORAGE_KEYS.AUTH);
     set({ user: null, isAuthenticated: false });
   },

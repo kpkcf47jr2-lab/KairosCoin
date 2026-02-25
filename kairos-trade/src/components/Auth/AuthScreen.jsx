@@ -1,9 +1,12 @@
-// Kairos Trade — Auth Screen (Premium v4 — Decentralized Logo)
-import { useState, useEffect, useMemo } from 'react';
+// Kairos Trade — Auth Screen (Premium v4 — Real Backend Auth)
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, ArrowRight, Crown } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Crown, ShieldCheck } from 'lucide-react';
 import { ethers } from 'ethers';
 import useStore from '../../store/useStore';
+
+/* ─── API Host ─── */
+const API_HOST = 'https://kairos-api-u6k5.onrender.com';
 
 /* ─── Kairos Logo (real PNG from wallet) ─── */
 const KAIROS_LOGO = '/kairos-logo.png';
@@ -41,6 +44,54 @@ const STATS = [
   { value: '100%', label: 'Real Trading' },
 ];
 
+/* ─── 2FA Code Input (6 digit boxes) ─── */
+function TwoFAInput({ value, onChange }) {
+  const inputRefs = useRef([]);
+  const digits = value.padEnd(6, '').slice(0, 6).split('');
+
+  const handleChange = useCallback((index, char) => {
+    if (!/^\d?$/.test(char)) return;
+    const next = [...digits];
+    next[index] = char;
+    const joined = next.join('');
+    onChange(joined.replace(/\s/g, ''));
+    if (char && index < 5) inputRefs.current[index + 1]?.focus();
+  }, [digits, onChange]);
+
+  const handleKeyDown = useCallback((index, e) => {
+    if (e.key === 'Backspace' && !digits[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  }, [digits]);
+
+  const handlePaste = useCallback((e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    onChange(pasted);
+    const focusIdx = Math.min(pasted.length, 5);
+    inputRefs.current[focusIdx]?.focus();
+  }, [onChange]);
+
+  return (
+    <div className="flex gap-2.5 justify-center" onPaste={handlePaste}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <input key={i} ref={el => (inputRefs.current[i] = el)}
+          type="text" inputMode="numeric" maxLength={1}
+          value={digits[i] || ''}
+          onChange={e => handleChange(i, e.target.value)}
+          onKeyDown={e => handleKeyDown(i, e)}
+          className="w-11 h-14 text-center text-xl font-bold text-white rounded-xl outline-none transition-all duration-200 focus:ring-2 focus:ring-[#3B82F6]/60"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(59,130,246,0.15)',
+            caretColor: '#3B82F6',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function AuthScreen() {
   const { login } = useStore();
   const [isLogin, setIsLogin] = useState(true);
@@ -50,66 +101,129 @@ export default function AuthScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showForm, setShowForm] = useState(false);
 
+  // 2FA state
+  const [show2FA, setShow2FA] = useState(false);
+  const [totpCode, setTotpCode] = useState('');
+  const [tempToken, setTempToken] = useState('');
+
+  /* ─── API helper ─── */
+  const apiFetch = async (path, body) => {
+    const res = await fetch(`${API_HOST}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok || data.success === false) {
+      throw new Error(data.message || data.error || 'Error del servidor');
+    }
+    return data;
+  };
+
+  /* ─── Complete login (shared by login + 2FA verify) ─── */
+  const completeLogin = (data) => {
+    const { user, accessToken, refreshToken } = data;
+    // Persist wallet separately so it survives logout
+    if (user.walletAddress) {
+      localStorage.setItem('kairos_trade_wallet', JSON.stringify({
+        walletAddress: user.walletAddress,
+        encryptedKey: user.encryptedKey || '',
+      }));
+    }
+    login({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role || 'user',
+      plan: user.plan || 'free',
+      walletAddress: user.walletAddress || '',
+      encryptedKey: user.encryptedKey || '',
+      has2FA: user.has2FA || false,
+      accessToken,
+      refreshToken,
+      createdAt: user.createdAt || new Date().toISOString(),
+    });
+  };
+
+  /* ─── Submit: Register or Login ─── */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
     if (!form.email || !form.password) { setError('Completa todos los campos'); return; }
     if (!isLogin && !form.name) { setError('Ingresa tu nombre'); return; }
-    if (form.password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return; }
+    if (form.password.length < 8) { setError('La contraseña debe tener al menos 8 caracteres'); return; }
+
     setLoading(true);
 
-    setTimeout(() => {
-      try {
-        let walletAddress = '';
-        let encryptedKey = '';
+    try {
+      if (!isLogin) {
+        /* ─── REGISTER ─── */
+        const wallet = ethers.Wallet.createRandom();
+        const walletAddress = wallet.address;
+        const encryptedKey = btoa(wallet.privateKey);
 
-        if (!isLogin) {
-          // REGISTER: Generate a Kairos wallet automatically
-          const wallet = ethers.Wallet.createRandom();
-          walletAddress = wallet.address;
-          encryptedKey = btoa(wallet.privateKey);
-          // Also persist wallet separately so it survives logout
-          localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress, encryptedKey }));
-        } else {
-          // LOGIN: Try to recover wallet from multiple sources
-          const stored = JSON.parse(localStorage.getItem('kairos_trade_auth') || 'null');
-          const walletBackup = JSON.parse(localStorage.getItem('kairos_trade_wallet') || 'null');
-          if (stored?.walletAddress) {
-            walletAddress = stored.walletAddress;
-            encryptedKey = stored.encryptedKey || '';
-          } else if (walletBackup?.walletAddress) {
-            walletAddress = walletBackup.walletAddress;
-            encryptedKey = walletBackup.encryptedKey || '';
-          }
-          // If still no wallet (first-time login or data lost), generate one
-          if (!walletAddress) {
-            const wallet = ethers.Wallet.createRandom();
-            walletAddress = wallet.address;
-            encryptedKey = btoa(wallet.privateKey);
-            localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress, encryptedKey }));
-          }
-        }
-
-        // Check if this is the admin account
-        const emailLower = form.email.toLowerCase();
-        const adminEmails = ['info@kairos-777.com'];
-        const isAdminUser = adminEmails.includes(emailLower);
-
-        login({
-          id: Date.now().toString(36),
+        const data = await apiFetch('/api/auth/register', {
           email: form.email,
-          name: isAdminUser ? 'Kairos 777 Inc' : (form.name || form.email.split('@')[0]),
-          plan: isAdminUser ? 'enterprise' : 'free',
-          role: isAdminUser ? 'admin' : 'user',
+          password: form.password,
+          name: form.name,
           walletAddress,
           encryptedKey,
-          createdAt: new Date().toISOString(),
         });
-      } catch (err) {
-        setError('Error creando cuenta: ' + err.message);
+
+        // Persist wallet backup locally
+        localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress, encryptedKey }));
+
+        completeLogin(data.data);
+      } else {
+        /* ─── LOGIN ─── */
+        const data = await apiFetch('/api/auth/login', {
+          email: form.email,
+          password: form.password,
+        });
+
+        if (data.requires2FA) {
+          // Server requires 2FA — show OTP screen
+          setTempToken(data.tempToken);
+          setTotpCode('');
+          setShow2FA(true);
+        } else {
+          completeLogin(data.data);
+        }
       }
+    } catch (err) {
+      setError(err.message || 'Error de autenticación');
+    } finally {
       setLoading(false);
-    }, 800);
+    }
+  };
+
+  /* ─── Submit: 2FA Verification ─── */
+  const handle2FASubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (totpCode.length !== 6) { setError('Ingresa los 6 dígitos'); return; }
+
+    setLoading(true);
+    try {
+      const data = await apiFetch('/api/auth/verify-2fa', {
+        tempToken,
+        totpCode,
+      });
+      completeLogin(data.data);
+    } catch (err) {
+      setError(err.message || 'Código inválido');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ─── Exit 2FA screen ─── */
+  const cancel2FA = () => {
+    setShow2FA(false);
+    setTotpCode('');
+    setTempToken('');
+    setError('');
   };
 
   return (
@@ -233,7 +347,7 @@ export default function AuthScreen() {
 
             {/* Back to splash + mini logo */}
             <div className="flex items-center justify-between mb-8">
-              <button onClick={() => setShowForm(false)}
+              <button onClick={() => { setShowForm(false); setShow2FA(false); setError(''); }}
                 className="flex items-center gap-2 text-[12px] text-white/30 hover:text-[#3B82F6] transition-colors">
                 <ArrowRight size={14} className="rotate-180" />
                 <span>Volver</span>
@@ -253,82 +367,129 @@ export default function AuthScreen() {
                 boxShadow: '0 25px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)',
               }}>
 
-              <div className="mb-6">
-                <h2 className="text-2xl font-extrabold text-white tracking-tight">
-                  {isLogin ? 'Bienvenido.' : 'Empieza a operar.'}
-                </h2>
-                <p className="text-sm text-white/35 mt-1.5">
-                  {isLogin ? 'Accede a tu plataforma de trading' : 'Crea tu cuenta y recibe tu wallet'}
-                </p>
-              </div>
+              <AnimatePresence mode="wait">
+                {show2FA ? (
+                  /* ─────── 2FA VERIFICATION SCREEN ─────── */
+                  <motion.div key="2fa"
+                    initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
+                    transition={{ duration: 0.3 }}>
 
-              {/* Toggle */}
-              <div className="flex mb-6 rounded-xl p-1"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <button onClick={() => { setIsLogin(true); setError(''); }}
-                  className={`flex-1 py-2.5 text-sm rounded-lg transition-all duration-300 ${isLogin ? 'text-white font-bold shadow-lg' : 'text-white/30 font-medium hover:text-white/60'}`}
-                  style={isLogin ? { background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 15px rgba(59,130,246,0.25)' } : {}}>
-                  Iniciar Sesión
-                </button>
-                <button onClick={() => { setIsLogin(false); setError(''); }}
-                  className={`flex-1 py-2.5 text-sm rounded-lg transition-all duration-300 ${!isLogin ? 'text-white font-bold shadow-lg' : 'text-white/30 font-medium hover:text-white/60'}`}
-                  style={!isLogin ? { background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 15px rgba(59,130,246,0.25)' } : {}}>
-                  Registrarse
-                </button>
-              </div>
+                    <div className="flex flex-col items-center mb-6">
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+                        style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05))', border: '1px solid rgba(59,130,246,0.2)' }}>
+                        <ShieldCheck size={28} className="text-[#3B82F6]" />
+                      </div>
+                      <h2 className="text-2xl font-extrabold text-white tracking-tight">Verificación 2FA</h2>
+                      <p className="text-sm text-white/35 mt-1.5 text-center">Ingresa el código de tu app autenticadora</p>
+                    </div>
 
-              {/* Form */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <AnimatePresence mode="wait">
-                  {!isLogin && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
-                      <label className="text-[11px] text-white/30 mb-1.5 block font-semibold uppercase tracking-wider">Nombre</label>
-                      <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-                        placeholder="Tu nombre completo" className="w-full" autoComplete="name"
-                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', borderRadius: '0.75rem', padding: '0.65rem 0.85rem', fontSize: '0.875rem' }} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                <div>
-                  <label className="text-[11px] text-white/30 mb-1.5 block font-semibold uppercase tracking-wider">Email</label>
-                  <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="tu@email.com" className="w-full" autoComplete="email"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', borderRadius: '0.75rem', padding: '0.65rem 0.85rem', fontSize: '0.875rem' }} />
-                </div>
-                <div>
-                  <label className="text-[11px] text-white/30 mb-1.5 block font-semibold uppercase tracking-wider">Contraseña</label>
-                  <div className="relative">
-                    <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      placeholder="••••••••" className="w-full pr-10" autoComplete={isLogin ? 'current-password' : 'new-password'}
-                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', borderRadius: '0.75rem', padding: '0.65rem 0.85rem', fontSize: '0.875rem' }} />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-[#3B82F6] transition-colors">
-                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  </div>
-                </div>
-                <AnimatePresence>
-                  {error && (
-                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                      className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl">{error}</motion.div>
-                  )}
-                </AnimatePresence>
-                <button type="submit" disabled={loading}
-                  className="w-full py-3.5 rounded-xl transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 text-sm font-bold text-white hover:scale-[1.02] active:scale-[0.98]"
-                  style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 0 30px rgba(59,130,246,0.2), 0 4px 15px rgba(59,130,246,0.2)' }}>
-                  {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (<>{isLogin ? 'Acceder a la Plataforma' : 'Crear Cuenta'}<ArrowRight size={16} /></>)}
-                </button>
-              </form>
+                    <form onSubmit={handle2FASubmit} className="space-y-5">
+                      <TwoFAInput value={totpCode} onChange={setTotpCode} />
 
-              {/* Wallet info */}
-              {!isLogin && (
-                <motion.div className="mt-4 flex items-center gap-2 px-3 py-2 rounded-lg"
-                  style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.1)' }}
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-                  <div className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
-                  <span className="text-[11px] text-[#3B82F6]/70 font-medium">Tu Kairos Wallet se genera automáticamente al registrarte</span>
-                </motion.div>
-              )}
+                      <AnimatePresence>
+                        {error && (
+                          <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                            className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl text-center">{error}</motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      <button type="submit" disabled={loading || totpCode.length !== 6}
+                        className="w-full py-3.5 rounded-xl transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 text-sm font-bold text-white hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 0 30px rgba(59,130,246,0.2), 0 4px 15px rgba(59,130,246,0.2)' }}>
+                        {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (<>Verificar<ArrowRight size={16} /></>)}
+                      </button>
+
+                      <button type="button" onClick={cancel2FA}
+                        className="w-full text-center text-[12px] text-white/30 hover:text-[#3B82F6] transition-colors py-1">
+                        Volver al login
+                      </button>
+                    </form>
+                  </motion.div>
+                ) : (
+                  /* ─────── NORMAL LOGIN / REGISTER ─────── */
+                  <motion.div key="auth-form"
+                    initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 30 }}
+                    transition={{ duration: 0.3 }}>
+
+                    <div className="mb-6">
+                      <h2 className="text-2xl font-extrabold text-white tracking-tight">
+                        {isLogin ? 'Bienvenido.' : 'Empieza a operar.'}
+                      </h2>
+                      <p className="text-sm text-white/35 mt-1.5">
+                        {isLogin ? 'Accede a tu plataforma de trading' : 'Crea tu cuenta y recibe tu wallet'}
+                      </p>
+                    </div>
+
+                    {/* Toggle */}
+                    <div className="flex mb-6 rounded-xl p-1"
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <button onClick={() => { setIsLogin(true); setError(''); }}
+                        className={`flex-1 py-2.5 text-sm rounded-lg transition-all duration-300 ${isLogin ? 'text-white font-bold shadow-lg' : 'text-white/30 font-medium hover:text-white/60'}`}
+                        style={isLogin ? { background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 15px rgba(59,130,246,0.25)' } : {}}>
+                        Iniciar Sesión
+                      </button>
+                      <button onClick={() => { setIsLogin(false); setError(''); }}
+                        className={`flex-1 py-2.5 text-sm rounded-lg transition-all duration-300 ${!isLogin ? 'text-white font-bold shadow-lg' : 'text-white/30 font-medium hover:text-white/60'}`}
+                        style={!isLogin ? { background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 15px rgba(59,130,246,0.25)' } : {}}>
+                        Registrarse
+                      </button>
+                    </div>
+
+                    {/* Form */}
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      <AnimatePresence mode="wait">
+                        {!isLogin && (
+                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}>
+                            <label className="text-[11px] text-white/30 mb-1.5 block font-semibold uppercase tracking-wider">Nombre</label>
+                            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                              placeholder="Tu nombre completo" className="w-full" autoComplete="name"
+                              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', borderRadius: '0.75rem', padding: '0.65rem 0.85rem', fontSize: '0.875rem' }} />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      <div>
+                        <label className="text-[11px] text-white/30 mb-1.5 block font-semibold uppercase tracking-wider">Email</label>
+                        <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                          placeholder="tu@email.com" className="w-full" autoComplete="email"
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', borderRadius: '0.75rem', padding: '0.65rem 0.85rem', fontSize: '0.875rem' }} />
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-white/30 mb-1.5 block font-semibold uppercase tracking-wider">Contraseña</label>
+                        <div className="relative">
+                          <input type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+                            placeholder="••••••••" className="w-full pr-10" autoComplete={isLogin ? 'current-password' : 'new-password'}
+                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', borderRadius: '0.75rem', padding: '0.65rem 0.85rem', fontSize: '0.875rem' }} />
+                          <button type="button" onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-[#3B82F6] transition-colors">
+                            {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                          </button>
+                        </div>
+                      </div>
+                      <AnimatePresence>
+                        {error && (
+                          <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                            className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl">{error}</motion.div>
+                        )}
+                      </AnimatePresence>
+                      <button type="submit" disabled={loading}
+                        className="w-full py-3.5 rounded-xl transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 text-sm font-bold text-white hover:scale-[1.02] active:scale-[0.98]"
+                        style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 0 30px rgba(59,130,246,0.2), 0 4px 15px rgba(59,130,246,0.2)' }}>
+                        {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (<>{isLogin ? 'Acceder a la Plataforma' : 'Crear Cuenta'}<ArrowRight size={16} /></>)}
+                      </button>
+                    </form>
+
+                    {/* Wallet info */}
+                    {!isLogin && (
+                      <motion.div className="mt-4 flex items-center gap-2 px-3 py-2 rounded-lg"
+                        style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.1)' }}
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+                        <div className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
+                        <span className="text-[11px] text-[#3B82F6]/70 font-medium">Tu Kairos Wallet se genera automáticamente al registrarte</span>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <p className="text-[10px] text-white/15 text-center mt-6">

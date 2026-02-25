@@ -1,13 +1,15 @@
 // Kairos Trade — Settings Panel
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Settings, Key, Shield, Globe, Bell, Volume2, Percent, Wallet, Send, CheckCircle, XCircle } from 'lucide-react';
+import { Settings, Key, Shield, Globe, Bell, Volume2, Percent, Wallet, Send, CheckCircle, XCircle, Lock } from 'lucide-react';
 import useStore from '../../store/useStore';
 import aiService from '../../services/ai';
 import { telegramService } from '../../services/telegram';
+import SecuritySettings from './SecuritySettings';
 
 export default function SettingsPanel() {
   const { settings, updateSettings, user } = useStore();
+  const [settingsTab, setSettingsTab] = useState('general');
   const [apiKey, setApiKey] = useState('');
   const [saved, setSaved] = useState(false);
   const [tgToken, setTgToken] = useState(settings.telegramBotToken || '');
@@ -44,6 +46,24 @@ export default function SettingsPanel() {
         <h1 className="text-xl font-bold">Ajustes</h1>
         <p className="text-sm text-[var(--text-dim)]">Configuración de tu plataforma</p>
       </div>
+
+      {/* Settings tabs */}
+      <div className="flex gap-2">
+        <button onClick={() => setSettingsTab('general')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${settingsTab === 'general' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'text-[var(--text-dim)] hover:text-[var(--text)]'}`}>
+          <span className="flex items-center gap-2"><Settings size={14} /> General</span>
+        </button>
+        <button onClick={() => setSettingsTab('security')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${settingsTab === 'security' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'text-[var(--text-dim)] hover:text-[var(--text)]'}`}>
+          <span className="flex items-center gap-2"><Lock size={14} /> Seguridad & 2FA</span>
+        </button>
+      </div>
+
+      {/* Security tab */}
+      {settingsTab === 'security' && <SecuritySettings />}
+
+      {/* General settings */}
+      {settingsTab === 'general' && (<>
 
       {/* Profile */}
       <div className="bg-[var(--dark-2)] border border-[var(--border)] rounded-xl p-4">
@@ -205,6 +225,7 @@ export default function SettingsPanel() {
         <p>Kairos Trade v2.0.0 • Kairos 777 Inc</p>
         <p className="text-[var(--gold)] mt-1">Powered by Kairos AI</p>
       </div>
+      </>)}
     </div>
   );
 }

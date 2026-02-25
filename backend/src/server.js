@@ -77,6 +77,8 @@ const redeemRoutes = require("./routes/redeem");
 const marginRoutes = require("./routes/margin");
 const vaultRoutes = require("./routes/vault");
 const perpsRoutes = require("./routes/perps");
+const authRoutes = require("./routes/authRoutes");
+const authService = require("./services/authService");
 const dexRouter = require("./services/dexRouter");
 
 // ── Express App ──────────────────────────────────────────────────────────────
@@ -202,6 +204,7 @@ app.use("/api/redeem", redeemRoutes);
 app.use("/api/margin", marginRoutes);
 app.use("/api/vault", vaultRoutes);
 app.use("/api/perps", perpsRoutes);
+app.use("/api/auth", authRoutes);
 // Note: Stripe webhook is mounted earlier (before express.json) for raw body
 
 // Fee endpoint (defined as /fees in supply router, so mount at /api)
@@ -320,6 +323,10 @@ async function start() {
     logger.info("Initializing Vault Engine...");
     vaultEngine.initialize(db);
     logger.info("Vault Engine started ✓");
+
+    logger.info("Initializing Auth Service (bcrypt + JWT + 2FA)...");
+    authService.initialize();
+    logger.info("Auth Service started ✓");
 
     logger.info("Initializing DEX Router (GMX V2 on Arbitrum)...");
     dexRouter.initialize();
