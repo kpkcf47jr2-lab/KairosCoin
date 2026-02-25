@@ -82,7 +82,7 @@ export default function TokenListScreen() {
 
       {/* Search */}
       <div className="relative mb-4">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400" />
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-400 pointer-events-none" />
         <input
           type="text"
           value={search}
@@ -90,6 +90,7 @@ export default function TokenListScreen() {
           onKeyDown={e => e.key === 'Enter' && handleSearch()}
           placeholder="Buscar por nombre o pegar dirección del contrato"
           className="glass-input pl-9 text-sm"
+          style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
         />
       </div>
 

@@ -301,7 +301,8 @@ export async function getTransactionHistory(chainId, address, page = 1, limit = 
 
   try {
     // Normal transactions
-    const url = `${chain.blockExplorerApiUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=${page}&offset=${limit}&sort=desc`;
+    const apiKey = chain.blockExplorerApiKey ? `&apikey=${chain.blockExplorerApiKey}` : '';
+    const url = `${chain.blockExplorerApiUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=${page}&offset=${limit}&sort=desc${apiKey}`;
     const response = await fetch(url);
     const data = await response.json();
 
@@ -335,7 +336,8 @@ export async function getTokenTransferHistory(chainId, address, tokenAddress = n
   if (!chain?.blockExplorerApiUrl) return [];
 
   try {
-    let url = `${chain.blockExplorerApiUrl}?module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&page=${page}&offset=${limit}&sort=desc`;
+    const apiKey = chain.blockExplorerApiKey ? `&apikey=${chain.blockExplorerApiKey}` : '';
+    let url = `${chain.blockExplorerApiUrl}?module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&page=${page}&offset=${limit}&sort=desc${apiKey}`;
     if (tokenAddress) {
       url += `&contractaddress=${tokenAddress}`;
     }

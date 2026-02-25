@@ -18,6 +18,7 @@ export const CHAINS = {
     ],
     blockExplorerUrl: 'https://bscscan.com',
     blockExplorerApiUrl: 'https://api.bscscan.com/api',
+    blockExplorerApiKey: 'YourApiKeyToken',
     color: '#F0B90B',
     icon: '⛓️',
     isDefault: true,
@@ -37,6 +38,7 @@ export const CHAINS = {
     ],
     blockExplorerUrl: 'https://etherscan.io',
     blockExplorerApiUrl: 'https://api.etherscan.io/api',
+    blockExplorerApiKey: 'YourApiKeyToken',
     color: '#627EEA',
     icon: '💎',
     dexRouter: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D', // Uniswap V2
@@ -55,6 +57,7 @@ export const CHAINS = {
     ],
     blockExplorerUrl: 'https://polygonscan.com',
     blockExplorerApiUrl: 'https://api.polygonscan.com/api',
+    blockExplorerApiKey: 'YourApiKeyToken',
     color: '#8247E5',
     icon: '🟣',
     dexRouter: '0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff', // QuickSwap
@@ -73,6 +76,7 @@ export const CHAINS = {
     ],
     blockExplorerUrl: 'https://arbiscan.io',
     blockExplorerApiUrl: 'https://api.arbiscan.io/api',
+    blockExplorerApiKey: 'YourApiKeyToken',
     color: '#28A0F0',
     icon: '🔵',
     dexRouter: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', // SushiSwap
@@ -91,6 +95,7 @@ export const CHAINS = {
     ],
     blockExplorerUrl: 'https://snowtrace.io',
     blockExplorerApiUrl: 'https://api.snowscan.xyz/api',
+    blockExplorerApiKey: 'YourApiKeyToken',
     color: '#E84142',
     icon: '🔺',
     dexRouter: '0x60aE616a2155Ee3d9A68541Ba4544862310933d4', // Trader Joe
@@ -108,6 +113,7 @@ export const CHAINS = {
     ],
     blockExplorerUrl: 'https://basescan.org',
     blockExplorerApiUrl: 'https://api.basescan.org/api',
+    blockExplorerApiKey: 'YourApiKeyToken',
     color: '#0052FF',
     icon: '🔷',
     dexRouter: '0x327Df1E6de05895d2ab08513aaDD9313Fe505d86', // BaseSwap
