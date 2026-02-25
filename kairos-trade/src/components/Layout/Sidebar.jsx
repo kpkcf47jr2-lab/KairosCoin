@@ -62,9 +62,12 @@ const BOTTOM_ITEMS = [
   { id: 'settings', icon: Settings, label: 'Ajustes' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ forceMobileOpen }) {
   const { currentPage, setPage, sidebarOpen, toggleSidebar, bots, brokers, logout, user } = useStore();
   const [hoveredItem, setHoveredItem] = useState(null);
+
+  // On mobile overlay, always show expanded
+  const isExpanded = forceMobileOpen || sidebarOpen;
 
   const activeBots = bots.filter(b => b.status === 'active').length;
   const connectedBrokers = brokers.filter(b => b.connected).length;
@@ -89,9 +92,9 @@ export default function Sidebar() {
           onClick={() => setPage(item.id)}
           onMouseEnter={() => setHoveredItem(item.id)}
           onMouseLeave={() => setHoveredItem(null)}
-          title={!sidebarOpen ? item.label : undefined}
+          title={!isExpanded ? item.label : undefined}
           className={`w-full flex items-center rounded-xl transition-all duration-200 relative group
-            ${sidebarOpen ? 'px-3 py-3 gap-3.5' : 'px-0 py-3 justify-center'}
+            ${isExpanded ? 'px-3 py-3 gap-3.5' : 'px-0 py-3 justify-center'}
             ${isActive
               ? 'text-white'
               : isKairos
@@ -139,7 +142,7 @@ export default function Sidebar() {
 
           {/* Icon container */}
           <div className={`relative z-10 flex items-center justify-center shrink-0 rounded-lg transition-all duration-200
-            ${sidebarOpen ? 'w-8 h-8' : 'w-9 h-9'}
+            ${isExpanded ? 'w-8 h-8' : 'w-9 h-9'}
             ${isActive
               ? isKairos
                 ? 'bg-blue-500/20'
@@ -150,7 +153,7 @@ export default function Sidebar() {
             }`}
           >
             <Icon
-              size={sidebarOpen ? 18 : 20}
+              size={isExpanded ? 18 : 20}
               strokeWidth={isActive ? 2 : 1.5}
               className={`transition-colors ${
                 isKairos
@@ -158,7 +161,7 @@ export default function Sidebar() {
                   : (isActive && item.accent ? 'text-[var(--gold-light)]' : '')
               }`}
             />
-            {badge > 0 && !sidebarOpen && (
+            {badge > 0 && !isExpanded && (
               <span className="absolute -top-0.5 -right-0.5 w-[14px] h-[14px] bg-[var(--gold)] rounded-full text-[8px] font-bold text-white flex items-center justify-center">
                 {badge}
               </span>
@@ -166,7 +169,7 @@ export default function Sidebar() {
           </div>
 
           {/* Label + description */}
-          {sidebarOpen && (
+          {isExpanded && (
             <div className="relative z-10 flex-1 min-w-0 text-left">
               <div className="flex items-center gap-2">
                 <span className={`text-[14px] truncate leading-tight ${isActive ? 'font-bold' : 'font-medium'} ${isKairos && !isActive ? 'text-blue-300/90' : ''}`}>
@@ -203,7 +206,7 @@ export default function Sidebar() {
 
         {/* Tooltip for collapsed mode */}
         <AnimatePresence>
-          {!sidebarOpen && isHovered && (
+          {!isExpanded && isHovered && (
             <motion.div
               initial={{ opacity: 0, x: -4 }}
               animate={{ opacity: 1, x: 0 }}
@@ -223,7 +226,7 @@ export default function Sidebar() {
   };
 
   const SectionLabel = ({ label, kairos = false }) => (
-    sidebarOpen ? (
+    isExpanded ? (
       <div className="flex items-center gap-2 px-3 mb-2.5 mt-1">
         <p className={`text-[11px] font-bold uppercase tracking-[0.14em] whitespace-nowrap
           ${kairos ? 'text-blue-400/80' : 'text-[var(--text-dim)]/60'}`}>
@@ -238,7 +241,7 @@ export default function Sidebar() {
 
   return (
     <motion.aside
-      animate={{ width: sidebarOpen ? 300 : 72 }}
+      animate={{ width: isExpanded ? 300 : 72 }}
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
       className="h-full flex flex-col relative shrink-0"
       style={{
@@ -248,11 +251,11 @@ export default function Sidebar() {
     >
       {/* Logo area */}
       <div
-        className={`flex items-center shrink-0 ${sidebarOpen ? 'px-7 gap-3.5 h-[68px]' : 'justify-center h-[68px]'}`}
+        className={`flex items-center shrink-0 ${isExpanded ? 'px-7 gap-3.5 h-[68px]' : 'justify-center h-[68px]'}`}
         style={{ borderBottom: '1px solid rgba(30,34,45,0.6)' }}
       >
         <img src="/kairos-logo.png" alt="Kairos" className="w-10 h-10 object-contain shrink-0" />
-        {sidebarOpen && (
+        {isExpanded && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1, duration: 0.2 }}>
             <div className="flex flex-col">
               <div className="flex items-baseline gap-2">
@@ -266,7 +269,7 @@ export default function Sidebar() {
       </div>
 
       {/* User profile card */}
-      {sidebarOpen && (
+      {isExpanded && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -301,7 +304,7 @@ export default function Sidebar() {
       )}
 
       {/* Main Navigation */}
-      <nav className={`flex-1 overflow-y-auto py-3 ${sidebarOpen ? 'px-5' : 'px-2'}`}
+      <nav className={`flex-1 overflow-y-auto py-3 ${isExpanded ? 'px-5' : 'px-2'}`}
         style={{ scrollbarWidth: 'none' }}>
         {SECTIONS.map((section, si) => {
           const visibleItems = section.items.filter(item => !item.adminOnly || userIsAdmin);
@@ -319,7 +322,7 @@ export default function Sidebar() {
 
       {/* Bottom section */}
       <div
-        className={`py-3 ${sidebarOpen ? 'px-5' : 'px-2'}`}
+        className={`py-3 ${isExpanded ? 'px-5' : 'px-2'}`}
         style={{ borderTop: '1px solid rgba(30,34,45,0.6)' }}
       >
         <div className="space-y-0.5">
@@ -331,19 +334,19 @@ export default function Sidebar() {
           onClick={logout}
           onMouseEnter={() => setHoveredItem('logout')}
           onMouseLeave={() => setHoveredItem(null)}
-          title={!sidebarOpen ? 'Salir' : undefined}
+          title={!isExpanded ? 'Salir' : undefined}
           className={`w-full flex items-center rounded-xl text-[var(--text-dim)] hover:text-[var(--red)] transition-all duration-200 mt-1 relative
-            ${sidebarOpen ? 'px-3 py-2.5 gap-3' : 'px-0 py-2.5 justify-center'}
+            ${isExpanded ? 'px-3 py-2.5 gap-3' : 'px-0 py-2.5 justify-center'}
             hover:bg-[var(--red)]/[0.06]`}
         >
-          <div className={`flex items-center justify-center shrink-0 rounded-lg ${sidebarOpen ? 'w-8 h-8' : 'w-9 h-9'}`}>
-            <LogOut size={sidebarOpen ? 16 : 18} strokeWidth={1.5} />
+          <div className={`flex items-center justify-center shrink-0 rounded-lg ${isExpanded ? 'w-8 h-8' : 'w-9 h-9'}`}>
+            <LogOut size={isExpanded ? 16 : 18} strokeWidth={1.5} />
           </div>
-          {sidebarOpen && <span className="text-[14px] font-medium">Cerrar Sesión</span>}
+          {isExpanded && <span className="text-[14px] font-medium">Cerrar Sesión</span>}
 
           {/* Logout tooltip */}
           <AnimatePresence>
-            {!sidebarOpen && hoveredItem === 'logout' && (
+            {!isExpanded && hoveredItem === 'logout' && (
               <motion.div
                 initial={{ opacity: 0, x: -4 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -360,12 +363,12 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* Collapse toggle */}
+      {/* Collapse toggle — desktop only */}
       <button
         onClick={toggleSidebar}
-        className="absolute -right-3 top-7 w-6 h-6 bg-[var(--dark-3)] border border-[var(--border)] rounded-full flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--gold)] hover:border-[var(--gold)]/30 hover:bg-[var(--dark-4)] transition-all z-10 shadow-lg"
+        className="absolute -right-3 top-7 w-6 h-6 bg-[var(--dark-3)] border border-[var(--border)] rounded-full flex items-center justify-center text-[var(--text-dim)] hover:text-[var(--gold)] hover:border-[var(--gold)]/30 hover:bg-[var(--dark-4)] transition-all z-10 shadow-lg hidden md:flex"
       >
-        {sidebarOpen ? <ChevronLeft size={11} /> : <ChevronRight size={11} />}
+        {isExpanded ? <ChevronLeft size={11} /> : <ChevronRight size={11} />}
       </button>
     </motion.aside>
   );

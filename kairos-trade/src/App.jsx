@@ -7,6 +7,7 @@ import useStore from './store/useStore';
 // Layout (always loaded — shell)
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
+import ErrorBoundary from './components/Layout/ErrorBoundary';
 
 // Auth & Onboarding (always loaded — gate)
 import AuthScreen from './components/Auth/AuthScreen';
@@ -55,20 +56,30 @@ function PageLoader() {
 import { useState as useStateTrade } from 'react';
 function TradingView() {
   const [chartTab, setChartTab] = useStateTrade('chart');
+  const [showPanel, setShowPanel] = useStateTrade(true);
   const { selectedPair } = useStore();
   return (
-    <div className="flex flex-1 overflow-hidden">
+    <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
       <div className="flex-1 overflow-hidden flex flex-col min-w-0">
         {/* Chart area */}
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <div className="flex gap-1 px-3 pt-2 shrink-0" style={{ background: 'var(--surface)' }}>
-            {[['chart', 'Chart'], ['depth', 'Depth']].map(([id, label]) => (
-              <button key={id} onClick={() => setChartTab(id)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-t-lg transition-colors ${chartTab === id ? 'text-[var(--gold)]' : 'text-[var(--text-dim)] hover:text-[var(--text-secondary)]'}`}
-                style={chartTab === id ? { background: 'var(--dark)', borderTop: '2px solid var(--gold)' } : {}}>
-                {label}
-              </button>
-            ))}
+          <div className="flex gap-1 px-3 pt-2 shrink-0 justify-between" style={{ background: 'var(--surface)' }}>
+            <div className="flex gap-1">
+              {[['chart', 'Chart'], ['depth', 'Depth']].map(([id, label]) => (
+                <button key={id} onClick={() => setChartTab(id)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-t-lg transition-colors ${chartTab === id ? 'text-[var(--gold)]' : 'text-[var(--text-dim)] hover:text-[var(--text-secondary)]'}`}
+                  style={chartTab === id ? { background: 'var(--dark)', borderTop: '2px solid var(--gold)' } : {}}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {/* Mobile toggle for trading panel */}
+            <button
+              onClick={() => setShowPanel(v => !v)}
+              className="md:hidden px-3 py-1.5 text-xs font-bold text-[var(--gold)] rounded-lg bg-[var(--gold)]/[0.08]"
+            >
+              {showPanel ? 'Ocultar Panel' : 'Operar'}
+            </button>
           </div>
           <Suspense fallback={<PageLoader />}>
             {chartTab === 'chart' ? (
@@ -81,14 +92,20 @@ function TradingView() {
         {/* Orders panel below chart */}
         <Suspense fallback={null}><OrdersPanel /></Suspense>
       </div>
-      <Suspense fallback={<PageLoader />}><TradingPanel /></Suspense>
+      {/* Trading Panel — side on desktop, below on mobile (toggleable) */}
+      {showPanel && (
+        <div className="md:w-auto shrink-0 max-h-[50vh] md:max-h-none overflow-y-auto border-t md:border-t-0 md:border-l border-[var(--border)]">
+          <Suspense fallback={<PageLoader />}><TradingPanel /></Suspense>
+        </div>
+      )}
     </div>
   );
 }
 
 function App() {
-  const { isAuthenticated, currentPage, aiPanelOpen, seedDefaultStrategies, settings, user, setPage } = useStore();
+  const { isAuthenticated, currentPage, aiPanelOpen, seedDefaultStrategies, settings, user, setPage, sidebarOpen } = useStore();
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Seed factory strategies on first load
   useEffect(() => { seedDefaultStrategies(); }, []);
@@ -141,6 +158,9 @@ function App() {
     }
   };
 
+  // Close mobile menu on page change
+  useEffect(() => { setMobileMenuOpen(false); }, [currentPage]);
+
   return (
     <div className="flex h-screen bg-[var(--dark)] overflow-hidden">
       <Toaster
@@ -155,12 +175,38 @@ function App() {
         {showOnboarding && <OnboardingWizard onComplete={() => setShowOnboarding(false)} />}
       </AnimatePresence>
 
-      {/* Sidebar */}
-      <Sidebar />
+      {/* Sidebar — desktop: inline, mobile: overlay */}
+      <div className="hidden md:flex">
+        <Sidebar />
+      </div>
+
+      {/* Mobile sidebar overlay */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 z-40 md:hidden"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <motion.div
+              initial={{ x: -300 }}
+              animate={{ x: 0 }}
+              exit={{ x: -300 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed left-0 top-0 bottom-0 z-50 md:hidden"
+            >
+              <Sidebar forceMobileOpen />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Main area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <Header onMenuToggle={() => setMobileMenuOpen(v => !v)} mobileMenuOpen={mobileMenuOpen} />
 
         <div className="flex flex-1 overflow-hidden">
           {/* Page content */}
@@ -171,15 +217,17 @@ function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="flex-1 flex flex-col overflow-hidden"
+              className="flex-1 flex flex-col overflow-hidden min-w-0"
             >
-              <Suspense fallback={<PageLoader />}>
-                {renderPage()}
-              </Suspense>
+              <ErrorBoundary key={currentPage + '-eb'}>
+                <Suspense fallback={<PageLoader />}>
+                  {renderPage()}
+                </Suspense>
+              </ErrorBoundary>
             </motion.div>
           </AnimatePresence>
 
-          {/* AI Panel (slide-in) */}
+          {/* AI Panel (slide-in) — desktop only, mobile: full overlay */}
           <AnimatePresence>
             {aiPanelOpen && currentPage !== 'ai' && (
               <motion.div
@@ -187,9 +235,28 @@ function App() {
                 animate={{ width: 380, opacity: 1 }}
                 exit={{ width: 0, opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="border-l border-[var(--border)] overflow-hidden shrink-0"
+                className="border-l border-[var(--border)] overflow-hidden shrink-0 hidden md:block"
               >
-                <Suspense fallback={<PageLoader />}><AIChat /></Suspense>
+                <ErrorBoundary level="widget">
+                  <Suspense fallback={<PageLoader />}><AIChat /></Suspense>
+                </ErrorBoundary>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* AI Panel — mobile: full-width overlay */}
+          <AnimatePresence>
+            {aiPanelOpen && currentPage !== 'ai' && (
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                className="fixed inset-0 z-40 md:hidden bg-[var(--dark)]"
+              >
+                <ErrorBoundary level="widget">
+                  <Suspense fallback={<PageLoader />}><AIChat /></Suspense>
+                </ErrorBoundary>
               </motion.div>
             )}
           </AnimatePresence>

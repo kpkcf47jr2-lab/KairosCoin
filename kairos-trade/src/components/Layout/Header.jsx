@@ -1,10 +1,10 @@
-// Kairos Trade — Top Header Bar (Premium v2)
-import { Search, Bell, Wifi, WifiOff, Brain, TrendingUp, TrendingDown, Globe, Volume2 } from 'lucide-react';
+// Kairos Trade — Top Header Bar (Premium v2 — Mobile Responsive)
+import { Search, Bell, Wifi, WifiOff, Brain, TrendingUp, TrendingDown, Globe, Volume2, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import useStore from '../../store/useStore';
 import { getBase, formatPair, QUOTE } from '../../utils/pairUtils';
 
-export default function Header() {
+export default function Header({ onMenuToggle, mobileMenuOpen }) {
   const { selectedPair, currentPrice, priceChange24h, toggleAiPanel, aiPanelOpen, brokers, activeBroker } = useStore();
   const connected = brokers.some(b => b.connected);
   const connectedBroker = activeBroker || brokers.find(b => b.connected);
@@ -12,35 +12,43 @@ export default function Header() {
 
   return (
     <header
-      className="h-[56px] shrink-0 flex items-center justify-between px-5"
+      className="h-[56px] shrink-0 flex items-center justify-between px-3 md:px-5"
       style={{
         borderBottom: '1px solid rgba(26,29,38,0.6)',
         background: 'linear-gradient(180deg, rgba(14,16,21,0.95) 0%, rgba(8,9,12,0.95) 100%)',
         backdropFilter: 'blur(16px)',
       }}
     >
-      {/* Left: Pair info */}
-      <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-        <div className="flex items-center gap-2.5 min-w-0">
+      {/* Left: Hamburger (mobile) + Pair info */}
+      <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1 overflow-hidden">
+        {/* Mobile hamburger */}
+        <button
+          onClick={onMenuToggle}
+          className="md:hidden p-2 -ml-1 rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-white/[0.04] transition-all shrink-0"
+        >
+          {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+
+        <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
           {/* Pair badge */}
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold"
+          <div className="flex items-center gap-1.5 md:gap-2">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0"
               style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.04))', border: '1px solid rgba(59,130,246,0.1)' }}>
               <span className="text-[var(--gold)]">{getBase(selectedPair).slice(0, 3)}</span>
             </div>
-            <div>
-              <h2 className="text-[14px] font-bold text-[var(--text)] tracking-wide leading-none">{formatPair(selectedPair)}</h2>
-              <span className="text-[9px] text-[var(--text-dim)]/60 font-medium">Spot Trading</span>
+            <div className="min-w-0">
+              <h2 className="text-[13px] md:text-[14px] font-bold text-[var(--text)] tracking-wide leading-none truncate">{formatPair(selectedPair)}</h2>
+              <span className="text-[9px] text-[var(--text-dim)]/60 font-medium hidden sm:inline">Spot Trading</span>
             </div>
           </div>
 
-          {/* Divider */}
-          <div className="w-px h-7 bg-[var(--border)]/50 shrink-0" />
+          {/* Divider — hide on very small screens */}
+          <div className="w-px h-7 bg-[var(--border)]/50 shrink-0 hidden sm:block" />
 
           {/* Price */}
           {currentPrice && (
             <div className="shrink-0">
-              <span className="text-[16px] font-mono font-bold text-[var(--text)] leading-none whitespace-nowrap">
+              <span className="text-[14px] md:text-[16px] font-mono font-bold text-[var(--text)] leading-none whitespace-nowrap">
                 ${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
@@ -48,7 +56,7 @@ export default function Header() {
 
           {/* Change badge */}
           {priceChange24h !== null && (
-            <div className={`flex items-center gap-1 text-xs font-mono font-semibold px-2.5 py-1 rounded-lg
+            <div className={`flex items-center gap-1 text-[10px] md:text-xs font-mono font-semibold px-1.5 md:px-2.5 py-1 rounded-lg
               ${priceChange24h >= 0
                 ? 'text-[var(--green)] bg-[var(--green)]/[0.08]'
                 : 'text-[var(--red)] bg-[var(--red)]/[0.08]'
@@ -60,28 +68,28 @@ export default function Header() {
             </div>
           )}
 
-          {/* 24h label */}
-          <span className="text-[10px] text-[var(--text-dim)]/40 font-medium shrink-0">24h</span>
+          {/* 24h label — desktop only */}
+          <span className="text-[10px] text-[var(--text-dim)]/40 font-medium shrink-0 hidden lg:inline">24h</span>
         </div>
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-2 shrink-0 ml-3">
-        {/* Connection status + broker name */}
-        <div className={`flex items-center gap-1.5 text-[11px] px-3 py-1.5 rounded-lg transition-all
+      <div className="flex items-center gap-1.5 md:gap-2 shrink-0 ml-2 md:ml-3">
+        {/* Connection status — compact on mobile */}
+        <div className={`flex items-center gap-1 md:gap-1.5 text-[11px] px-2 md:px-3 py-1.5 rounded-lg transition-all
           ${connected
             ? 'text-[var(--green)] bg-[var(--green)]/[0.06] border border-[var(--green)]/10'
             : 'text-[var(--text-dim)] bg-white/[0.02] border border-[var(--border)]/50'
           }`}>
           {connected ? <Wifi size={12} /> : <WifiOff size={12} />}
-          <span className="font-semibold truncate max-w-[100px]">{connected && connectedBroker ? connectedBroker.name || connectedBroker.broker : 'Demo'}</span>
+          <span className="font-semibold truncate max-w-[60px] md:max-w-[100px] hidden sm:inline">{connected && connectedBroker ? connectedBroker.name || connectedBroker.broker : 'Demo'}</span>
           {connected && <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] animate-pulse" />}
         </div>
 
         {/* AI toggle */}
         <button
           onClick={toggleAiPanel}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border
+          className={`flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border
             ${aiPanelOpen
               ? 'bg-[var(--gold)]/10 text-[var(--gold)] border-[var(--gold)]/15'
               : 'text-[var(--text-dim)] hover:text-[var(--text)] bg-white/[0.02] border-[var(--border)]/50 hover:border-[var(--gold)]/20'
@@ -89,7 +97,7 @@ export default function Header() {
           title="Kairos AI"
         >
           <Brain size={13} />
-          <span>AI</span>
+          <span className="hidden sm:inline">AI</span>
           {aiPanelOpen && <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />}
         </button>
 
