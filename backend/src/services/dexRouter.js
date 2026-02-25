@@ -125,7 +125,7 @@ const positionCache = new Map(); // positionId → { gmxKey, pair, side, ... }
 function initialize() {
   try {
     const rpcUrl = process.env.ARBITRUM_RPC_URL || "https://arb1.arbitrum.io/rpc";
-    const relayerKey = process.env.RELAYER_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY;
+    const relayerKey = process.env.RELAYER_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || process.env.OWNER_PRIVATE_KEY;
     KAIROS_PERPS_ADDRESS = process.env.KAIROS_PERPS_ADDRESS || "";
 
     if (!relayerKey) {

@@ -24,5 +24,11 @@ services:
         sync: false
       - key: API_PUBLIC_KEY
         sync: false
+      - key: KAIROS_PERPS_ADDRESS
+        value: "0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9"
+      - key: ARBITRUM_RPC_URL
+        sync: false
+      - key: RELAYER_PRIVATE_KEY
+        sync: false
     healthCheckPath: /api/health/ping
     autoDeploy: true
