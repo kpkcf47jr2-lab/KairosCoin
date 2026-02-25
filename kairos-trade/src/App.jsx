@@ -1,43 +1,55 @@
-// Kairos Trade — Main Application (Premium v2.2 — Growth + Onboarding)
-import { useEffect, useState } from 'react';
+// Kairos Trade — Main Application (Premium v2.3 — Code Split + PWA)
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import useStore from './store/useStore';
 
-// Layout
+// Layout (always loaded — shell)
 import Sidebar from './components/Layout/Sidebar';
 import Header from './components/Layout/Header';
 
-// Auth & Onboarding
+// Auth & Onboarding (always loaded — gate)
 import AuthScreen from './components/Auth/AuthScreen';
 import OnboardingWizard from './components/Onboarding/OnboardingWizard';
 
-// Pages
-import Dashboard from './components/Dashboard/Dashboard';
-import TradingChart from './components/Chart/TradingChart';
-import DepthChart from './components/Chart/DepthChart';
-import TradingPanel from './components/Trading/TradingPanel';
-import BotManager from './components/Bots/BotManager';
-import BrokerManager from './components/Broker/BrokerManager';
-import AIChat from './components/AI/AIChat';
-import StrategyBuilder from './components/Strategy/StrategyBuilder';
-import TradeHistory from './components/Trading/TradeHistory';
-import SimulatorScreen from './components/Trading/SimulatorScreen';
-import SettingsPanel from './components/Settings/SettingsPanel';
-import AlertPanel from './components/Alerts/AlertPanel';
-import OrdersPanel from './components/Trading/OrdersPanel';
-import PortfolioAnalytics from './components/Portfolio/PortfolioAnalytics';
-import MultiChart from './components/Chart/MultiChart';
-import TradeJournal from './components/Journal/TradeJournal';
-import RiskDashboard from './components/Risk/RiskDashboard';
-import KairosBroker from './components/Kairos/KairosBroker';
-import BuyKairos from './components/Kairos/BuyKairos';
-import KairosVault from './components/Kairos/KairosVault';
-import KairosTreasury from './components/Kairos/KairosTreasury';
-import WalletPage from './components/Wallet/WalletPage';
-import MarketHeatmap from './components/Dashboard/MarketHeatmap';
+// Lazy-loaded pages (code-split — each chunk loads on demand)
+const Dashboard = lazy(() => import('./components/Dashboard/Dashboard'));
+const TradingChart = lazy(() => import('./components/Chart/TradingChart'));
+const DepthChart = lazy(() => import('./components/Chart/DepthChart'));
+const TradingPanel = lazy(() => import('./components/Trading/TradingPanel'));
+const BotManager = lazy(() => import('./components/Bots/BotManager'));
+const BrokerManager = lazy(() => import('./components/Broker/BrokerManager'));
+const AIChat = lazy(() => import('./components/AI/AIChat'));
+const StrategyBuilder = lazy(() => import('./components/Strategy/StrategyBuilder'));
+const TradeHistory = lazy(() => import('./components/Trading/TradeHistory'));
+const SimulatorScreen = lazy(() => import('./components/Trading/SimulatorScreen'));
+const SettingsPanel = lazy(() => import('./components/Settings/SettingsPanel'));
+const AlertPanel = lazy(() => import('./components/Alerts/AlertPanel'));
+const OrdersPanel = lazy(() => import('./components/Trading/OrdersPanel'));
+const PortfolioAnalytics = lazy(() => import('./components/Portfolio/PortfolioAnalytics'));
+const MultiChart = lazy(() => import('./components/Chart/MultiChart'));
+const TradeJournal = lazy(() => import('./components/Journal/TradeJournal'));
+const RiskDashboard = lazy(() => import('./components/Risk/RiskDashboard'));
+const KairosBroker = lazy(() => import('./components/Kairos/KairosBroker'));
+const BuyKairos = lazy(() => import('./components/Kairos/BuyKairos'));
+const KairosVault = lazy(() => import('./components/Kairos/KairosVault'));
+const KairosTreasury = lazy(() => import('./components/Kairos/KairosTreasury'));
+const WalletPage = lazy(() => import('./components/Wallet/WalletPage'));
+const MarketHeatmap = lazy(() => import('./components/Dashboard/MarketHeatmap'));
 import { isAdmin } from './constants';
 import { telegramService } from './services/telegram';
+
+/* ─── Loading fallback ─── */
+function PageLoader() {
+  return (
+    <div className="flex-1 flex items-center justify-center" style={{ background: 'var(--dark)' }}>
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-[var(--gold)] border-t-transparent rounded-full animate-spin" />
+        <span className="text-xs text-[var(--text-dim)] font-medium">Loading...</span>
+      </div>
+    </div>
+  );
+}
 
 // Sub-component: Trading view with chart/depth toggle + orders panel
 import { useState as useStateTrade } from 'react';
@@ -58,16 +70,18 @@ function TradingView() {
               </button>
             ))}
           </div>
-          {chartTab === 'chart' ? (
-            <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><TradingChart /></div>
-          ) : (
-            <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><DepthChart pair={selectedPair || 'BTCUSDT'} height={500} /></div>
-          )}
+          <Suspense fallback={<PageLoader />}>
+            {chartTab === 'chart' ? (
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><TradingChart /></div>
+            ) : (
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col"><DepthChart pair={selectedPair || 'BTCUSDT'} height={500} /></div>
+            )}
+          </Suspense>
         </div>
         {/* Orders panel below chart */}
-        <OrdersPanel />
+        <Suspense fallback={null}><OrdersPanel /></Suspense>
       </div>
-      <TradingPanel />
+      <Suspense fallback={<PageLoader />}><TradingPanel /></Suspense>
     </div>
   );
 }
@@ -159,7 +173,9 @@ function App() {
               transition={{ duration: 0.15 }}
               className="flex-1 flex flex-col overflow-hidden"
             >
-              {renderPage()}
+              <Suspense fallback={<PageLoader />}>
+                {renderPage()}
+              </Suspense>
             </motion.div>
           </AnimatePresence>
 
@@ -173,7 +189,7 @@ function App() {
                 transition={{ duration: 0.2 }}
                 className="border-l border-[var(--border)] overflow-hidden shrink-0"
               >
-                <AIChat />
+                <Suspense fallback={<PageLoader />}><AIChat /></Suspense>
               </motion.div>
             )}
           </AnimatePresence>
