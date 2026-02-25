@@ -29,5 +29,23 @@
     "deployedAt": "2026-02-23T04:20:00.000Z",
     "adminWallet": "0xCee44904A6aA94dEa28754373887E07D4B6f4968",
     "reserveWallet": "0xCee44904A6aA94dEa28754373887E07D4B6f4968"
+  },
+  "KairosVault": {
+    "bsc": {
+      "contract": "KairosVault",
+      "address": "0x15E86d52D058e7AA5373906CC790aAbE82d14de9",
+      "network": "bsc",
+      "chainId": "56",
+      "deployer": "0xCee44904A6aA94dEa28754373887E07D4B6f4968",
+      "kairosToken": "0x14D41707269c7D8b8DFa5095b38824a46dA05da3",
+      "treasury": "0xCee44904A6aA94dEa28754373887E07D4B6f4968",
+      "insuranceFund": "0xCee44904A6aA94dEa28754373887E07D4B6f4968",
+      "deployedAt": "2026-02-25T03:30:31.498Z",
+      "constructorArgs": [
+        "0x14D41707269c7D8b8DFa5095b38824a46dA05da3",
+        "0xCee44904A6aA94dEa28754373887E07D4B6f4968",
+        "0xCee44904A6aA94dEa28754373887E07D4B6f4968"
+      ]
+    }
   }
 }

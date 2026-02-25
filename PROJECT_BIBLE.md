@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 24, 2026 (Session 9 — Real Trading Engine + WebSocket Bots)
+#  Last Updated: February 24, 2026 (Session 10 — KairosVault On-Chain + Vault UI)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -38,6 +38,13 @@
 | **Polygon** (137) | `0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9` | [PolygonScan](https://polygonscan.com/address/0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9) |
 
 > Note: BSC, Base, and Arbitrum share the same address due to identical deployer nonce. Polygon uses a different address because a nonce was consumed by a cancel tx.
+
+### KairosVault (Liquidity Provider Vault)
+- **Contract:** `0x15E86d52D058e7AA5373906CC790aAbE82d14de9` on BSC
+- **Token:** kKAIROS (vault share token)
+- **Explorer:** [BscScan](https://bscscan.com/address/0x15E86d52D058e7AA5373906CC790aAbE82d14de9#code) (Verified)
+- **Fee Split:** 70% LP rewards / 20% Treasury / 10% Insurance
+- **Deployed:** February 24, 2026
 
 ### Website (Netlify)
 - **URL:** https://kairos-777.com
@@ -417,6 +424,17 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 - **UI Fixes** — Sidebar 300px, overflow-x-hidden, bigger buttons/text, bot cards with broker info
 - **Commits:** `5053d16`, `011309a`, `395d6eb`, `37a0f5f`
 - **Status:** Bot running live on Coinbase (USDT), stream EN VIVO connected, awaiting first trade signal
+
+### Feb 24, 2026 — Session 10 (KairosVault On-Chain + Vault UI)
+- **KairosVault.sol deployed to BSC** — `0x15E86d52D058e7AA5373906CC790aAbE82d14de9` (verified on BscScan)
+- **kKAIROS share token:** ERC-20 vault shares, proportional to deposits
+- **Backend Vault Engine:** vaultEngine.js (SQLite), vault.js routes
+- **Margin Engine → Vault:** Trading fees auto-distributed (70/20/10 split)
+- **KairosVault.jsx:** Full frontend UI — deposit/withdraw, stats, leaderboard, epochs
+- **Sidebar:** New "Kairos Vault" nav item in KAIROS section
+- **AuthScreen:** Redesigned splash with real KairosCoin logo, auto-wallet on signup
+- **Logo Fix:** Real kairos-logo.png across all components (Sidebar, KairosBroker, AuthScreen)
+- **Commit:** `5966604` → Deployed to Netlify + Render
 
 ### Feb 23, 2026 — Session 8 (Stripe Integration + KAIROS Redemption System)
 - **Stripe Buy Flow (LIVE)** — Users buy KAIROS with card via Stripe Checkout → auto-mint to wallet
