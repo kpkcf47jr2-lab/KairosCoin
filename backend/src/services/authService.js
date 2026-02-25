@@ -53,8 +53,8 @@ function initialize() {
       locked_until TEXT,
       last_login TEXT,
       last_ip TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS sessions (
@@ -64,7 +64,7 @@ function initialize() {
       ip TEXT,
       user_agent TEXT,
       expires_at TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
@@ -77,7 +77,7 @@ function initialize() {
       user_agent TEXT,
       success INTEGER NOT NULL DEFAULT 0,
       details TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -365,7 +365,7 @@ function saveSession(userId, token, ip, userAgent) {
 
 function validateSession(token) {
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
-  const session = db.prepare('SELECT * FROM sessions WHERE token_hash = ? AND expires_at > datetime("now")').get(tokenHash);
+  const session = db.prepare("SELECT * FROM sessions WHERE token_hash = ? AND expires_at > datetime('now')").get(tokenHash);
   return !!session;
 }
 
@@ -374,7 +374,7 @@ function revokeAllSessions(userId) {
 }
 
 function cleanExpiredSessions() {
-  const result = db.prepare('DELETE FROM sessions WHERE expires_at < datetime("now")').run();
+  const result = db.prepare("DELETE FROM sessions WHERE expires_at < datetime('now')").run();
   if (result.changes > 0) logger.debug(`Cleaned ${result.changes} expired sessions`);
 }
 
@@ -413,7 +413,7 @@ function getUser(userId) {
 }
 
 function getUserSessions(userId) {
-  return db.prepare('SELECT id, ip, user_agent, created_at, expires_at FROM sessions WHERE user_id = ? AND expires_at > datetime("now") ORDER BY created_at DESC').all(userId);
+  return db.prepare("SELECT id, ip, user_agent, created_at, expires_at FROM sessions WHERE user_id = ? AND expires_at > datetime('now') ORDER BY created_at DESC").all(userId);
 }
 
 function getAuthLog(userId, limit = 20) {
