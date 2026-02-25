@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 25, 2026 (Session 13 — Turso Cloud DB + Referral System + Analytics)
+#  Last Updated: February 25, 2026 (Session 14 — Platform Fees + Growth Landing + Onboarding)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -808,6 +808,51 @@ TURSO_AUTH_TOKEN=eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NzIwNDI5MzcsIm
 ```
 
 After adding, click **"Save Changes"** → Render will auto-redeploy.
+
+---
+
+## 21. SESSION 14 — Platform Fees + Growth Landing + Onboarding (Feb 25, 2026)
+
+### Platform Fee System (0.05% per trade)
+- **`kairos-trade/src/services/feeService.js`** — NEW. Collects 0.05% fee on every trade open + close (0.10% total round trip, half of Binance's 0.20%)
+- Fee integrated into ALL trading engines: `tradingEngine.js`, `useStore.js`, `simulator.js`, `gridBot.js`, `dcaBot.js`, `kairosScript.js`
+- Frontend treasury in localStorage, syncs to backend every 60s via `/api/treasury/collect`
+- **`backend/src/routes/treasury.js`** — NEW. Backend treasury API with Turso tables (`treasury`, `treasury_daily`)
+- **`KairosTreasury.jsx`** — Updated admin dashboard with platform fees section
+
+### Growth Landing Page
+- **`AuthScreen.jsx`** — Completely redesigned splash into a scrollable conversion-focused landing page:
+  - Hero section with KairosCoin logo, brand title, tagline "Tu Plataforma de Trading Automatizado"
+  - Stats bar: 33+ Trading Pairs, 10 CEX Brokers, 24/7 AI Automation, $0 Subscription
+  - Double CTA: "Crear Cuenta Gratis" (primary) + "Ya tengo cuenta" (secondary)
+  - 100 KAIROS signup bonus badge
+  - Scroll hint animation to features section
+  - 6-card features grid: Bots Automáticos, Gráficos Pro, Kairos AI, 10 Brokers, 100 KAIROS Gratis, Seguridad Total
+  - Social proof section with 4 blockchains supported
+  - Final CTA + ecosystem link + footer
+  - Fixed bottom bar with "Sistemas operacionales" green pulse
+
+### Onboarding Wizard
+- **`kairos-trade/src/components/Onboarding/OnboardingWizard.jsx`** — NEW. 5-step post-registration wizard:
+  1. Welcome — wallet created + 100 KAIROS gift
+  2. Connect Broker — 10+ exchanges, quick nav to Brokers page
+  3. First Trade — chart/simulator intro, quick nav to Chart
+  4. Bots — Grid, DCA, Kairos Script automation, quick nav to Bots
+  5. Referral — share code via WhatsApp/Telegram/Twitter, copy code/link
+- Shows only once per user (localStorage flag `kairos_onboarding_done_{userId}`)
+- Skip button available at all times
+- Integrated in App.jsx with AnimatePresence overlay
+
+### Referral Sharing in Dashboard
+- **`Dashboard.jsx`** — Added `ReferralCard` component at bottom of dashboard:
+  - Shows user's referral code in amber/gold style
+  - Copy code button, copy link button
+  - WhatsApp, Telegram, X/Twitter share buttons
+  - Only visible if user has a referralCode
+
+### Commits
+- `a49562a` — Platform fee system (0.05% per trade) + treasury backend
+- `81f38eb` — Growth landing page + onboarding wizard + referral sharing
 
 ---
 
