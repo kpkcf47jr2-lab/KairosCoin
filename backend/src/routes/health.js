@@ -6,6 +6,7 @@
 const express = require("express");
 const blockchain = require("../services/blockchain");
 const db = require("../services/database");
+const config = require("../config");
 const { healthLimiter } = require("../middleware/rateLimiter");
 const os = require("os");
 
@@ -101,7 +102,16 @@ router.get("/", healthLimiter, async (req, res) => {
 
 // ── GET /api/health/ping — Simple ping ──────────────────────────────────────
 router.get("/ping", healthLimiter, (req, res) => {
-  res.json({ pong: true, timestamp: Date.now() });
+  res.json({
+    pong: true,
+    timestamp: Date.now(),
+    turso: {
+      mainUrl: config.tursoMainUrl ? config.tursoMainUrl.substring(0, 30) + '...' : 'NOT SET',
+      mainToken: config.tursoMainToken ? 'SET (' + config.tursoMainToken.length + ' chars)' : 'NOT SET',
+      authUrl: config.tursoAuthUrl ? config.tursoAuthUrl.substring(0, 30) + '...' : 'NOT SET',
+      authToken: config.tursoAuthToken ? 'SET (' + config.tursoAuthToken.length + ' chars)' : 'NOT SET',
+    },
+  });
 });
 
 // ── GET /api/health/stats — Operation statistics ────────────────────────────
