@@ -29,6 +29,7 @@ import NetworksScreen from './components/Settings/NetworksScreen';
 import ApprovalsScreen from './components/Security/ApprovalsScreen';
 import PendingTxScreen from './components/History/PendingTxScreen';
 import StakingScreen from './components/Staking/StakingScreen';
+import VaultScreen from './components/Vault/VaultScreen';
 import GasTrackerScreen from './components/Gas/GasTrackerScreen';
 import TxDetailScreen from './components/History/TxDetailScreen';
 import TokenSecurityScreen from './components/Security/TokenSecurityScreen';
@@ -120,6 +121,8 @@ export default function App() {
         return <PendingTxScreen key="pending" />;
       case 'staking':
         return <StakingScreen key="staking" />;
+      case 'vault':
+        return <VaultScreen key="vault" />;
       case 'gas':
         return <GasTrackerScreen key="gas" />;
       case 'txdetail':

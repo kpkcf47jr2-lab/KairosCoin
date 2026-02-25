@@ -10,7 +10,7 @@ import {
   Send, Download, ArrowLeftRight, Clock, Settings, ChevronDown,
   Copy, Check, RefreshCw, Plus, Eye, EyeOff, Shield, ExternalLink,
   Wallet, TrendingUp, TrendingDown, Lock, BookOpen, Image, Globe, CreditCard, Layers,
-  Bell, Users, PieChart,
+  Bell, Users, PieChart, Landmark,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getAllBalances } from '../../services/blockchain';
@@ -266,6 +266,7 @@ export default function Dashboard() {
             { icon: Globe, label: t('action.dapps'), screen: 'dapps', color: 'bg-orange-500/10 text-orange-400' },
             { icon: Image, label: t('action.nfts'), screen: 'nft', color: 'bg-pink-500/10 text-pink-400' },
             { icon: Lock, label: 'Staking', screen: 'staking', color: 'bg-teal-500/10 text-teal-400' },
+            { icon: Landmark, label: 'Vault', screen: 'vault', color: 'bg-emerald-500/10 text-emerald-400' },
             { icon: PieChart, label: 'Portfolio', screen: 'portfolio', color: 'bg-violet-500/10 text-violet-400' },
             { icon: Bell, label: 'Alertas', screen: 'alerts', color: 'bg-kairos-500/10 text-kairos-400', badge: alertCount },
             { icon: Shield, label: 'Auditoría', screen: 'tokenaudit', color: 'bg-red-500/10 text-red-400' },
