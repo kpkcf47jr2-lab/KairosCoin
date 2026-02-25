@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 25, 2026 (Session 11 — DEX Router Activation + KairosPerps Funded)
+#  Last Updated: February 25, 2026 (Session 12 — Security System: bcrypt + JWT + 2FA)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -623,6 +623,69 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 - Kairos Trade auth is simulated (localStorage only, no real backend auth)
 - Kairos Trade Coinbase broker is LIVE (real orders execute with USDT). Binance/Bybit/OKX untested in production.
 - CSS variable names in kairos-trade say `--gold` but values are blue — intentional to avoid refactoring 100+ references
+
+---
+
+## 18. SESSION 12 — Security System (Feb 25, 2026)
+
+### Authentication Backend (Banking-Grade)
+- **Backend files:** `backend/src/services/authService.js`, `backend/src/middleware/jwtAuth.js`, `backend/src/routes/authRoutes.js`
+- **Password hashing:** bcrypt with 12 salt rounds
+- **JWT tokens:** Access (24h) + Refresh (7d), stored as SHA-256 hash in SQLite sessions table
+- **2FA (TOTP):** speakeasy + QR code generation, compatible with Google Authenticator / Authy
+- **Brute force protection:** 5 failed attempts → 15 min account lockout
+- **Session tracking:** All sessions stored in SQLite with IP, user agent, expiry
+- **Auth audit log:** Every login/register/2FA/password change logged with IP + user agent
+- **Rate limiting:** 10 auth attempts/15min, 5 sensitive operations/hour
+- **Database:** Separate `kairos_auth.db` (WAL mode) in `backend/data/`
+
+### Auth API Endpoints
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/auth/register` | Create account (bcrypt hash, auto-admin for info@kairos-777.com) |
+| POST | `/api/auth/login` | Login → JWT tokens (or 2FA challenge if enabled) |
+| POST | `/api/auth/verify-2fa` | Complete 2FA verification |
+| POST | `/api/auth/refresh` | Refresh access token |
+| GET | `/api/auth/me` | Current user profile |
+| POST | `/api/auth/logout` | Revoke current session |
+| POST | `/api/auth/2fa/setup` | Generate 2FA QR code |
+| POST | `/api/auth/2fa/verify` | Verify TOTP code and enable 2FA |
+| POST | `/api/auth/2fa/disable` | Disable 2FA |
+| POST | `/api/auth/change-password` | Change password |
+| GET | `/api/auth/sessions` | Active sessions list |
+| GET | `/api/auth/log` | Auth audit log |
+
+### Frontend Security
+- **AuthScreen.jsx** rewritten with real API calls (register/login/2FA flow)
+- **SecuritySettings.jsx** — 2FA setup with QR code, password change, sessions manager, audit log
+- **SettingsPanel.jsx** — Added Security tab (General | Security)
+- **useStore.js** — JWT-based logout (revokes server session), authFetch helper
+
+### Admin System
+- `info@kairos-777.com` auto-promoted to role=admin, plan=enterprise
+- 3-layer admin protection: Sidebar filter + App.jsx redirect + component guard
+- **Admin account registered on production** (Feb 25, 2026)
+
+### Treasury System (from Session 11)
+- Fee collection on open/close/liquidation (0.1% open, 0.05% close, 0.5% liquidation)
+- Admin-only KairosTreasury.jsx dashboard
+- `GET /api/perps/treasury` endpoint
+
+### Bug Fixes
+- Fixed `datetime("now")` → `datetime('now')` in SQLite queries (double quotes = column identifier, caused crash)
+- Fixed general rate limit: 100 → 500 req/15min (was too restrictive)
+- Fixed JSX closing tag in SettingsPanel.jsx after tab system insert
+
+### Commits
+- `22204c7` — Full auth + treasury + admin system
+- `a38b6b7` — Rate limit increase
+- `385ce06` — Fix datetime double quotes crash
+
+### New Dependencies
+- `bcryptjs` ^3.0.3 — Password hashing
+- `jsonwebtoken` ^9.0.3 — JWT generation/verification
+- `speakeasy` ^2.0.0 — TOTP 2FA
+- `qrcode` ^1.5.4 — QR code generation
 
 ---
 
