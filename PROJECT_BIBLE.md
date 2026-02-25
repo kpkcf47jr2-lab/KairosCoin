@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 25, 2026 (Session 14 — Wallet Features + Cloud Backup + NFT Send + Staking)
+#  Last Updated: February 25, 2026 (Session 14C — Enhanced Swap/DEX + Vault + Push Notifications)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -899,6 +899,64 @@ After adding, click **"Save Changes"** → Render will auto-redeploy.
 - Wallet: https://kairos-wallet.netlify.app (deploy `699f5964`)
 - Trade: https://kairos-trade.netlify.app (deploy `699f59a2`)
 - Backend: Render auto-deploy from commit `ada0cc4`
+
+---
+
+## 23. SESSION 14C — Yield Vault + Push Notifications + Enhanced Swap (Feb 25, 2026)
+
+### Yield Vault (Multi-Protocol)
+- **`kairos-wallet/src/services/vault.js`** — NEW. Multi-protocol yield vault:
+  - Aave V3 (ETH, Polygon, Arbitrum, Avalanche, Base): supply/withdraw aTokens
+  - Venus Protocol (BSC): supply/withdraw vTokens
+  - KAIROS Treasury (all chains): stake KAIROS for 8.5% APY
+  - `getVaultProtocols(chainId)`, `getVaultPositions()`, `depositToVault()`, `withdrawFromVault()`
+  - Real on-chain interactions via ethers.js + lending pool ABIs
+- **`kairos-wallet/src/components/Vault/VaultScreen.jsx`** — NEW. Full vault UI:
+  - Protocol cards with APY display, TVL, risk level
+  - Deposit/Withdraw modal with amount input, gas estimation, password unlock
+  - Active positions tracker with real-time balance updates
+  - Integrated into App.jsx + Dashboard quick actions
+- **Commit:** `3dcb06d`
+
+### Push Notifications (Web Push + PWA)
+- **`kairos-wallet/public/sw.js`** — UPGRADED to v3:
+  - Separate RUNTIME_CACHE for API calls
+  - Push event handler with 5 notification types (tx, price, security, staking, system)
+  - notificationclick navigation within app
+  - Background sync + message handler for local push from main thread
+- **`kairos-wallet/src/services/pushNotifications.js`** — NEW:
+  - Web Push subscription management with VAPID keys
+  - Local notification fallback when server unreachable
+  - Specific triggers: notifyTransactionReceived/Sent, notifyPriceAlert, notifySecurityEvent, notifyStakingReward
+  - Per-category preferences (transactions, prices, security, staking, system, marketing)
+  - Quiet hours + sound/vibration control
+- **`backend/src/routes/push.js`** — NEW:
+  - Routes: GET /vapid-key, POST /subscribe, POST /unsubscribe, PUT /preferences, POST /send, POST /send-to-address, GET /stats
+  - Uses web-push npm package, in-memory subscription store
+- **Settings UI** — New "Notificaciones" section with per-category toggles + push settings modal
+- **Commit:** `f9c2c91`
+
+### Enhanced Swap/DEX
+- **`kairos-wallet/src/services/swap.js`** — ENHANCED (~460 lines):
+  - `POPULAR_TOKENS` catalog: 60+ tokens across 6 chains (BSC, ETH, Polygon, Arbitrum, Base, Avalanche) with real contract addresses
+  - `lookupToken(chainId, address)` — On-chain ERC20 lookup for custom token import
+  - `getSwapHistory()` / `addSwapToHistory()` — localStorage swap history (max 50)
+  - `getSwapFavorites()` / `toggleSwapFavorite()` — Favorite token pairs
+  - Enhanced `getSwapTokens()` — Merges wallet balances + popular tokens catalog, deduplicates
+- **`kairos-wallet/src/components/Swap/SwapScreen.jsx`** — ENHANCED (~1000 lines):
+  - **Token Picker with Search**: Filter by symbol/name/address, organized "Con saldo" vs "Populares" sections
+  - **Custom Token Import**: Paste any contract address → on-chain lookup → add to token list
+  - **Swap History Panel**: Clock icon in header → view past swaps with dates, amounts, DEX, explorer links
+  - **Quote Freshness Indicator**: Green/yellow/red dot showing quote age in seconds, manual refresh button
+  - **USD Price Estimates**: Shows ≈ $X.XX next to from/to amounts for native tokens and stablecoins
+  - **Auto-save to History**: Every successful swap recorded with hash, tokens, amounts, chain, DEX
+  - **Quick Select Chips**: Top tokens with balance shown as pills for fast selection
+- **Commit:** `42ba6fc`
+
+### Deployments
+- Wallet: https://kairos-wallet.netlify.app (deploy `699f6466`)
+- Backend: Render auto-deploy from commits `f9c2c91`, `42ba6fc`
+- Git: Latest commit `42ba6fc`
 
 ---
 
