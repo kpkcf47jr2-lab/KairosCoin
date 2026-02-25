@@ -9,12 +9,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowDown, Settings2, ChevronDown, Loader2,
   AlertTriangle, CheckCircle, X, RefreshCw, Info, Zap,
+  Search, Star, Clock, Plus, ExternalLink, ArrowUpDown,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CHAINS, KAIROS_TOKEN } from '../../constants/chains';
 import { unlockVault } from '../../services/wallet';
 import { getAllBalances } from '../../services/blockchain';
-import { getSwapQuote, executeSwap, getSwapTokens, DEX_NAMES, SLIPPAGE_PRESETS } from '../../services/swap';
+import { getSwapQuote, executeSwap, getSwapTokens, DEX_NAMES, SLIPPAGE_PRESETS, lookupToken, getSwapHistory, addSwapToHistory, getSwapFavorites, toggleSwapFavorite } from '../../services/swap';
 import { getAggregatedQuotes } from '../../services/aggregator';
 import { formatBalance, formatUSD, getNativePrice } from '../../services/prices';
 import TokenIcon from '../Common/TokenIcon';
@@ -54,9 +55,32 @@ export default function SwapScreen() {
   const [txHash, setTxHash] = useState('');
   const [swapError, setSwapError] = useState('');
   const [allQuotes, setAllQuotes] = useState([]); // Multi-DEX aggregator quotes
+  
+  // Quote refresh
+  const [quoteAge, setQuoteAge] = useState(0); // seconds since last quote
+  const quoteAgeRef = useRef(null);
+  
+  // Token picker search + import
+  const [searchQuery, setSearchQuery] = useState('');
+  const [importingToken, setImportingToken] = useState(false);
+  const [customTokens, setCustomTokens] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('kairos_custom_tokens') || '[]'); } catch { return []; }
+  });
+
+  // History + Favorites
+  const [showHistory, setShowHistory] = useState(false);
+  const [favorites, setFavorites] = useState(getSwapFavorites());
+
+  // USD prices
+  const [nativeUsdPrice, setNativeUsdPrice] = useState(0);
 
   // Available tokens
   const availableTokens = getSwapTokens(activeChainId, balances);
+
+  // Fetch native USD price on mount/chain change
+  useEffect(() => {
+    getNativePrice(activeChainId).then(p => setNativeUsdPrice(p || 0)).catch(() => {});
+  }, [activeChainId]);
 
   // Initialize default tokens
   useEffect(() => {
@@ -100,6 +124,12 @@ export default function SwapScreen() {
       );
       setQuote(result);
       setQuoteError('');
+      setQuoteAge(0);
+      // Start quote age timer
+      clearInterval(quoteAgeRef.current);
+      quoteAgeRef.current = setInterval(() => {
+        setQuoteAge(prev => prev + 1);
+      }, 1000);
       // Fetch multi-DEX quotes in background
       try {
         const fromAddr = tokenFrom.isNative ? 'native' : tokenFrom.address;
@@ -208,6 +238,17 @@ export default function SwapScreen() {
       setSwapStep('success');
       setPassword('');
 
+      // Save to swap history
+      addSwapToHistory({
+        hash: result.hash,
+        fromSymbol: tokenFrom.symbol,
+        toSymbol: tokenTo.symbol,
+        amountIn,
+        amountOut: quote?.amountOut,
+        chainId: activeChainId,
+        dex: quote?.dex || dexName,
+      });
+
       // Refresh balances
       try {
         const newBalances = await getAllBalances(activeChainId, activeAddress);
@@ -250,12 +291,20 @@ export default function SwapScreen() {
             {dexName} en {chain.shortName}
           </p>
         </div>
-        <button
-          onClick={() => setShowSlippage(true)}
-          className="p-2 -mr-2 rounded-xl hover:bg-white/5"
-        >
-          <Settings2 size={20} className="text-dark-300" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setShowHistory(true)}
+            className="p-2 rounded-xl hover:bg-white/5"
+          >
+            <Clock size={18} className="text-dark-300" />
+          </button>
+          <button
+            onClick={() => setShowSlippage(true)}
+            className="p-2 -mr-2 rounded-xl hover:bg-white/5"
+          >
+            <Settings2 size={20} className="text-dark-300" />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-5">
@@ -293,6 +342,13 @@ export default function SwapScreen() {
               <ChevronDown size={14} className="text-dark-400" />
             </button>
           </div>
+          {/* USD estimate for From */}
+          {amountIn && parseFloat(amountIn) > 0 && tokenFrom?.isNative && nativeUsdPrice > 0 && (
+            <p className="text-[10px] text-dark-500 mt-1 text-right">≈ {formatUSD(parseFloat(amountIn) * nativeUsdPrice)}</p>
+          )}
+          {amountIn && parseFloat(amountIn) > 0 && tokenFrom && !tokenFrom.isNative && tokenFrom.symbol?.includes('USD') && (
+            <p className="text-[10px] text-dark-500 mt-1 text-right">≈ {formatUSD(parseFloat(amountIn))}</p>
+          )}
         </div>
 
         {/* ── Flip Button ── */}
@@ -345,6 +401,13 @@ export default function SwapScreen() {
               <ChevronDown size={14} className="text-dark-400" />
             </button>
           </div>
+          {/* USD estimate for To */}
+          {quote && tokenTo?.isNative && nativeUsdPrice > 0 && (
+            <p className="text-[10px] text-dark-500 mt-1 text-right">≈ {formatUSD(parseFloat(quote.amountOut) * nativeUsdPrice)}</p>
+          )}
+          {quote && tokenTo && !tokenTo.isNative && tokenTo.symbol?.includes('USD') && (
+            <p className="text-[10px] text-dark-500 mt-1 text-right">≈ {formatUSD(parseFloat(quote.amountOut))}</p>
+          )}
         </div>
 
         {/* ── Quote Details ── */}
@@ -460,6 +523,24 @@ export default function SwapScreen() {
           </div>
         )}
 
+        {/* ── Quote Freshness ── */}
+        {quote && quoteAge > 0 && (
+          <div className="mt-2 flex items-center justify-between px-1">
+            <div className="flex items-center gap-1.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${quoteAge < 10 ? 'bg-green-400' : quoteAge < 20 ? 'bg-yellow-400' : 'bg-red-400'}`} />
+              <span className="text-[10px] text-dark-500">
+                Cotización: {quoteAge}s
+              </span>
+            </div>
+            <button
+              onClick={fetchQuote}
+              className="flex items-center gap-1 text-[10px] text-kairos-400 hover:text-kairos-300"
+            >
+              <RefreshCw size={10} /> Actualizar
+            </button>
+          </div>
+        )}
+
         {/* ── High Impact Warning ── */}
         {quote && parseFloat(quote.priceImpact) > 5 && (
           <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20">
@@ -519,51 +600,158 @@ export default function SwapScreen() {
               <h2 className="font-bold text-white">
                 {showPicker === 'from' ? 'Token a vender' : 'Token a recibir'}
               </h2>
-              <button onClick={() => setShowPicker(null)} className="p-2 rounded-xl hover:bg-white/5">
+              <button onClick={() => { setShowPicker(null); setSearchQuery(''); }} className="p-2 rounded-xl hover:bg-white/5">
                 <X size={20} className="text-dark-300" />
               </button>
             </div>
 
-            <div className="px-5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 80px)' }}>
-              {availableTokens.length === 0 ? (
-                <div className="text-center py-12 text-dark-400 text-sm">
-                  No hay tokens disponibles. Agrega tokens primero.
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {availableTokens.map((token) => {
-                    const isSelected = 
-                      (showPicker === 'from' && tokenFrom?.id === token.id) ||
-                      (showPicker === 'to' && tokenTo?.id === token.id);
+            {/* Search */}
+            <div className="px-5 mb-3">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-500 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar por nombre, símbolo o dirección"
+                  className="w-full bg-white/[0.04] rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-dark-500 outline-none border border-white/5 focus:border-kairos-500/50"
+                  style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}
+                  autoFocus
+                />
+              </div>
+            </div>
 
-                    return (
-                      <button
-                        key={token.id}
-                        onClick={() => selectToken(token)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl transition-colors ${
-                          isSelected
-                            ? 'bg-kairos-500/10 border border-kairos-500/30'
-                            : 'hover:bg-white/[0.04] border border-transparent'
-                        }`}
-                      >
-                        <TokenIcon token={token} chainId={activeChainId} size={36} />
-                        <div className="flex-1 text-left">
-                          <div className="font-semibold text-sm text-white">{token.symbol}</div>
-                          <div className="text-xs text-dark-400">{token.name}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-dark-200">
-                            {formatBalance(token.balance || '0')}
-                          </div>
-                        </div>
-                        {isSelected && (
-                          <CheckCircle size={16} className="text-kairos-400 shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
+            <div className="px-5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+              {/* Quick select popular tokens */}
+              {!searchQuery && (
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {availableTokens.filter(t => t.isNative || t.hasBalance).slice(0, 6).map(token => (
+                    <button
+                      key={token.id}
+                      onClick={() => { selectToken(token); setSearchQuery(''); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/5 hover:bg-white/[0.08] transition-all"
+                    >
+                      <TokenIcon token={token} chainId={activeChainId} size={18} />
+                      <span className="text-xs font-medium text-white">{token.symbol}</span>
+                    </button>
+                  ))}
                 </div>
               )}
+
+              {(() => {
+                const q = searchQuery.toLowerCase().trim();
+                const filtered = q
+                  ? availableTokens.filter(t =>
+                      t.symbol?.toLowerCase().includes(q) ||
+                      t.name?.toLowerCase().includes(q) ||
+                      t.address?.toLowerCase().includes(q)
+                    )
+                  : availableTokens;
+                
+                const isAddress = q.startsWith('0x') && q.length === 42;
+                const hasResult = filtered.length > 0;
+
+                return (
+                  <>
+                    {/* Token list */}
+                    <div className="space-y-0.5">
+                      {/* Tokens with balance first */}
+                      {filtered.filter(t => t.isNative || parseFloat(t.balance || 0) > 0).length > 0 && (
+                        <p className="text-[10px] text-dark-500 uppercase tracking-wider px-1 py-1 mt-1">Con saldo</p>
+                      )}
+                      {filtered.filter(t => t.isNative || parseFloat(t.balance || 0) > 0).map((token) => {
+                        const isSelected = 
+                          (showPicker === 'from' && tokenFrom?.id === token.id) ||
+                          (showPicker === 'to' && tokenTo?.id === token.id);
+                        return (
+                          <button
+                            key={token.id}
+                            onClick={() => { selectToken(token); setSearchQuery(''); }}
+                            className={`w-full flex items-center gap-3 p-3 rounded-xl transition-colors ${
+                              isSelected
+                                ? 'bg-kairos-500/10 border border-kairos-500/30'
+                                : 'hover:bg-white/[0.04] border border-transparent'
+                            }`}
+                          >
+                            <TokenIcon token={token} chainId={activeChainId} size={36} />
+                            <div className="flex-1 text-left">
+                              <div className="font-semibold text-sm text-white">{token.symbol}</div>
+                              <div className="text-xs text-dark-400">{token.name}</div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-medium text-dark-200">
+                                {formatBalance(token.balance || '0')}
+                              </div>
+                            </div>
+                            {isSelected && <CheckCircle size={16} className="text-kairos-400 shrink-0" />}
+                          </button>
+                        );
+                      })}
+
+                      {/* Popular tokens without balance */}
+                      {filtered.filter(t => !t.isNative && parseFloat(t.balance || 0) <= 0).length > 0 && (
+                        <p className="text-[10px] text-dark-500 uppercase tracking-wider px-1 py-1 mt-3">Populares</p>
+                      )}
+                      {filtered.filter(t => !t.isNative && parseFloat(t.balance || 0) <= 0).map((token) => (
+                        <button
+                          key={token.id}
+                          onClick={() => { selectToken(token); setSearchQuery(''); }}
+                          className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.04] border border-transparent transition-colors"
+                        >
+                          <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center text-lg">
+                            {token.icon || '🪙'}
+                          </div>
+                          <div className="flex-1 text-left">
+                            <div className="font-semibold text-sm text-dark-300">{token.symbol}</div>
+                            <div className="text-xs text-dark-500">{token.name}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Import custom token by address */}
+                    {isAddress && !hasResult && (
+                      <button
+                        onClick={async () => {
+                          setImportingToken(true);
+                          try {
+                            const tokenInfo = await lookupToken(activeChainId, q);
+                            const updated = [...customTokens, tokenInfo];
+                            setCustomTokens(updated);
+                            localStorage.setItem('kairos_custom_tokens', JSON.stringify(updated));
+                            selectToken(tokenInfo);
+                            setSearchQuery('');
+                            showToast(`${tokenInfo.symbol} importado`, 'success');
+                          } catch (err) {
+                            showToast('Token no encontrado: ' + err.message, 'error');
+                          }
+                          setImportingToken(false);
+                        }}
+                        disabled={importingToken}
+                        className="w-full flex items-center gap-3 p-4 rounded-xl bg-kairos-500/10 border border-kairos-500/30 mt-3"
+                      >
+                        {importingToken ? (
+                          <Loader2 size={20} className="text-kairos-400 animate-spin" />
+                        ) : (
+                          <Plus size={20} className="text-kairos-400" />
+                        )}
+                        <div className="flex-1 text-left">
+                          <p className="text-sm font-medium text-kairos-400">
+                            {importingToken ? 'Importando...' : 'Importar Token'}
+                          </p>
+                          <p className="text-[10px] text-dark-400 truncate">{q}</p>
+                        </div>
+                      </button>
+                    )}
+
+                    {!isAddress && !hasResult && q && (
+                      <div className="text-center py-8 text-dark-500 text-sm">
+                        No se encontraron tokens para "{q}"
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </motion.div>
         )}
@@ -793,6 +981,77 @@ export default function SwapScreen() {
                 </div>
               )}
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* ── Swap History Modal ── */}
+      <AnimatePresence>
+        {showHistory && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-dark-950/95 backdrop-blur-xl"
+          >
+            <div className="flex items-center justify-between px-5 py-4">
+              <h2 className="font-bold text-white">Historial de Swaps</h2>
+              <button onClick={() => setShowHistory(false)} className="p-2 rounded-xl hover:bg-white/5">
+                <X size={20} className="text-dark-300" />
+              </button>
+            </div>
+
+            <div className="px-5 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 80px)' }}>
+              {(() => {
+                const history = getSwapHistory();
+                if (history.length === 0) {
+                  return (
+                    <div className="text-center py-16">
+                      <Clock size={32} className="text-dark-600 mx-auto mb-3" />
+                      <p className="text-dark-400 text-sm">Sin swaps recientes</p>
+                      <p className="text-dark-500 text-xs mt-1">Tu historial aparecerá aquí</p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="space-y-2">
+                    {history.map((h, i) => {
+                      const c = CHAINS[h.chainId];
+                      return (
+                        <div key={i} className="bg-white/[0.03] rounded-xl p-3 border border-white/5">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <ArrowUpDown size={14} className="text-kairos-400" />
+                              <span className="text-sm font-semibold text-white">
+                                {h.fromSymbol} → {h.toSymbol}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-dark-500">
+                              {new Date(h.timestamp).toLocaleDateString('es', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between mt-1.5">
+                            <span className="text-xs text-dark-400">
+                              {parseFloat(h.amountIn).toFixed(4)} {h.fromSymbol} → {parseFloat(h.amountOut).toFixed(4)} {h.toSymbol}
+                            </span>
+                            <span className="text-[10px] text-dark-500">{h.dex}</span>
+                          </div>
+                          {h.hash && c && (
+                            <a
+                              href={`${c.blockExplorerUrl}/tx/${h.hash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-[10px] text-kairos-400 mt-1.5"
+                            >
+                              <ExternalLink size={10} /> Ver transacción
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

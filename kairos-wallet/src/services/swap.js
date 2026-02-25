@@ -296,28 +296,168 @@ export async function executeSwap({
   };
 }
 
+// ═══════════════════════════════════════════════════════
+//  POPULAR TOKENS CATALOG (per chain)
+// ═══════════════════════════════════════════════════════
+const POPULAR_TOKENS = {
+  56: [
+    { symbol: 'USDT', name: 'Tether USD', address: '0x55d398326f99059fF775485246999027B3197955', decimals: 18, icon: '💵' },
+    { symbol: 'USDC', name: 'USD Coin', address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', decimals: 18, icon: '💲' },
+    { symbol: 'BUSD', name: 'Binance USD', address: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', decimals: 18, icon: '🟡' },
+    { symbol: 'ETH', name: 'Ethereum', address: '0x2170Ed0880ac9A755fd29B2688956BD959F933F8', decimals: 18, icon: '⟠' },
+    { symbol: 'BTCB', name: 'Bitcoin BEP20', address: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c', decimals: 18, icon: '₿' },
+    { symbol: 'CAKE', name: 'PancakeSwap', address: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', decimals: 18, icon: '🥞' },
+    { symbol: 'XRP', name: 'XRP', address: '0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE', decimals: 18, icon: '✕' },
+    { symbol: 'DOGE', name: 'Dogecoin', address: '0xbA2aE424d960c26247Dd6c32edC70B295c744C43', decimals: 8, icon: '🐕' },
+    { symbol: 'KAIROS', name: 'KairosCoin', address: '0x14D41707269c7D8b8DFa5095b38824a46dA05da3', decimals: 18, icon: '⏳' },
+  ],
+  1: [
+    { symbol: 'USDT', name: 'Tether USD', address: '0xdAC17F958D2ee523a2206206994597C13D831ec7', decimals: 6, icon: '💵' },
+    { symbol: 'USDC', name: 'USD Coin', address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', decimals: 6, icon: '💲' },
+    { symbol: 'DAI', name: 'Dai Stablecoin', address: '0x6B175474E89094C44Da98b954EedeAC495271d0F', decimals: 18, icon: '◈' },
+    { symbol: 'WBTC', name: 'Wrapped Bitcoin', address: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599', decimals: 8, icon: '₿' },
+    { symbol: 'UNI', name: 'Uniswap', address: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', decimals: 18, icon: '🦄' },
+    { symbol: 'LINK', name: 'Chainlink', address: '0x514910771AF9Ca656af840dff83E8264EcF986CA', decimals: 18, icon: '⬡' },
+    { symbol: 'SHIB', name: 'Shiba Inu', address: '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE', decimals: 18, icon: '🐕' },
+    { symbol: 'PEPE', name: 'Pepe', address: '0x6982508145454Ce325dDbE47a25d4ec3d2311933', decimals: 18, icon: '🐸' },
+  ],
+  137: [
+    { symbol: 'USDT', name: 'Tether USD', address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', decimals: 6, icon: '💵' },
+    { symbol: 'USDC', name: 'USD Coin', address: '0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359', decimals: 6, icon: '💲' },
+    { symbol: 'WBTC', name: 'Wrapped Bitcoin', address: '0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6', decimals: 8, icon: '₿' },
+    { symbol: 'WETH', name: 'Wrapped Ether', address: '0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619', decimals: 18, icon: '⟠' },
+    { symbol: 'AAVE', name: 'Aave', address: '0xD6DF932A45C0f255f85145f286eA0b292B21C90B', decimals: 18, icon: '👻' },
+    { symbol: 'KAIROS', name: 'KairosCoin', address: '0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9', decimals: 18, icon: '⏳' },
+  ],
+  42161: [
+    { symbol: 'USDT', name: 'Tether USD', address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', decimals: 6, icon: '💵' },
+    { symbol: 'USDC', name: 'USD Coin', address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', decimals: 6, icon: '💲' },
+    { symbol: 'WBTC', name: 'Wrapped Bitcoin', address: '0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f', decimals: 8, icon: '₿' },
+    { symbol: 'ARB', name: 'Arbitrum', address: '0x912CE59144191C1204E64559FE8253a0e49E6548', decimals: 18, icon: '🔵' },
+    { symbol: 'GMX', name: 'GMX', address: '0xfc5A1A6EB076a2C7aD06eD22C90d7E710E35ad0a', decimals: 18, icon: '💎' },
+    { symbol: 'KAIROS', name: 'KairosCoin', address: '0x14D41707269c7D8b8DFa5095b38824a46dA05da3', decimals: 18, icon: '⏳' },
+  ],
+  8453: [
+    { symbol: 'USDC', name: 'USD Coin', address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', decimals: 6, icon: '💲' },
+    { symbol: 'DAI', name: 'Dai Stablecoin', address: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb', decimals: 18, icon: '◈' },
+    { symbol: 'KAIROS', name: 'KairosCoin', address: '0x14D41707269c7D8b8DFa5095b38824a46dA05da3', decimals: 18, icon: '⏳' },
+  ],
+  43114: [
+    { symbol: 'USDT', name: 'Tether USD', address: '0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7', decimals: 6, icon: '💵' },
+    { symbol: 'USDC', name: 'USD Coin', address: '0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E', decimals: 6, icon: '💲' },
+    { symbol: 'WBTC', name: 'Wrapped Bitcoin', address: '0x50b7545627a5162F82A992c33b87aDc75187B218', decimals: 8, icon: '₿' },
+    { symbol: 'JOE', name: 'Trader Joe', address: '0x6e84a6216eA6dACC71eE8E6b0a5B7322EEbC0fDd', decimals: 18, icon: '🎩' },
+  ],
+};
+
 /**
- * Get list of popular swap tokens for a chain (with natives)
+ * Get list of swap tokens for a chain — user's token balances + popular catalog
  */
 export function getSwapTokens(chainId, balances) {
-  const chain = CHAINS[chainId];
   const tokens = [];
+  const addedAddresses = new Set();
   
-  // Add native
+  // 1. Add native token
   if (balances?.native) {
-    tokens.push({
-      ...balances.native,
-      id: 'native',
-      isNative: true,
-    });
+    tokens.push({ ...balances.native, id: 'native', isNative: true });
+    addedAddresses.add('native');
   }
 
-  // Add tokens with balance first
+  // 2. Add user's tokens (with balances)
   if (balances?.tokens) {
     for (const t of balances.tokens) {
-      tokens.push({ ...t, id: t.address });
+      tokens.push({ ...t, id: t.address, hasBalance: true });
+      addedAddresses.add(t.address.toLowerCase());
+    }
+  }
+
+  // 3. Add popular tokens not yet in list (balance = 0)
+  const popular = POPULAR_TOKENS[chainId] || [];
+  for (const p of popular) {
+    if (!addedAddresses.has(p.address.toLowerCase())) {
+      tokens.push({
+        ...p,
+        id: p.address,
+        balance: '0',
+        hasBalance: false,
+      });
+      addedAddresses.add(p.address.toLowerCase());
     }
   }
 
   return tokens;
+}
+
+/**
+ * Look up a token by address on-chain
+ */
+export async function lookupToken(chainId, address) {
+  const provider = getProvider(chainId);
+  const token = new ethers.Contract(address, [
+    'function name() view returns (string)',
+    'function symbol() view returns (string)',
+    'function decimals() view returns (uint8)',
+    'function totalSupply() view returns (uint256)',
+  ], provider);
+
+  const [name, symbol, decimals, totalSupply] = await Promise.all([
+    token.name().catch(() => 'Unknown'),
+    token.symbol().catch(() => '???'),
+    token.decimals().catch(() => 18),
+    token.totalSupply().catch(() => 0n),
+  ]);
+
+  return {
+    address,
+    name,
+    symbol,
+    decimals: Number(decimals),
+    totalSupply: ethers.formatUnits(totalSupply, decimals),
+    id: address,
+    balance: '0',
+    hasBalance: false,
+  };
+}
+
+// ═══════════════════════════════════════════════════════
+//  SWAP HISTORY
+// ═══════════════════════════════════════════════════════
+const SWAP_HISTORY_KEY = 'kairos_swap_history';
+const MAX_SWAP_HISTORY = 50;
+
+export function getSwapHistory() {
+  try { return JSON.parse(localStorage.getItem(SWAP_HISTORY_KEY) || '[]'); } catch { return []; }
+}
+
+export function addSwapToHistory(swap) {
+  const history = getSwapHistory();
+  history.unshift({
+    ...swap,
+    id: Date.now().toString(36),
+    timestamp: Date.now(),
+  });
+  if (history.length > MAX_SWAP_HISTORY) history.length = MAX_SWAP_HISTORY;
+  localStorage.setItem(SWAP_HISTORY_KEY, JSON.stringify(history));
+}
+
+// ═══════════════════════════════════════════════════════
+//  FAVORITES
+// ═══════════════════════════════════════════════════════
+const SWAP_FAVORITES_KEY = 'kairos_swap_favorites';
+
+export function getSwapFavorites() {
+  try { return JSON.parse(localStorage.getItem(SWAP_FAVORITES_KEY) || '[]'); } catch { return []; }
+}
+
+export function toggleSwapFavorite(pair) {
+  const favs = getSwapFavorites();
+  const key = `${pair.fromSymbol}-${pair.toSymbol}`;
+  const exists = favs.findIndex(f => f.key === key);
+  if (exists >= 0) {
+    favs.splice(exists, 1);
+  } else {
+    favs.push({ ...pair, key });
+  }
+  localStorage.setItem(SWAP_FAVORITES_KEY, JSON.stringify(favs));
+  return favs;
 }
