@@ -9,6 +9,7 @@ import { brokerService } from './broker';
 import { executeScript } from './kairosScript';
 import { toApiPair } from '../utils/pairUtils';
 import { telegramService } from './telegram';
+import { feeService } from './feeService';
 
 const WS_ENDPOINTS = [
   'wss://stream.binance.us:9443/ws',
@@ -393,9 +394,13 @@ class TradingEngine {
   async _closePosition(bot, position, currentPrice, exitSide, reason) {
     const entryPrice = position.entryPrice;
     const qty = position.quantity;
-    const profit = position.side === 'buy'
+    const rawProfit = position.side === 'buy'
       ? (currentPrice - entryPrice) * qty
       : (entryPrice - currentPrice) * qty;
+
+    // Platform fee (0.05% of volume on close)
+    const closeFee = feeService.applyVolumeFee(currentPrice, qty);
+    const profit = rawProfit - closeFee;
 
     this._log(bot.id, `📊 Cerrando: ${position.side.toUpperCase()} → ${exitSide.toUpperCase()} | $${entryPrice.toFixed(2)} → $${currentPrice.toFixed(2)} | P&L: ${profit >= 0 ? '+' : ''}$${profit.toFixed(2)}`);
 
@@ -414,9 +419,10 @@ class TradingEngine {
         const confirmed = result.confirmed !== false;
         const realExitPrice = (result.filledPrice && result.filledPrice > 0)
           ? result.filledPrice : currentPrice;
-        const realProfit = position.side === 'buy'
+        const rawRealProfit = position.side === 'buy'
           ? (realExitPrice - entryPrice) * qty
           : (entryPrice - realExitPrice) * qty;
+        const realProfit = rawRealProfit - closeFee;
         const statusIcon = confirmed ? '✅' : '⚠️';
         this._log(bot.id, `${statusIcon} Cerrada: P&L ${realProfit >= 0 ? '+' : ''}$${realProfit.toFixed(4)} [${result.status}] ID:${result.id || 'N/A'}`);
         this._onTrade(bot.id, { ...closeOrder, ...result, profit: realProfit, real: true, confirmed, action: 'close', reason });
@@ -488,6 +494,9 @@ class TradingEngine {
         const fillPrice = result.filledPrice || currentPrice;
         const confirmed = result.confirmed !== false;
         const statusIcon = confirmed ? '✅' : '⚠️';
+        // Platform fee (0.05% of volume on open)
+        feeService.applyVolumeFee(fillPrice, result.filledQty || positionSize);
+
         this._log(bot.id, `${statusIcon} REAL: ${result.side?.toUpperCase()} ${result.filledQty || positionSize} @ $${fillPrice.toFixed(2)} [${result.status}] ID:${result.id || 'N/A'}`);
         if (!confirmed) {
           this._log(bot.id, `⚠️ Orden no confirmada por el broker — el fill real puede diferir`);
@@ -524,6 +533,9 @@ class TradingEngine {
         // Don't fire _onTrade for errors (don't count as trade)
       }
     } else {
+      // Platform fee (0.05% of volume on open — demo)
+      feeService.applyVolumeFee(currentPrice, positionSize);
+
       this._log(bot.id, `📝 [DEMO] ${signal.type.toUpperCase()} ${positionSize} @ $${currentPrice.toFixed(2)}`);
       this.positions.set(bot.id, {
         side: signal.type,

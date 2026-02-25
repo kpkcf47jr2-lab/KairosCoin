@@ -4,6 +4,7 @@
 
 import marketData from './marketData';
 import { calculateEMA, calculateRSI } from './indicators';
+import { feeService } from './feeService';
 
 const STORAGE_KEY = 'kairos_trade_simulator';
 
@@ -85,7 +86,10 @@ class TradingSimulator {
       openedAt: new Date().toISOString(),
     };
 
-    this.state.balance -= cost;
+    // Platform fee on open (0.05% of volume)
+    const openFee = feeService.applyVolumeFee(price, quantity);
+
+    this.state.balance -= cost + openFee;
     this.state.positions.push(position);
     this._save();
 
@@ -100,9 +104,12 @@ class TradingSimulator {
     const pos = this.state.positions[idx];
     const exitPrice = await marketData.getPrice(pos.symbol);
 
-    const pnl = pos.side === 'buy'
+    const rawPnl = pos.side === 'buy'
       ? (exitPrice - pos.entryPrice) * pos.quantity * pos.leverage
       : (pos.entryPrice - exitPrice) * pos.quantity * pos.leverage;
+
+    // Platform fee on close (0.05% of volume)
+    const { adjustedPnl: pnl, fee: closeFee } = feeService.applyFee(exitPrice, pos.quantity, rawPnl);
 
     const pnlPercent = (pnl / pos.cost) * 100;
 

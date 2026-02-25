@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width: 1200px; height: 675px; overflow: hidden;
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #050507;
+    position: relative;
+  }
+
+  .bg-grid {
+    position: absolute; inset: 0; opacity: 0.035;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.5) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+  .bg-glow {
+    position: absolute; top: 0; left: 30%; width: 800px; height: 500px;
+    background: radial-gradient(ellipse, rgba(59,130,246,0.1) 0%, transparent 60%);
+    filter: blur(60px);
+  }
+  .bg-glow-2 {
+    position: absolute; bottom: -100px; right: 0; width: 500px; height: 400px;
+    background: radial-gradient(circle, rgba(16,185,129,0.06) 0%, transparent 55%);
+    filter: blur(50px);
+  }
+
+  .container {
+    position: relative; z-index: 2;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    padding: 32px 48px;
+  }
+
+  /* Top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .logo-w {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 20px rgba(59,130,246,0.25);
+  }
+  .logo-i {
+    width: 36px; height: 36px; border-radius: 50%; background: #080810;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .logo-i img { width: 32px; height: 32px; border-radius: 50%; }
+  .brand-n { font-size: 18px; font-weight: 900; color: #fff; letter-spacing: 2px; }
+  .brand-t { font-size: 14px; font-weight: 800; color: #60A5FA; letter-spacing: 1px; }
+  .live-b {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 100px;
+    background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2);
+  }
+  .live-d { width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 10px rgba(16,185,129,0.5); }
+  .live-t { font-size: 11px; font-weight: 700; color: #10B981; letter-spacing: 0.5px; }
+
+  /* Full chart */
+  .chart-card {
+    background: rgba(12,12,20,0.85);
+    border: 1px solid rgba(59,130,246,0.1);
+    border-radius: 20px; padding: 24px 28px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+    margin-bottom: 20px; flex: 1;
+  }
+  .chart-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .ch-left { display: flex; align-items: center; gap: 16px; }
+  .pair { font-size: 22px; font-weight: 900; color: #fff; }
+  .pair-badges { display: flex; gap: 8px; }
+  .pair-badge {
+    font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 6px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .pb-perp { background: rgba(59,130,246,0.1); color: #60A5FA; border: 1px solid rgba(59,130,246,0.2); }
+  .pb-50x { background: rgba(212,175,55,0.08); color: #D4AF37; border: 1px solid rgba(212,175,55,0.15); }
+  .ch-right { text-align: right; }
+  .ch-price { font-size: 28px; font-weight: 900; color: #10B981; letter-spacing: -0.5px; }
+  .ch-change { font-size: 13px; font-weight: 700; color: #10B981; margin-top: 2px; }
+
+  .chart-svg { height: 180px; border-radius: 12px; overflow: hidden; margin-bottom: 16px; position: relative; }
+  .chart-svg svg { width: 100%; height: 100%; }
+
+  /* Indicators */
+  .indicators { display: flex; gap: 12px; margin-bottom: 0; }
+  .ind {
+    padding: 8px 14px; border-radius: 8px; font-size: 11px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+  }
+  .ind-label { color: #6B7280; font-weight: 600; }
+  .ind-val { color: #D1D5DB; font-weight: 700; margin-left: 4px; }
+  .ind-val.green { color: #10B981; }
+  .ind-val.red { color: #EF4444; }
+  .ind-val.blue { color: #60A5FA; }
+
+  /* Bot row */
+  .bots { display: flex; gap: 16px; }
+  .bot-card {
+    flex: 1; padding: 16px 18px; border-radius: 14px;
+    background: rgba(12,12,20,0.85);
+    border: 1px solid rgba(255,255,255,0.06);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+    position: relative; overflow: hidden;
+  }
+  .bot-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .bot-card.b1::before { background: linear-gradient(90deg, #3B82F6, #60A5FA); }
+  .bot-card.b2::before { background: linear-gradient(90deg, #10B981, #34D399); }
+  .bot-card.b3::before { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+
+  .bot-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .bot-name { font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px; }
+  .bot-d { width: 6px; height: 6px; border-radius: 50%; }
+  .bot-d.on { background: #10B981; box-shadow: 0 0 8px rgba(16,185,129,0.5); }
+  .bot-d.pause { background: #F59E0B; }
+  .bot-pair { font-size: 11px; color: #6B7280; font-weight: 600; }
+  .bot-stats { display: flex; gap: 20px; }
+  .bot-s-l { font-size: 9px; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px; }
+  .bot-s-v { font-size: 15px; font-weight: 800; margin-top: 1px; }
+  .bot-s-v.g { color: #10B981; }
+  .bot-s-v.y { color: #F59E0B; }
+  .bot-s-v.w { color: #fff; }
+
+  .motto {
+    position: absolute; bottom: 12px; right: 48px; z-index: 10;
+    font-size: 10px; font-style: italic; color: rgba(212,175,55,0.2);
+    font-family: Georgia, serif;
+  }
+  .footer-left {
+    position: absolute; bottom: 12px; left: 48px; z-index: 10;
+    font-size: 11px; color: rgba(255,255,255,0.15); display: flex; align-items: center; gap: 8px;
+  }
+  .footer-left span { color: #60A5FA; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+  <div class="bg-glow-2"></div>
+
+  <div class="container">
+    <div class="top">
+      <div class="brand">
+        <div class="logo-w"><div class="logo-i"><img src="../../branding/logo-256.png" alt="K"/></div></div>
+        <div><div class="brand-n">KAIROS</div></div>
+        <div class="brand-t">TRADE</div>
+      </div>
+      <div class="live-b">
+        <div class="live-d"></div>
+        <div class="live-t">LIVE TRADING</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div class="ch-left">
+          <div class="pair">BTC / USDT</div>
+          <div class="pair-badges">
+            <span class="pair-badge pb-perp">Perpetual</span>
+            <span class="pair-badge pb-50x">50× Leverage</span>
+          </div>
+        </div>
+        <div class="ch-right">
+          <div class="ch-price">$96,482.30</div>
+          <div class="ch-change">▲ +$3,024.50 (+3.24%)</div>
+        </div>
+      </div>
+
+      <div class="chart-svg">
+        <svg viewBox="0 0 1100 180" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.2"/>
+              <stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <!-- Area -->
+          <path d="M0,155 C40,150 60,140 90,130 C120,120 150,125 180,110 C210,95 240,100 270,85 C300,70 330,80 360,65 C390,55 420,60 450,50 C480,40 510,48 540,38 C570,30 600,35 630,28 C660,22 690,30 720,20 C750,15 780,22 810,18 C840,12 870,15 900,10 C930,8 960,12 990,6 C1020,4 1050,8 1100,3 L1100,180 L0,180 Z" fill="url(#area)"/>
+          <!-- Line -->
+          <path d="M0,155 C40,150 60,140 90,130 C120,120 150,125 180,110 C210,95 240,100 270,85 C300,70 330,80 360,65 C390,55 420,60 450,50 C480,40 510,48 540,38 C570,30 600,35 630,28 C660,22 690,30 720,20 C750,15 780,22 810,18 C840,12 870,15 900,10 C930,8 960,12 990,6 C1020,4 1050,8 1100,3" fill="none" stroke="#3B82F6" stroke-width="2.5"/>
+
+          <!-- Candles -->
+          <g opacity="0.5">
+            <line x1="60" y1="135" x2="60" y2="155" stroke="#10B981" stroke-width="1"/>
+            <rect x="56" y="140" width="8" height="12" rx="1" fill="#10B981"/>
+            <line x1="120" y1="115" x2="120" y2="135" stroke="#10B981" stroke-width="1"/>
+            <rect x="116" y="118" width="8" height="12" rx="1" fill="#10B981"/>
+            <line x1="180" y1="105" x2="180" y2="125" stroke="#EF4444" stroke-width="1"/>
+            <rect x="176" y="108" width="8" height="12" rx="1" fill="#EF4444"/>
+            <line x1="240" y1="90" x2="240" y2="110" stroke="#10B981" stroke-width="1"/>
+            <rect x="236" y="92" width="8" height="14" rx="1" fill="#10B981"/>
+            <line x1="300" y1="65" x2="300" y2="82" stroke="#10B981" stroke-width="1"/>
+            <rect x="296" y="68" width="8" height="10" rx="1" fill="#10B981"/>
+            <line x1="360" y1="58" x2="360" y2="78" stroke="#EF4444" stroke-width="1"/>
+            <rect x="356" y="60" width="8" height="14" rx="1" fill="#EF4444"/>
+            <line x1="420" y1="52" x2="420" y2="68" stroke="#10B981" stroke-width="1"/>
+            <rect x="416" y="54" width="8" height="10" rx="1" fill="#10B981"/>
+            <line x1="480" y1="35" x2="480" y2="52" stroke="#10B981" stroke-width="1"/>
+            <rect x="476" y="38" width="8" height="10" rx="1" fill="#10B981"/>
+            <line x1="540" y1="32" x2="540" y2="48" stroke="#EF4444" stroke-width="1"/>
+            <rect x="536" y="34" width="8" height="10" rx="1" fill="#EF4444"/>
+            <line x1="600" y1="28" x2="600" y2="42" stroke="#10B981" stroke-width="1"/>
+            <rect x="596" y="30" width="8" height="8" rx="1" fill="#10B981"/>
+            <line x1="660" y1="18" x2="660" y2="35" stroke="#10B981" stroke-width="1"/>
+            <rect x="656" y="20" width="8" height="12" rx="1" fill="#10B981"/>
+            <line x1="720" y1="15" x2="720" y2="30" stroke="#EF4444" stroke-width="1"/>
+            <rect x="716" y="16" width="8" height="10" rx="1" fill="#EF4444"/>
+            <line x1="780" y1="14" x2="780" y2="26" stroke="#10B981" stroke-width="1"/>
+            <rect x="776" y="16" width="8" height="6" rx="1" fill="#10B981"/>
+            <line x1="840" y1="8" x2="840" y2="20" stroke="#10B981" stroke-width="1"/>
+            <rect x="836" y="10" width="8" height="7" rx="1" fill="#10B981"/>
+            <line x1="900" y1="6" x2="900" y2="18" stroke="#10B981" stroke-width="1"/>
+            <rect x="896" y="7" width="8" height="8" rx="1" fill="#10B981"/>
+            <line x1="960" y1="4" x2="960" y2="16" stroke="#EF4444" stroke-width="1"/>
+            <rect x="956" y="5" width="8" height="8" rx="1" fill="#EF4444"/>
+            <line x1="1020" y1="2" x2="1020" y2="12" stroke="#10B981" stroke-width="1"/>
+            <rect x="1016" y="3" width="8" height="6" rx="1" fill="#10B981"/>
+          </g>
+
+          <!-- Price line -->
+          <line x1="0" y1="3" x2="1100" y2="3" stroke="#10B981" stroke-width="0.5" stroke-dasharray="4,4" opacity="0.3"/>
+
+          <!-- End dot -->
+          <circle cx="1090" cy="3" r="4" fill="#10B981"/>
+          <circle cx="1090" cy="3" r="8" fill="none" stroke="#10B981" stroke-width="1" opacity="0.4"/>
+        </svg>
+      </div>
+
+      <div class="indicators">
+        <div class="ind"><span class="ind-label">EMA 20:</span><span class="ind-val green">$95,210</span></div>
+        <div class="ind"><span class="ind-label">RSI:</span><span class="ind-val blue">62.4</span></div>
+        <div class="ind"><span class="ind-label">MACD:</span><span class="ind-val green">Bullish</span></div>
+        <div class="ind"><span class="ind-label">Vol 24h:</span><span class="ind-val">$2.4B</span></div>
+        <div class="ind"><span class="ind-label">OI:</span><span class="ind-val">$18.7B</span></div>
+      </div>
+    </div>
+
+    <div class="bots">
+      <div class="bot-card b1">
+        <div class="bot-top">
+          <div class="bot-name"><div class="bot-d on"></div>EMA Cross Bot</div>
+          <div class="bot-pair">BTC/USDT</div>
+        </div>
+        <div class="bot-stats">
+          <div><div class="bot-s-l">Trades</div><div class="bot-s-v w">147</div></div>
+          <div><div class="bot-s-l">Win Rate</div><div class="bot-s-v g">68.4%</div></div>
+          <div><div class="bot-s-l">P&L</div><div class="bot-s-v g">+$12,840</div></div>
+        </div>
+      </div>
+      <div class="bot-card b2">
+        <div class="bot-top">
+          <div class="bot-name"><div class="bot-d on"></div>RSI Momentum</div>
+          <div class="bot-pair">ETH/USDT</div>
+        </div>
+        <div class="bot-stats">
+          <div><div class="bot-s-l">Trades</div><div class="bot-s-v w">89</div></div>
+          <div><div class="bot-s-l">Win Rate</div><div class="bot-s-v g">72.1%</div></div>
+          <div><div class="bot-s-l">P&L</div><div class="bot-s-v g">+$4,290</div></div>
+        </div>
+      </div>
+      <div class="bot-card b3">
+        <div class="bot-top">
+          <div class="bot-name"><div class="bot-d pause"></div>MACD Divergence</div>
+          <div class="bot-pair">SOL/USDT</div>
+        </div>
+        <div class="bot-stats">
+          <div><div class="bot-s-l">Trades</div><div class="bot-s-v w">63</div></div>
+          <div><div class="bot-s-l">Win Rate</div><div class="bot-s-v y">61.8%</div></div>
+          <div><div class="bot-s-l">P&L</div><div class="bot-s-v g">+$1,850</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-left"><span>kairos-777.com</span> · Algorithmic Trading Ecosystem</div>
+  <div class="motto">"In God We Trust"</div>
+</body>
+</html>

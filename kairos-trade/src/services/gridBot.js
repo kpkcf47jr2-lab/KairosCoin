@@ -3,6 +3,7 @@
 // Creates a "grid" of limit orders above and below current price
 
 import marketData from './marketData';
+import { feeService } from './feeService';
 
 class GridBotEngine {
   constructor() {
@@ -82,6 +83,8 @@ class GridBotEngine {
           // Price dropped below a buy level = buy triggered
           if (order?.side === 'buy' && order.status === 'pending' && currentPrice <= level) {
             const qty = state.investmentPerGrid / level;
+            // Platform fee on grid buy (0.05% of volume)
+            feeService.applyVolumeFee(level, qty);
             order.status = 'filled';
             state.filledBuys.push(level);
             state.trades++;
@@ -113,7 +116,10 @@ class GridBotEngine {
           // Price rose above a sell level = sell triggered
           if (order?.side === 'sell' && order.status === 'pending' && currentPrice >= level) {
             order.status = 'filled';
-            const profit = (level - order.buyLevel) * order.quantity;
+            const rawProfit = (level - order.buyLevel) * order.quantity;
+            // Platform fee on grid sell (0.05% of volume)
+            const sellFee = feeService.applyVolumeFee(level, order.quantity);
+            const profit = rawProfit - sellFee;
             state.totalProfit += profit;
             state.trades++;
 

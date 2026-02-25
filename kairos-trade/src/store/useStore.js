@@ -1,6 +1,7 @@
 // Kairos Trade — Zustand Store
 import { create } from 'zustand';
 import { STORAGE_KEYS, ADMIN_CONFIG, USER_SCOPED_KEYS, getUserKey } from '../constants';
+import { feeService } from '../services/feeService';
 
 const loadJSON = (key, fallback) => {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; }
@@ -210,9 +211,11 @@ const useStore = create((set, get) => ({
     const pos = get().positions.find(p => p.id === id);
     if (pos) {
       const price = get().currentPrice || pos.entryPrice;
-      const pnl = pos.side === 'buy'
+      const rawPnl = pos.side === 'buy'
         ? (price - pos.entryPrice) * pos.quantity
         : (pos.entryPrice - price) * pos.quantity;
+      // Platform fee (0.05% of volume on close)
+      const { adjustedPnl: pnl } = feeService.applyFee(price, pos.quantity, rawPnl);
       const closedTrade = { ...pos, closedAt: new Date().toISOString(), exitPrice: price, pnl };
       const updatedPositions = get().positions.filter(p => p.id !== id);
       const updatedHistory = [...get().tradeHistory, closedTrade];

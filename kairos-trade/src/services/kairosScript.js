@@ -3,6 +3,7 @@
 // Simpler than Pine Script, more powerful than MQL4
 
 import { calculateEMA, calculateSMA, calculateRSI, calculateMACD, calculateBollingerBands, calculateVWAP, detectCrossover } from './indicators';
+import { feeService } from './feeService';
 
 // ─── Indicator Result wrapper (auto-converts to number in comparisons) ───
 class Indicator {
@@ -278,7 +279,9 @@ export function backtestScript(code, candles, config = {}) {
         : ((position.entryPrice - currentPrice) / position.entryPrice) * 100;
 
       if (pnlPercent <= -stopLoss || pnlPercent >= takeProfit) {
-        const pnl = position.quantity * (currentPrice - position.entryPrice) * (position.side === 'buy' ? 1 : -1);
+        const rawPnl = position.quantity * (currentPrice - position.entryPrice) * (position.side === 'buy' ? 1 : -1);
+        const fee = feeService.calculateFee(currentPrice, position.quantity);
+        const pnl = rawPnl - fee;
         balance += pnl;
         trades.push({
           ...position,
@@ -303,7 +306,9 @@ export function backtestScript(code, candles, config = {}) {
           entryBar: i,
         };
       } else if (result.signal.type === 'sell' && position?.side === 'buy') {
-        const pnl = position.quantity * (currentPrice - position.entryPrice);
+        const rawPnl = position.quantity * (currentPrice - position.entryPrice);
+        const fee = feeService.calculateFee(currentPrice, position.quantity);
+        const pnl = rawPnl - fee;
         balance += pnl;
         const pnlPercent = ((currentPrice - position.entryPrice) / position.entryPrice) * 100;
         trades.push({
@@ -324,7 +329,9 @@ export function backtestScript(code, candles, config = {}) {
           entryBar: i,
         };
       } else if (result.signal.type === 'buy' && position?.side === 'sell') {
-        const pnl = position.quantity * (position.entryPrice - currentPrice);
+        const rawPnl = position.quantity * (position.entryPrice - currentPrice);
+        const fee = feeService.calculateFee(currentPrice, position.quantity);
+        const pnl = rawPnl - fee;
         balance += pnl;
         const pnlPercent = ((position.entryPrice - currentPrice) / position.entryPrice) * 100;
         trades.push({
@@ -353,11 +360,13 @@ export function backtestScript(code, candles, config = {}) {
   // Close any remaining position
   if (position) {
     const lastPrice = candles[candles.length - 1].close;
-    const pnl = position.quantity * (
+    const rawPnl = position.quantity * (
       position.side === 'buy'
         ? (lastPrice - position.entryPrice)
         : (position.entryPrice - lastPrice)
     );
+    const fee = feeService.calculateFee(lastPrice, position.quantity);
+    const pnl = rawPnl - fee;
     balance += pnl;
     trades.push({
       ...position,

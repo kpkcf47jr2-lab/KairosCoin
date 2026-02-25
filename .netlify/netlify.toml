@@ -1,5 +1,5 @@
 plugins = []
-headers = []
+redirects = []
 
 [functions]
 
@@ -23,14 +23,16 @@ publishOrigin = "default"
 
 [build.services]
 
-[[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200.0
-force = false
+[[headers]]
+for = "/total-supply.txt"
 
-[redirects.query]
+[headers.values]
+Content-Type = "text/plain"
+Access-Control-Allow-Origin = "*"
 
-[redirects.conditions]
+[[headers]]
+for = "/circulating-supply.txt"
 
-[redirects.headers]
+[headers.values]
+Content-Type = "text/plain"
+Access-Control-Allow-Origin = "*"

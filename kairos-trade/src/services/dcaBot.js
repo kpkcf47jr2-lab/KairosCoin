@@ -4,6 +4,7 @@
 
 import marketData from './marketData';
 import { calculateRSI } from './indicators';
+import { feeService } from './feeService';
 
 class DCABotEngine {
   constructor() {
@@ -101,6 +102,8 @@ class DCABotEngine {
 
         // Execute buy
         const quantity = state.investmentPerOrder / currentPrice;
+        // Platform fee on DCA buy (0.05% of volume)
+        feeService.applyVolumeFee(currentPrice, quantity);
         state.executedOrders++;
         state.totalInvested += state.investmentPerOrder;
         state.totalQuantity += quantity;

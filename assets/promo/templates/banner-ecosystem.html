@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width: 1200px; height: 675px; overflow: hidden;
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #050507;
+    position: relative;
+  }
+
+  /* ── Background ── */
+  .bg-grid {
+    position: absolute; inset: 0; opacity: 0.04;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.6) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.6) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+  .bg-glow-1 {
+    position: absolute; top: -100px; left: 200px; width: 700px; height: 700px;
+    background: radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 60%);
+    border-radius: 50%; filter: blur(40px);
+  }
+  .bg-glow-2 {
+    position: absolute; bottom: -200px; right: 100px; width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 55%);
+    border-radius: 50%; filter: blur(60px);
+  }
+  .bg-glow-3 {
+    position: absolute; bottom: 50px; left: -100px; width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(212,175,55,0.06) 0%, transparent 55%);
+    border-radius: 50%; filter: blur(40px);
+  }
+
+  /* ── Layout ── */
+  .container {
+    position: relative; z-index: 2;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    padding: 40px 56px;
+  }
+
+  /* ── Top Bar ── */
+  .top-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .logo-ring {
+    width: 48px; height: 48px; border-radius: 50%;
+    background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 30px rgba(59,130,246,0.3);
+  }
+  .logo-inner {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: #0a0a0f;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .logo-inner img { width: 38px; height: 38px; border-radius: 50%; }
+  .brand-text { font-size: 22px; font-weight: 900; letter-spacing: 3px; color: #fff; }
+  .live-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25);
+    padding: 8px 18px; border-radius: 100px;
+  }
+  .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #10B981; box-shadow: 0 0 12px rgba(16,185,129,0.6); }
+  .live-text { font-size: 12px; font-weight: 700; color: #10B981; letter-spacing: 1px; }
+
+  /* ── Main Content ── */
+  .main { display: flex; gap: 56px; flex: 1; }
+
+  /* ── Left: Text ── */
+  .text-side { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .headline {
+    font-size: 52px; font-weight: 900; line-height: 1.05; letter-spacing: -2px;
+    margin-bottom: 20px;
+  }
+  .headline .l1 { color: rgba(255,255,255,0.95); }
+  .headline .l2 {
+    background: linear-gradient(135deg, #60A5FA, #3B82F6, #8B5CF6);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .sub {
+    font-size: 16px; color: #9CA3AF; line-height: 1.7; margin-bottom: 28px; max-width: 440px;
+  }
+  .sub strong { color: #E5E7EB; }
+
+  .pills { display: flex; gap: 12px; margin-bottom: 28px; }
+  .pill {
+    padding: 10px 20px; border-radius: 12px; font-size: 13px; font-weight: 700;
+    display: flex; align-items: center; gap: 8px; letter-spacing: 0.5px;
+  }
+  .pill-blue { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); color: #60A5FA; }
+  .pill-gold { background: rgba(212,175,55,0.08); border: 1px solid rgba(212,175,55,0.2); color: #D4AF37; }
+  .pill-green { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); color: #10B981; }
+  .pill-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+  .url { font-size: 14px; font-weight: 700; color: #60A5FA; letter-spacing: 0.5px; }
+
+  /* ── Right: Card ── */
+  .card-side { width: 480px; display: flex; flex-direction: column; justify-content: center; }
+  .trade-card {
+    background: rgba(15,15,25,0.9);
+    border: 1px solid rgba(59,130,246,0.12);
+    border-radius: 20px; padding: 28px;
+    backdrop-filter: blur(20px);
+    box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset;
+  }
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .pair-name { font-size: 18px; font-weight: 800; color: #fff; }
+  .pair-sub { font-size: 12px; color: #6B7280; margin-top: 2px; }
+  .price-block { text-align: right; }
+  .price-val { font-size: 24px; font-weight: 900; color: #10B981; }
+  .price-change { font-size: 12px; font-weight: 700; color: #10B981; margin-top: 2px; }
+
+  /* Chart SVG */
+  .chart-area {
+    height: 120px; border-radius: 12px; overflow: hidden;
+    background: linear-gradient(180deg, rgba(59,130,246,0.03) 0%, transparent 100%);
+    margin-bottom: 16px;
+  }
+  .chart-area svg { width: 100%; height: 100%; }
+
+  /* Bot bar */
+  .bot-bar {
+    background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.12);
+    border-radius: 14px; padding: 14px 18px;
+  }
+  .bot-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .bot-name { font-size: 14px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+  .bot-dot { width: 7px; height: 7px; border-radius: 50%; background: #10B981; box-shadow: 0 0 8px rgba(16,185,129,0.5); }
+  .bot-status {
+    font-size: 11px; font-weight: 700; color: #10B981;
+    background: rgba(16,185,129,0.1); padding: 4px 10px; border-radius: 6px;
+  }
+  .bot-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .bot-label { font-size: 10px; color: #6B7280; text-transform: uppercase; letter-spacing: 0.5px; }
+  .bot-value { font-size: 16px; font-weight: 800; color: #fff; margin-top: 2px; }
+  .bot-value.green { color: #10B981; }
+
+  /* ── Bottom Stats ── */
+  .bottom-stats {
+    display: flex; gap: 0; border-top: 1px solid rgba(59,130,246,0.08);
+    margin-top: auto; padding-top: 20px;
+  }
+  .bstat {
+    flex: 1; text-align: center;
+    border-right: 1px solid rgba(255,255,255,0.04);
+  }
+  .bstat:last-child { border-right: none; }
+  .bstat-v { font-size: 24px; font-weight: 900; letter-spacing: -0.5px; }
+  .bstat-v.blue { color: #60A5FA; }
+  .bstat-v.white { color: #fff; }
+  .bstat-v.gold { color: #D4AF37; }
+  .bstat-v.green { color: #10B981; }
+  .bstat-l { font-size: 10px; color: #6B7280; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+  /* ── Motto ── */
+  .motto {
+    position: absolute; bottom: 16px; right: 56px; z-index: 10;
+    font-size: 11px; font-style: italic; color: rgba(212,175,55,0.25);
+    font-family: Georgia, serif;
+  }
+</style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow-1"></div>
+  <div class="bg-glow-2"></div>
+  <div class="bg-glow-3"></div>
+
+  <div class="container">
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="brand">
+        <div class="logo-ring"><div class="logo-inner"><img src="../../branding/logo-256.png" alt="K"/></div></div>
+        <div class="brand-text">KAIROS 777</div>
+      </div>
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        <div class="live-text">ECOSYSTEM LIVE</div>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+      <!-- Left Text -->
+      <div class="text-side">
+        <h1 class="headline">
+          <span class="l1">The Future of</span><br/>
+          <span class="l2">Decentralized<br/>Trading</span>
+        </h1>
+        <p class="sub">Algorithmic trading bots, <strong>up to 150× leverage</strong>, 33+ pairs — powered by the Kairos ecosystem. Built by <strong>Kairos 777 Inc.</strong></p>
+        <div class="pills">
+          <div class="pill pill-blue"><div class="pill-dot" style="background:#3B82F6"></div>Trade</div>
+          <div class="pill pill-gold"><div class="pill-dot" style="background:#D4AF37"></div>Coin</div>
+          <div class="pill pill-green"><div class="pill-dot" style="background:#10B981"></div>Wallet</div>
+        </div>
+        <div class="url">kairos-777.com</div>
+      </div>
+
+      <!-- Right Card -->
+      <div class="card-side">
+        <div class="trade-card">
+          <div class="card-header">
+            <div><div class="pair-name">BTC / USDT</div><div class="pair-sub">Perpetual · 50× Leverage</div></div>
+            <div class="price-block"><div class="price-val">$96,482.30</div><div class="price-change">▲ +3.24%</div></div>
+          </div>
+          <div class="chart-area">
+            <svg viewBox="0 0 424 120" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.25"/>
+                  <stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d="M0,100 C30,95 50,85 70,80 C90,75 110,70 130,60 C150,50 170,65 190,55 C210,45 230,40 250,35 C270,30 290,45 310,32 C330,20 350,25 370,18 C390,12 410,8 424,5 L424,120 L0,120 Z" fill="url(#cg)"/>
+              <path d="M0,100 C30,95 50,85 70,80 C90,75 110,70 130,60 C150,50 170,65 190,55 C210,45 230,40 250,35 C270,30 290,45 310,32 C330,20 350,25 370,18 C390,12 410,8 424,5" fill="none" stroke="#3B82F6" stroke-width="2.5"/>
+              <!-- Candlestick hints -->
+              <rect x="50" y="82" width="6" height="14" rx="1" fill="#10B981" opacity="0.6"/>
+              <rect x="70" y="76" width="6" height="10" rx="1" fill="#10B981" opacity="0.6"/>
+              <rect x="90" y="72" width="6" height="12" rx="1" fill="#EF4444" opacity="0.5"/>
+              <rect x="110" y="66" width="6" height="10" rx="1" fill="#10B981" opacity="0.6"/>
+              <rect x="130" y="56" width="6" height="14" rx="1" fill="#10B981" opacity="0.6"/>
+              <rect x="150" y="48" width="6" height="8" rx="1" fill="#EF4444" opacity="0.5"/>
+              <rect x="170" y="60" width="6" height="14" rx="1" fill="#EF4444" opacity="0.5"/>
+              <rect x="190" y="52" width="6" height="10" rx="1" fill="#10B981" opacity="0.6"/>
+              <rect x="210" y="42" width="6" height="12" rx="1" fill="#10B981" opacity="0.6"/>
+              <rect x="230" y="36" width="6" height="10" rx="1" fill="#10B981" opacity="0.6"/>
+              <rect x="250" y="32" width="6" height="8" rx="1" fill="#EF4444" opacity="0.5"/>
+              <rect x="270" y="28" width="6" height="12" rx="1" fill="#10B981" opacity="0.6"/>
+              <rect x="290" y="40" width="6" height="14" rx="1" fill="#EF4444" opacity="0.5"/>
+              <rect x="310" y="28" width="6" height="10" rx="1" fill="#10B981" opacity="0.6"/>
+              <rect x="330" y="18" width="6" height="12" rx="1" fill="#10B981" opacity="0.6"/>
+              <rect x="350" y="22" width="6" height="8" rx="1" fill="#EF4444" opacity="0.5"/>
+              <rect x="370" y="14" width="6" height="12" rx="1" fill="#10B981" opacity="0.6"/>
+              <rect x="390" y="10" width="6" height="8" rx="1" fill="#10B981" opacity="0.6"/>
+              <!-- Live dot -->
+              <circle cx="406" cy="5" r="4" fill="#10B981"/>
+              <circle cx="406" cy="5" r="8" fill="none" stroke="#10B981" stroke-width="1" opacity="0.4"/>
+            </svg>
+          </div>
+          <div class="bot-bar">
+            <div class="bot-top">
+              <div class="bot-name"><div class="bot-dot"></div>EMA Cross Bot</div>
+              <div class="bot-status">● Running</div>
+            </div>
+            <div class="bot-stats">
+              <div><div class="bot-label">Trades</div><div class="bot-value">147</div></div>
+              <div><div class="bot-label">Win Rate</div><div class="bot-value green">68.4%</div></div>
+              <div><div class="bot-label">P&L</div><div class="bot-value green">+$12,840</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Stats -->
+    <div class="bottom-stats">
+      <div class="bstat"><div class="bstat-v blue">33+</div><div class="bstat-l">Trading Pairs</div></div>
+      <div class="bstat"><div class="bstat-v white">150×</div><div class="bstat-l">Max Leverage</div></div>
+      <div class="bstat"><div class="bstat-v gold">$1.00</div><div class="bstat-l">KAIROS Peg</div></div>
+      <div class="bstat"><div class="bstat-v green">4</div><div class="bstat-l">Blockchains</div></div>
+      <div class="bstat"><div class="bstat-v blue">10</div><div class="bstat-l">Brokers</div></div>
+    </div>
+  </div>
+
+  <div class="motto">"In God We Trust"</div>
+</body>
+</html>

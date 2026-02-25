@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    width: 1200px; height: 675px; overflow: hidden;
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #050507;
+    position: relative;
+  }
+
+  .bg-grid {
+    position: absolute; inset: 0; opacity: 0.03;
+    background-image:
+      linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(59,130,246,0.5) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+  .bg-glow-1 {
+    position: absolute; top: -50px; left: 50%; transform: translateX(-50%); width: 800px; height: 600px;
+    background: radial-gradient(ellipse, rgba(59,130,246,0.12) 0%, transparent 60%);
+    filter: blur(50px);
+  }
+  .bg-glow-gold {
+    position: absolute; top: 200px; left: 380px; width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(212,175,55,0.06) 0%, transparent 60%);
+    filter: blur(40px);
+  }
+  .bg-glow-green {
+    position: absolute; top: 200px; right: 100px; width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(16,185,129,0.06) 0%, transparent 60%);
+    filter: blur(40px);
+  }
+
+  .container {
+    position: relative; z-index: 2;
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    padding: 40px 56px;
+  }
+
+  /* Top */
+  .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo-wrap {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 25px rgba(59,130,246,0.3);
+  }
+  .logo-inner {
+    width: 39px; height: 39px; border-radius: 50%; background: #0a0a0f;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+  }
+  .logo-inner img { width: 35px; height: 35px; border-radius: 50%; }
+  .brand-name { font-size: 18px; font-weight: 900; color: #fff; letter-spacing: 3px; }
+  .url-tag { font-size: 13px; font-weight: 700; color: #60A5FA; }
+
+  /* Title */
+  .title-area { text-align: center; margin-bottom: 40px; }
+  .title {
+    font-size: 44px; font-weight: 900; line-height: 1.1; letter-spacing: -1.5px; margin-bottom: 10px;
+  }
+  .title .w { color: #fff; }
+  .title .b {
+    background: linear-gradient(135deg, #60A5FA, #3B82F6, #8B5CF6);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle { font-size: 16px; color: #9CA3AF; }
+
+  /* Cards */
+  .cards { display: flex; gap: 24px; flex: 1; }
+  .card {
+    flex: 1; border-radius: 20px; padding: 28px 24px;
+    background: rgba(12,12,20,0.85);
+    border: 1px solid rgba(255,255,255,0.06);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .card.tc::before { background: linear-gradient(90deg, #3B82F6, #60A5FA); }
+  .card.cc::before { background: linear-gradient(90deg, #D4AF37, #F0D060); }
+  .card.wc::before { background: linear-gradient(90deg, #10B981, #34D399); }
+
+  .card-icon {
+    width: 44px; height: 44px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; margin-bottom: 16px;
+  }
+  .tc .card-icon { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); }
+  .cc .card-icon { background: rgba(212,175,55,0.08); border: 1px solid rgba(212,175,55,0.18); }
+  .wc .card-icon { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.18); }
+
+  .card-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; }
+  .tc .card-tag { color: #60A5FA; }
+  .cc .card-tag { color: #D4AF37; }
+  .wc .card-tag { color: #10B981; }
+
+  .card h3 { font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 10px; }
+  .card p { font-size: 12px; color: #9CA3AF; line-height: 1.5; margin-bottom: 14px; }
+
+  .feats { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .feat { font-size: 12px; color: #D1D5DB; display: flex; align-items: center; gap: 6px; }
+  .ck { font-size: 11px; font-weight: 800; }
+  .tc .ck { color: #3B82F6; }
+  .cc .ck { color: #D4AF37; }
+  .wc .ck { color: #10B981; }
+
+  .card-btn {
+    margin-top: 14px; padding: 10px 0; border-radius: 10px; text-align: center;
+    font-size: 13px; font-weight: 700;
+  }
+  .tc .card-btn { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); color: #60A5FA; }
+  .cc .card-btn { background: rgba(212,175,55,0.08); border: 1px solid rgba(212,175,55,0.18); color: #D4AF37; }
+  .wc .card-btn { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.18); color: #10B981; }
+
+  .motto {
+    position: absolute; bottom: 14px; right: 56px; z-index: 10;
+    font-size: 11px; font-style: italic; color: rgba(212,175,55,0.2);
+    font-family: Georgia, serif;
+  }
+  .motto-left {
+    position: absolute; bottom: 14px; left: 56px; z-index: 10;
+    font-size: 11px; color: rgba(255,255,255,0.15);
+  }
+</style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow-1"></div>
+  <div class="bg-glow-gold"></div>
+  <div class="bg-glow-green"></div>
+
+  <div class="container">
+    <div class="top">
+      <div class="brand">
+        <div class="logo-wrap"><div class="logo-inner"><img src="../../branding/logo-256.png" alt="K"/></div></div>
+        <div class="brand-name">KAIROS 777</div>
+      </div>
+      <div class="url-tag">kairos-777.com</div>
+    </div>
+
+    <div class="title-area">
+      <h1 class="title"><span class="w">Three Products. </span><span class="b">One Vision.</span></h1>
+      <p class="subtitle">The complete decentralized financial ecosystem.</p>
+    </div>
+
+    <div class="cards">
+      <!-- Trade -->
+      <div class="card tc">
+        <div class="card-icon">📈</div>
+        <div class="card-tag">Trading Platform</div>
+        <h3>Kairos Trade</h3>
+        <p>Algorithmic trading with automated bots. Up to 150× leverage on 33+ pairs.</p>
+        <div class="feats">
+          <div class="feat"><span class="ck">✓</span> Automated Trading Bots</div>
+          <div class="feat"><span class="ck">✓</span> Up to 150× Leverage</div>
+          <div class="feat"><span class="ck">✓</span> 33+ Crypto Pairs</div>
+          <div class="feat"><span class="ck">✓</span> 10 Exchange Connections</div>
+          <div class="feat"><span class="ck">✓</span> On-Chain via Arbitrum</div>
+        </div>
+        <div class="card-btn">Launch Trade →</div>
+      </div>
+
+      <!-- Coin -->
+      <div class="card cc">
+        <div class="card-icon">💰</div>
+        <div class="card-tag">Stablecoin</div>
+        <h3>Kairos Coin</h3>
+        <p>USD-pegged stablecoin with 60% lower fees than USDT. 4 blockchains.</p>
+        <div class="feats">
+          <div class="feat"><span class="ck">✓</span> 1 KAIROS = 1 USD</div>
+          <div class="feat"><span class="ck">✓</span> 0.08% Fee (vs 0.20%)</div>
+          <div class="feat"><span class="ck">✓</span> Gasless Approvals</div>
+          <div class="feat"><span class="ck">✓</span> Verified on BscScan</div>
+          <div class="feat"><span class="ck">✓</span> BSC · Base · Arb · Polygon</div>
+        </div>
+        <div class="card-btn">Explore Coin →</div>
+      </div>
+
+      <!-- Wallet -->
+      <div class="card wc">
+        <div class="card-icon">👛</div>
+        <div class="card-tag">Wallet</div>
+        <h3>Kairos Wallet</h3>
+        <p>Non-custodial wallet. 6 blockchains, swaps, NFTs. No extensions needed.</p>
+        <div class="feats">
+          <div class="feat"><span class="ck">✓</span> 6 Blockchains</div>
+          <div class="feat"><span class="ck">✓</span> Built-in Swaps</div>
+          <div class="feat"><span class="ck">✓</span> WalletConnect v2</div>
+          <div class="feat"><span class="ck">✓</span> NFT Gallery</div>
+          <div class="feat"><span class="ck">✓</span> Installable PWA</div>
+        </div>
+        <div class="card-btn">Open Wallet →</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="motto-left">© 2026 Kairos 777 Inc.</div>
+  <div class="motto">"In God We Trust"</div>
+</body>
+</html>

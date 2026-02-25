@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { isAdmin, ADMIN_CONFIG } from '../../constants';
+import { feeService } from '../../services/feeService';
 
 const API_HOST = 'https://kairos-api-u6k5.onrender.com';
 
@@ -29,6 +30,7 @@ export default function KairosTreasury() {
   const { showToast, user, setPage } = useStore();
   const [treasury, setTreasury] = useState(null);
   const [stats, setStats] = useState(null);
+  const [platformFees, setPlatformFees] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
 
@@ -41,6 +43,8 @@ export default function KairosTreasury() {
       ]);
       if (treasuryRes.success) setTreasury(treasuryRes.data);
       if (statsRes.success) setStats(statsRes.data);
+      // Platform trading bot fees (local feeService)
+      setPlatformFees(feeService.getStats());
       setLastUpdate(new Date());
     } catch (err) {
       console.error('Treasury fetch error:', err);
@@ -293,13 +297,59 @@ export default function KairosTreasury() {
         </div>
       )}
 
+      {/* ═══ Platform Bot Trading Fees (feeService) ═══ */}
+      {platformFees && (
+        <div className="bg-gradient-to-br from-green-500/5 to-emerald-600/5 border border-green-500/20 rounded-xl p-4">
+          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+            <Zap size={14} className="text-green-400" />
+            Platform Trading Fees (Bots & Trading)
+            <span className="ml-auto text-[10px] text-green-400/60 font-mono">{platformFees.feeRateDisplay} por operación</span>
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+            <div>
+              <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Total Recaudado</p>
+              <p className="text-lg font-bold text-green-400 font-mono">${fmt(platformFees.totalCollected, 4)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Hoy</p>
+              <p className="text-lg font-bold text-white font-mono">${fmt(platformFees.today.fees, 4)}</p>
+              <p className="text-[10px] text-zinc-500">{platformFees.today.trades} trades • Vol: {fmtK(platformFees.today.volume)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Últimos 7 Días</p>
+              <p className="text-lg font-bold text-white font-mono">${fmt(platformFees.last7days.fees, 4)}</p>
+              <p className="text-[10px] text-zinc-500">{platformFees.last7days.trades} trades</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Últimos 30 Días</p>
+              <p className="text-lg font-bold text-white font-mono">${fmt(platformFees.last30days.fees, 4)}</p>
+              <p className="text-[10px] text-zinc-500">{platformFees.last30days.trades} trades</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] text-zinc-500">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/10 text-green-400">
+              <Activity size={10} /> {platformFees.totalTrades} trades totales
+            </span>
+            {platformFees.pendingSync > 0 && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400">
+                <RefreshCw size={10} /> ${fmt(platformFees.pendingSync, 4)} pendiente de sync
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Fee Structure Info */}
       <div className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-4">
         <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
           <Percent size={14} className="text-[var(--gold)]" />
           Estructura de Comisiones — Kairos 777 Inc
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+          <div className="bg-zinc-800/50 rounded-lg p-3">
+            <p className="text-green-400 font-bold mb-1">Platform Fee: 0.05%</p>
+            <p className="text-zinc-500">Se cobra al abrir y cerrar trades en bots, simulador, grid, DCA y trading manual. Invisible para el usuario.</p>
+          </div>
           <div className="bg-zinc-800/50 rounded-lg p-3">
             <p className="text-blue-400 font-bold mb-1">Open Fee: 0.10%</p>
             <p className="text-zinc-500">Se cobra al abrir una posición apalancada. Calculado sobre el tamaño total (collateral × leverage).</p>
