@@ -216,3 +216,8 @@ export const STORAGE_KEYS = {
   ORDERS: 'kairos_trade_orders',
   TRADE_HISTORY: 'kairos_trade_history',
 };
+
+// Per-user storage keys — isolates data between accounts
+export const USER_SCOPED_KEYS = ['BROKERS', 'BOTS', 'SETTINGS', 'STRATEGIES', 'POSITIONS', 'ORDERS', 'TRADE_HISTORY'];
+
+export const getUserKey = (baseKey, userId) => userId ? `${baseKey}_u_${userId}` : baseKey;

@@ -1,6 +1,6 @@
 // Kairos Trade — Zustand Store
 import { create } from 'zustand';
-import { STORAGE_KEYS, ADMIN_CONFIG } from '../constants';
+import { STORAGE_KEYS, ADMIN_CONFIG, USER_SCOPED_KEYS, getUserKey } from '../constants';
 
 const loadJSON = (key, fallback) => {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; }
@@ -8,6 +8,38 @@ const loadJSON = (key, fallback) => {
 };
 
 const saveJSON = (key, data) => localStorage.setItem(key, JSON.stringify(data));
+
+// ── Per-user scoped load/save ──
+const loadUserJSON = (baseKey, userId, fallback) => loadJSON(getUserKey(baseKey, userId), fallback);
+const saveUserJSON = (baseKey, userId, data) => saveJSON(getUserKey(baseKey, userId), data);
+
+// ── Migrate legacy (non-scoped) data to a specific user ──
+const migrateToUser = (userId) => {
+  if (!userId) return;
+  const migrated = localStorage.getItem('kairos_migrated_' + userId);
+  if (migrated) return; // already migrated
+
+  USER_SCOPED_KEYS.forEach((keyName) => {
+    const baseKey = STORAGE_KEYS[keyName];
+    const userKey = getUserKey(baseKey, userId);
+    const legacyData = localStorage.getItem(baseKey);
+    const userData = localStorage.getItem(userKey);
+
+    // Only migrate if user doesn't have data yet AND legacy data exists
+    if (!userData && legacyData) {
+      localStorage.setItem(userKey, legacyData);
+    }
+  });
+
+  localStorage.setItem('kairos_migrated_' + userId, '1');
+};
+
+// ── Clear legacy (non-scoped) keys so other users start fresh ──
+const clearLegacyKeys = () => {
+  USER_SCOPED_KEYS.forEach((keyName) => {
+    localStorage.removeItem(STORAGE_KEYS[keyName]);
+  });
+};
 
 // ── Auto-detect admin on page load and upgrade stored user ──
 const autoUpgradeAdmin = (user) => {
@@ -26,6 +58,13 @@ const autoUpgradeAdmin = (user) => {
 };
 
 const initialUser = autoUpgradeAdmin(loadJSON(STORAGE_KEYS.AUTH, null));
+const uid = initialUser?.id || null;
+
+// If user is logged in, ensure migration happened
+if (uid) {
+  migrateToUser(uid);
+  clearLegacyKeys();
+}
 
 const useStore = create((set, get) => ({
   // ─── Auth ───
@@ -34,7 +73,26 @@ const useStore = create((set, get) => ({
 
   login: (userData) => {
     saveJSON(STORAGE_KEYS.AUTH, userData);
-    set({ user: userData, isAuthenticated: true });
+    // Migrate legacy data to this user, then clear legacy
+    if (userData?.id) {
+      migrateToUser(userData.id);
+      clearLegacyKeys();
+    }
+    const userId = userData?.id || null;
+    set({
+      user: userData,
+      isAuthenticated: true,
+      brokers: loadUserJSON(STORAGE_KEYS.BROKERS, userId, []),
+      bots: loadUserJSON(STORAGE_KEYS.BOTS, userId, []),
+      positions: loadUserJSON(STORAGE_KEYS.POSITIONS, userId, []),
+      orders: loadUserJSON(STORAGE_KEYS.ORDERS, userId, []),
+      tradeHistory: loadUserJSON(STORAGE_KEYS.TRADE_HISTORY, userId, []),
+      strategies: loadUserJSON(STORAGE_KEYS.STRATEGIES, userId, []),
+      settings: loadUserJSON(STORAGE_KEYS.SETTINGS, userId, {
+        theme: 'dark', language: 'es', notifications: true, soundAlerts: true,
+        maxRiskPerTrade: 2, defaultLeverage: 1,
+      }),
+    });
   },
   logout: async () => {
     const user = get().user;
@@ -48,15 +106,22 @@ const useStore = create((set, get) => ({
       } catch (e) { /* ignore — just clearing local state */ }
     }
     localStorage.removeItem(STORAGE_KEYS.AUTH);
-    set({ user: null, isAuthenticated: false });
+    // Don't remove user-scoped data — it stays for when they log back in
+    set({
+      user: null, isAuthenticated: false,
+      brokers: [], bots: [], positions: [], orders: [], tradeHistory: [], strategies: [],
+    });
   },
+
+  // Helper to get current userId for storage
+  _uid: () => get().user?.id || null,
 
   // ─── Navigation ───
   currentPage: 'dashboard',
   setPage: (page) => set({ currentPage: page }),
 
   // ─── Brokers ───
-  brokers: loadJSON(STORAGE_KEYS.BROKERS, []),
+  brokers: loadUserJSON(STORAGE_KEYS.BROKERS, uid, []),
   activeBroker: null,
 
   addBroker: (broker) => {
@@ -70,14 +135,14 @@ const useStore = create((set, get) => ({
       addedAt: new Date().toISOString(),
     };
     const updated = [...get().brokers, encrypted];
-    saveJSON(STORAGE_KEYS.BROKERS, updated);
+    saveUserJSON(STORAGE_KEYS.BROKERS, get()._uid(), updated);
     set({ brokers: updated });
     return encrypted;
   },
 
   removeBroker: (id) => {
     const updated = get().brokers.filter(b => b.id !== id);
-    saveJSON(STORAGE_KEYS.BROKERS, updated);
+    saveUserJSON(STORAGE_KEYS.BROKERS, get()._uid(), updated);
     set({ brokers: updated, activeBroker: get().activeBroker?.id === id ? null : get().activeBroker });
   },
 
@@ -85,12 +150,12 @@ const useStore = create((set, get) => ({
 
   updateBrokerStatus: (id, connected) => {
     const updated = get().brokers.map(b => b.id === id ? { ...b, connected } : b);
-    saveJSON(STORAGE_KEYS.BROKERS, updated);
+    saveUserJSON(STORAGE_KEYS.BROKERS, get()._uid(), updated);
     set({ brokers: updated });
   },
 
   // ─── Bots ───
-  bots: loadJSON(STORAGE_KEYS.BOTS, []),
+  bots: loadUserJSON(STORAGE_KEYS.BOTS, uid, []),
 
   addBot: (bot) => {
     const newBot = {
@@ -103,20 +168,20 @@ const useStore = create((set, get) => ({
       createdAt: new Date().toISOString(),
     };
     const updated = [...get().bots, newBot];
-    saveJSON(STORAGE_KEYS.BOTS, updated);
+    saveUserJSON(STORAGE_KEYS.BOTS, get()._uid(), updated);
     set({ bots: updated });
     return newBot;
   },
 
   updateBot: (id, updates) => {
     const updated = get().bots.map(b => b.id === id ? { ...b, ...updates } : b);
-    saveJSON(STORAGE_KEYS.BOTS, updated);
+    saveUserJSON(STORAGE_KEYS.BOTS, get()._uid(), updated);
     set({ bots: updated });
   },
 
   removeBot: (id) => {
     const updated = get().bots.filter(b => b.id !== id);
-    saveJSON(STORAGE_KEYS.BOTS, updated);
+    saveUserJSON(STORAGE_KEYS.BOTS, get()._uid(), updated);
     set({ bots: updated });
   },
 
@@ -126,9 +191,9 @@ const useStore = create((set, get) => ({
   currentPrice: null,
   priceChange24h: null,
   orderBook: { bids: [], asks: [] },
-  positions: loadJSON(STORAGE_KEYS.POSITIONS, []),
-  orders: loadJSON(STORAGE_KEYS.ORDERS, []),
-  tradeHistory: loadJSON(STORAGE_KEYS.TRADE_HISTORY, []),
+  positions: loadUserJSON(STORAGE_KEYS.POSITIONS, uid, []),
+  orders: loadUserJSON(STORAGE_KEYS.ORDERS, uid, []),
+  tradeHistory: loadUserJSON(STORAGE_KEYS.TRADE_HISTORY, uid, []),
 
   setSelectedPair: (pair) => set({ selectedPair: pair }),
   setSelectedTimeframe: (tf) => set({ selectedTimeframe: tf }),
@@ -138,7 +203,7 @@ const useStore = create((set, get) => ({
 
   addPosition: (pos) => {
     const updated = [...get().positions, { ...pos, id: Date.now().toString(36) }];
-    saveJSON(STORAGE_KEYS.POSITIONS, updated);
+    saveUserJSON(STORAGE_KEYS.POSITIONS, get()._uid(), updated);
     set({ positions: updated });
   },
   closePosition: (id) => {
@@ -151,25 +216,26 @@ const useStore = create((set, get) => ({
       const closedTrade = { ...pos, closedAt: new Date().toISOString(), exitPrice: price, pnl };
       const updatedPositions = get().positions.filter(p => p.id !== id);
       const updatedHistory = [...get().tradeHistory, closedTrade];
-      saveJSON(STORAGE_KEYS.POSITIONS, updatedPositions);
-      saveJSON(STORAGE_KEYS.TRADE_HISTORY, updatedHistory);
+      const userId = get()._uid();
+      saveUserJSON(STORAGE_KEYS.POSITIONS, userId, updatedPositions);
+      saveUserJSON(STORAGE_KEYS.TRADE_HISTORY, userId, updatedHistory);
       set({ positions: updatedPositions, tradeHistory: updatedHistory });
     }
   },
 
   addOrder: (order) => {
     const updated = [...get().orders, { ...order, id: Date.now().toString(36) }];
-    saveJSON(STORAGE_KEYS.ORDERS, updated);
+    saveUserJSON(STORAGE_KEYS.ORDERS, get()._uid(), updated);
     set({ orders: updated });
   },
   cancelOrder: (id) => {
     const updated = get().orders.filter(o => o.id !== id);
-    saveJSON(STORAGE_KEYS.ORDERS, updated);
+    saveUserJSON(STORAGE_KEYS.ORDERS, get()._uid(), updated);
     set({ orders: updated });
   },
 
   // ─── Strategies ───
-  strategies: loadJSON(STORAGE_KEYS.STRATEGIES, []),
+  strategies: loadUserJSON(STORAGE_KEYS.STRATEGIES, uid, []),
 
   seedDefaultStrategies: () => {
     const FACTORY_VERSION = 3; // bump to force refresh
@@ -375,21 +441,21 @@ if (go === "sell") {
     ];
 
     const updated = [...userOnly, ...defaults];
-    saveJSON(STORAGE_KEYS.STRATEGIES, updated);
+    saveUserJSON(STORAGE_KEYS.STRATEGIES, get()._uid(), updated);
     set({ strategies: updated });
   },
 
   addStrategy: (strategy) => {
     const newStrat = { ...strategy, id: Date.now().toString(36), createdAt: new Date().toISOString() };
     const updated = [...get().strategies, newStrat];
-    saveJSON(STORAGE_KEYS.STRATEGIES, updated);
+    saveUserJSON(STORAGE_KEYS.STRATEGIES, get()._uid(), updated);
     set({ strategies: updated });
     return newStrat;
   },
 
   removeStrategy: (id) => {
     const updated = get().strategies.filter(s => s.id !== id);
-    saveJSON(STORAGE_KEYS.STRATEGIES, updated);
+    saveUserJSON(STORAGE_KEYS.STRATEGIES, get()._uid(), updated);
     set({ strategies: updated });
   },
 
@@ -402,7 +468,7 @@ if (go === "sell") {
   clearAiMessages: () => set({ aiMessages: [] }),
 
   // ─── Settings ───
-  settings: loadJSON(STORAGE_KEYS.SETTINGS, {
+  settings: loadUserJSON(STORAGE_KEYS.SETTINGS, uid, {
     theme: 'dark',
     language: 'es',
     notifications: true,
@@ -413,7 +479,7 @@ if (go === "sell") {
 
   updateSettings: (updates) => {
     const updated = { ...get().settings, ...updates };
-    saveJSON(STORAGE_KEYS.SETTINGS, updated);
+    saveUserJSON(STORAGE_KEYS.SETTINGS, get()._uid(), updated);
     set({ settings: updated });
   },
 
