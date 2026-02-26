@@ -2,11 +2,16 @@
 //  KAIROS WALLET — App Root
 // ═══════════════════════════════════════════════════════
 
-import React, { useEffect } from 'react';
+import React, { useEffect, Suspense, lazy } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from './store/useStore';
 import { hasWallet } from './services/wallet';
 import { startInactivityTimer, stopInactivityTimer } from './services/autolock';
+import ErrorBoundary from './components/Common/ErrorBoundary';
+import Toast from './components/Common/Toast';
+import { initPushListeners } from './services/pushNotifications';
+
+// ── Core screens (loaded eagerly — critical path) ──
 import Welcome from './components/Welcome/Welcome';
 import CreateWallet from './components/Create/CreateWallet';
 import ImportWallet from './components/Import/ImportWallet';
@@ -14,33 +19,32 @@ import UnlockScreen from './components/Common/UnlockScreen';
 import Dashboard from './components/Dashboard/Dashboard';
 import SendScreen from './components/Send/SendScreen';
 import ReceiveScreen from './components/Receive/ReceiveScreen';
-import HistoryScreen from './components/History/HistoryScreen';
-import SettingsScreen from './components/Settings/SettingsScreen';
-import TokenListScreen from './components/TokenList/TokenListScreen';
-import SwapScreen from './components/Swap/SwapScreen';
-import ContactsScreen from './components/Contacts/ContactsScreen';
-import TokenDetailScreen from './components/TokenDetail/TokenDetailScreen';
-import WalletConnectScreen from './components/WalletConnect/WalletConnectScreen';
-import NFTScreen from './components/NFT/NFTScreen';
-import DAppBrowserScreen from './components/DAppBrowser/DAppBrowserScreen';
-import BuyCryptoScreen from './components/Buy/BuyCryptoScreen';
-import BridgeScreen from './components/Bridge/BridgeScreen';
-import NetworksScreen from './components/Settings/NetworksScreen';
-import ApprovalsScreen from './components/Security/ApprovalsScreen';
-import PendingTxScreen from './components/History/PendingTxScreen';
-import StakingScreen from './components/Staking/StakingScreen';
-import VaultScreen from './components/Vault/VaultScreen';
-import GasTrackerScreen from './components/Gas/GasTrackerScreen';
-import TxDetailScreen from './components/History/TxDetailScreen';
-import TokenSecurityScreen from './components/Security/TokenSecurityScreen';
-import AlertsScreen from './components/Alerts/AlertsScreen';
-import MultiSendScreen from './components/Send/MultiSendScreen';
-import PortfolioAllocation from './components/Dashboard/PortfolioAllocation';
-import NotificationCenter from './components/Common/NotificationCenter';
-import RPCHealthScreen from './components/Settings/RPCHealthScreen';
-import ErrorBoundary from './components/Common/ErrorBoundary';
-import Toast from './components/Common/Toast';
-import { initPushListeners } from './services/pushNotifications';
+
+// ── Secondary screens (lazy loaded — code split) ──
+const HistoryScreen = lazy(() => import('./components/History/HistoryScreen'));
+const SettingsScreen = lazy(() => import('./components/Settings/SettingsScreen'));
+const TokenListScreen = lazy(() => import('./components/TokenList/TokenListScreen'));
+const SwapScreen = lazy(() => import('./components/Swap/SwapScreen'));
+const ContactsScreen = lazy(() => import('./components/Contacts/ContactsScreen'));
+const TokenDetailScreen = lazy(() => import('./components/TokenDetail/TokenDetailScreen'));
+const WalletConnectScreen = lazy(() => import('./components/WalletConnect/WalletConnectScreen'));
+const NFTScreen = lazy(() => import('./components/NFT/NFTScreen'));
+const DAppBrowserScreen = lazy(() => import('./components/DAppBrowser/DAppBrowserScreen'));
+const BuyCryptoScreen = lazy(() => import('./components/Buy/BuyCryptoScreen'));
+const BridgeScreen = lazy(() => import('./components/Bridge/BridgeScreen'));
+const NetworksScreen = lazy(() => import('./components/Settings/NetworksScreen'));
+const ApprovalsScreen = lazy(() => import('./components/Security/ApprovalsScreen'));
+const PendingTxScreen = lazy(() => import('./components/History/PendingTxScreen'));
+const StakingScreen = lazy(() => import('./components/Staking/StakingScreen'));
+const VaultScreen = lazy(() => import('./components/Vault/VaultScreen'));
+const GasTrackerScreen = lazy(() => import('./components/Gas/GasTrackerScreen'));
+const TxDetailScreen = lazy(() => import('./components/History/TxDetailScreen'));
+const TokenSecurityScreen = lazy(() => import('./components/Security/TokenSecurityScreen'));
+const AlertsScreen = lazy(() => import('./components/Alerts/AlertsScreen'));
+const MultiSendScreen = lazy(() => import('./components/Send/MultiSendScreen'));
+const PortfolioAllocation = lazy(() => import('./components/Dashboard/PortfolioAllocation'));
+const NotificationCenter = lazy(() => import('./components/Common/NotificationCenter'));
+const RPCHealthScreen = lazy(() => import('./components/Settings/RPCHealthScreen'));
 
 const pageVariants = {
   initial: { opacity: 0, x: 20 },
@@ -195,7 +199,9 @@ export default function App() {
           transition={pageTransition}
           className="h-full w-full relative z-10"
         >
-          {renderScreen()}
+          <Suspense fallback={<LoadingScreen />}>
+            {renderScreen()}
+          </Suspense>
         </motion.div>
       </AnimatePresence>
 

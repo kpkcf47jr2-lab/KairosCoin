@@ -15,7 +15,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom'],
+          vendor: ['react', 'react-dom', 'zustand'],
           crypto: ['ethers'],
           ui: ['framer-motion', 'lucide-react'],
           walletconnect: ['@walletconnect/web3wallet', '@walletconnect/utils']
