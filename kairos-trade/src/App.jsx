@@ -54,10 +54,9 @@ function PageLoader() {
 }
 
 // Sub-component: Trading view with chart/depth toggle + orders panel
-import { useState as useStateTrade } from 'react';
 function TradingView() {
-  const [chartTab, setChartTab] = useStateTrade('chart');
-  const [showPanel, setShowPanel] = useStateTrade(true);
+  const [chartTab, setChartTab] = useState('chart');
+  const [showPanel, setShowPanel] = useState(true);
   const { selectedPair } = useStore();
   return (
     <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
@@ -207,7 +206,7 @@ function App() {
       case 'kairos-broker': return <KairosBroker />;
       case 'kairos-vault': return <KairosVault />;
       case 'kairos-treasury': {
-        if (!isAdmin(user)) { setPage('dashboard'); return <Dashboard />; }
+        if (!isAdmin(user)) return <Dashboard />;
         return <KairosTreasury />;
       }
       case 'buy-kairos': return <BuyKairos />;
@@ -219,6 +218,13 @@ function App() {
 
   // Close mobile menu on page change
   useEffect(() => { setMobileMenuOpen(false); }, [currentPage]);
+
+  // Guard treasury page — redirect non-admins
+  useEffect(() => {
+    if (currentPage === 'kairos-treasury' && !isAdmin(user)) {
+      setPage('dashboard');
+    }
+  }, [currentPage, user, setPage]);
 
   return (
     <div className="flex h-screen bg-[var(--dark)] overflow-hidden">

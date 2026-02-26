@@ -1752,7 +1752,7 @@
         `&productsAvailed=BUY` +
         `&themeColor=D4AF37` +
         `&hideMenu=true` +
-        (walletAddr ? `&walletAddress=${walletAddr}` : '') +
+        (walletAddr ? `&walletAddress=${encodeURIComponent(walletAddr)}` : '') +
         `&redirectURL=${encodeURIComponent(window.location.href)}`;
 
       wrap.innerHTML = `<iframe src="${transakUrl}" allow="camera;microphone;fullscreen;payment" style="width:100%;height:600px;border:none;border-radius:12px;"></iframe>`;
@@ -1761,7 +1761,7 @@
     function openMoonPay() {
       const walletAddr = userAddress || '';
       const url = `https://www.moonpay.com/buy/usdt_bsc` +
-        (walletAddr ? `?walletAddress=${walletAddr}` : '');
+        (walletAddr ? `?walletAddress=${encodeURIComponent(walletAddr)}` : '');
       window.open(url, '_blank', 'width=500,height=700,scrollbars=yes');
     }
 
@@ -1769,7 +1769,7 @@
       const walletAddr = userAddress || '';
       const url = `https://changelly.com/buy/usdt` +
         `?from=usd&to=usdt` +
-        (walletAddr ? `&address=${walletAddr}` : '');
+        (walletAddr ? `&address=${encodeURIComponent(walletAddr)}` : '');
       window.open(url, '_blank', 'width=500,height=700,scrollbars=yes');
     }
 
@@ -2081,6 +2081,12 @@
     }
 
     // ── TX Modal ───────────────────────────────────────────────
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = String(str);
+      return div.innerHTML;
+    }
+
     function showTxModal(state, title, message, hash) {
       const overlay = document.getElementById('txOverlay');
       const modal = document.getElementById('txModal');
@@ -2094,13 +2100,14 @@
 
       let hashHtml = '';
       if (hash) {
+        const safeHash = escapeHtml(hash);
         hashHtml = `
           <div class="tx-hash" style="margin-top: 12px;">
-            <a href="https://bscscan.com/tx/${hash}" target="_blank" style="color: var(--gold);">
+            <a href="https://bscscan.com/tx/${safeHash}" target="_blank" rel="noopener noreferrer" style="color: var(--gold);">
               View on BscScan →
             </a>
             <div style="margin-top: 6px; font-size: 0.72rem; color: var(--gray); word-break: break-all;">
-              ${hash}
+              ${safeHash}
             </div>
           </div>
         `;
@@ -2108,8 +2115,8 @@
 
       modal.innerHTML = `
         ${icon}
-        <h3>${title}</h3>
-        <p>${message}</p>
+        <h3>${escapeHtml(title)}</h3>
+        <p>${escapeHtml(message)}</p>
         ${hashHtml}
         ${state !== 'pending' ? '<button class="close-modal" onclick="closeTxModal()">Close</button>' : ''}
       `;

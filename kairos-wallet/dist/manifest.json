@@ -1,8 +1,10 @@
 {
+  "id": "/",
   "name": "Kairos Wallet",
   "short_name": "Kairos",
   "description": "Wallet descentralizada multi-chain. Segura, rápida, hermosa.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#05050f",
   "theme_color": "#0a0a0f",
@@ -23,6 +25,12 @@
       "src": "/icons/logo-128.png",
       "sizes": "128x128",
       "type": "image/png"
+    },
+    {
+      "src": "/icons/logo-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icons/logo-192.png",

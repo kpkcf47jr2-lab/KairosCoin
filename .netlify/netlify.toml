@@ -1,4 +1,5 @@
 plugins = []
+redirects = []
 
 [functions]
 
@@ -28,20 +29,22 @@ for = "/*"
 [headers.values]
 X-Frame-Options = "DENY"
 X-Content-Type-Options = "nosniff"
-X-XSS-Protection = "1; mode=block"
+X-XSS-Protection = "0"
 Referrer-Policy = "strict-origin-when-cross-origin"
-Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
-Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
-Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://kairos-api-u6k5.onrender.com https://api.binance.com https://api.coingecko.com wss://stream.binance.com:9443 wss://stream.binance.us:9443;"
+Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(self \\\"https://global.transak.com\\\" \\\"https://checkout.stripe.com\\\")"
+Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.ethers.io https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://kairos-api-u6k5.onrender.com https://api.binance.com https://bsc-dataseed1.binance.org https://global.transak.com; frame-src 'self' https://global.transak.com https://checkout.stripe.com;"
 
-[[redirects]]
-from = "/*"
-to = "/index.html"
-status = 200.0
-force = false
+[[headers]]
+for = "/total-supply.txt"
 
-[redirects.query]
+[headers.values]
+Content-Type = "text/plain"
+Access-Control-Allow-Origin = "*"
 
-[redirects.conditions]
+[[headers]]
+for = "/circulating-supply.txt"
 
-[redirects.headers]
+[headers.values]
+Content-Type = "text/plain"
+Access-Control-Allow-Origin = "*"

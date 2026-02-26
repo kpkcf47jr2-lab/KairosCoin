@@ -42,15 +42,23 @@ function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   const apiKey = req.headers['x-api-key'];
 
-  if (apiKey === config.masterApiKey) {
+  if (apiKey && apiKey === config.apiMasterKey) {
     req.isAdmin = true;
     return next();
   }
 
   if (authHeader?.startsWith('Bearer ')) {
-    // Simple token validation — accept any valid JWT from our auth system
-    req.isAdmin = false;
-    return next();
+    const token = authHeader.slice(7);
+    // Validate JWT via our auth system
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(token, config.apiMasterKey);
+      req.user = decoded;
+      req.isAdmin = decoded.role === 'admin';
+      return next();
+    } catch {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
   }
 
   return res.status(401).json({ error: 'Unauthorized' });

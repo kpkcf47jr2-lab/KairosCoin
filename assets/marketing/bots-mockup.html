@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kairos Trade — Bot Manager (Marketing)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--gold:#3B82F6;--dk:#08090C;--sf:#0E1015;--sf2:#14161C;--brd:#1A1D26;--grn:#00DC82;--red:#FF4757;--txt:#F0F0F0;--dim:#6B7080}
+body{font-family:'Inter',sans-serif;background:#111;color:var(--txt)}
+.app{width:1920px;height:1080px;display:flex;background:var(--dk);overflow:hidden}
+
+/* Sidebar */
+.sb{width:272px;flex-shrink:0;background:linear-gradient(180deg,#0E1015,#08090C);border-right:1px solid var(--brd);display:flex;flex-direction:column}
+.sb-logo{display:flex;align-items:center;gap:12px;padding:16px 22px;height:60px;border-bottom:1px solid rgba(30,34,45,.6)}
+.sb-logo-i{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#3B82F6,#2563EB);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;box-shadow:0 0 20px rgba(59,130,246,.25)}
+.sb-logo-t{font-size:15px;font-weight:800;letter-spacing:2px}
+.sb-logo-s{font-size:9px;font-weight:700;color:var(--gold);letter-spacing:3px}
+.sb-u{margin:12px 16px 6px;padding:11px;border-radius:10px;background:linear-gradient(135deg,rgba(59,130,246,.04),rgba(26,29,38,.5));border:1px solid rgba(59,130,246,.06);display:flex;align-items:center;gap:10px}
+.sb-av{width:32px;height:32px;border-radius:8px;background:var(--sf2);display:flex;align-items:center;justify-content:center;font-size:12px}
+.sb-nm{font-size:12px;font-weight:600}.sb-pl{font-size:8px;font-weight:700;letter-spacing:1px;display:flex;align-items:center;gap:3px}
+.sb-nav{flex:1;padding:8px 16px;overflow:hidden}
+.sc{margin-top:14px}.sc:first-child{margin-top:0}
+.sc-lb{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.sc-lb::after{content:'';flex:1;height:1px;background:var(--brd)}
+.sc-lb.k{color:rgba(96,165,250,.8)}.sc-lb.k::after{background:rgba(59,130,246,.2)}
+.ni{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:9px;font-size:12px;font-weight:500;color:var(--dim)}
+.ni.act{color:#fff;font-weight:700;background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(59,130,246,.02));border:1px solid rgba(59,130,246,.1);position:relative}
+.ni.act::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:18px;border-radius:0 4px 4px 0;background:linear-gradient(180deg,#60A5FA,#3B82F6)}
+.ni.k{color:rgba(147,197,253,.8)}
+.ni-i{font-size:14px;width:16px;text-align:center}
+.ni-d{font-size:9px;color:rgba(107,112,128,.5)}
+.ni-b{margin-left:auto;font-size:8px;font-weight:700;background:rgba(59,130,246,.12);color:var(--gold);padding:2px 6px;border-radius:100px}
+.sb-bt{padding:8px 16px;border-top:1px solid rgba(30,34,45,.6)}
+
+/* Main */
+.mn{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.hd2{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid rgba(26,29,38,.6);background:linear-gradient(180deg,rgba(14,16,21,.95),rgba(8,9,12,.95))}
+.hd-l{display:flex;align-items:center;gap:9px}
+.hd-pi{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(59,130,246,.04));border:1px solid rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--gold)}
+.hd-p{font-size:12px;font-weight:700}.hd-t{font-size:7px;color:var(--dim)}
+.hd-pr{font-size:14px;font-weight:700;font-family:monospace}
+.hd-ch{font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;color:var(--grn);background:rgba(0,220,130,.08);border:1px solid rgba(0,220,130,.12)}
+.hd-r{display:flex;align-items:center;gap:7px}
+.hd-bg{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:600;padding:4px 10px;border-radius:6px}
+.hd-cn{color:var(--grn);background:rgba(0,220,130,.06);border:1px solid rgba(0,220,130,.1)}
+.hd-dt{width:5px;height:5px;border-radius:50%;background:var(--grn);box-shadow:0 0 6px var(--grn)}
+.hd-ln{color:var(--dim);background:rgba(255,255,255,.02);border:1px solid rgba(26,29,38,.5)}
+.hd-ai{color:var(--gold);background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.15);font-weight:700}
+.hd-bl{width:32px;height:32px;border-radius:6px;background:rgba(255,255,255,.02);border:1px solid rgba(26,29,38,.5);display:flex;align-items:center;justify-content:center;font-size:12px;position:relative}
+.hd-bd{position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--gold)}
+
+/* Content */
+.ds{flex:1;overflow-y:auto;padding:18px}
+
+/* Summary KPIs */
+.sk{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.skc{padding:14px 16px;border-radius:10px;background:var(--sf);border:1px solid var(--brd);position:relative;overflow:hidden}
+.skc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.skc.g::before{background:linear-gradient(90deg,var(--grn),transparent)}
+.skc.b::before{background:linear-gradient(90deg,var(--gold),transparent)}
+.skc.p::before{background:linear-gradient(90deg,#A855F7,transparent)}
+.skc.y::before{background:linear-gradient(90deg,#D4AF37,transparent)}
+.skc.c::before{background:linear-gradient(90deg,#22D3EE,transparent)}
+.sk-l{font-size:10px;color:var(--dim);font-weight:600;margin-bottom:4px}
+.sk-v{font-size:22px;font-weight:800}
+.sk-s{font-size:9px;font-weight:600;margin-top:2px}
+
+/* Bot cards */
+.bg2{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.bc2{padding:20px;border-radius:14px;background:var(--sf);border:1px solid var(--brd);position:relative;overflow:hidden}
+
+/* Bot header */
+.bh2{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.bl2{display:flex;align-items:center;gap:12px}
+.bi2{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px}
+.bi2.grn{background:rgba(0,220,130,.1);color:var(--grn)}
+.bi2.blu{background:rgba(59,130,246,.1);color:var(--gold)}
+.bi2.pur{background:rgba(168,85,247,.1);color:#A855F7}
+.bi2.cyn{background:rgba(34,211,238,.1);color:#22D3EE}
+.bn2{font-size:15px;font-weight:800}
+.bp2{font-size:10px;color:var(--dim);margin-top:1px}
+.bt2{display:flex;align-items:center;gap:6px}
+.btype{font-size:8px;font-weight:700;padding:3px 8px;border-radius:100px;letter-spacing:.5px}
+.btype.sig{color:#60A5FA;background:rgba(59,130,246,.1)}
+.btype.grid{color:var(--grn);background:rgba(0,220,130,.1)}
+.btype.scr{color:#A855F7;background:rgba(168,85,247,.1)}
+.btype.dca{color:#22D3EE;background:rgba(34,211,238,.1)}
+.bstat{font-size:8px;font-weight:700;padding:3px 8px;border-radius:100px;color:var(--grn);background:rgba(0,220,130,.1);display:flex;align-items:center;gap:3px}
+.bstat-d{width:5px;height:5px;border-radius:50%;background:var(--grn);animation:pu 1.5s infinite}
+@keyframes pu{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* Bot broker */
+.bb{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:7px;background:rgba(255,255,255,.02);border:1px solid rgba(26,29,38,.4);margin-bottom:14px;font-size:10px;color:var(--dim)}
+.bb-n{font-weight:600;color:var(--txt)}
+
+/* Bot stats grid */
+.bsg2{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.bs2{padding:10px;border-radius:8px;background:rgba(255,255,255,.02);border:1px solid rgba(26,29,38,.3)}
+.bs2-l{font-size:8px;color:var(--dim);font-weight:600}
+.bs2-v{font-size:18px;font-weight:800;margin-top:2px}
+
+/* Live P&L bar */
+.blv2{padding:12px 14px;border-radius:10px;background:rgba(0,220,130,.04);border:1px solid rgba(0,220,130,.1);display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.blv2-l{font-size:10px;color:var(--dim);display:flex;align-items:center;gap:4px}
+.blv2-v{font-size:20px;font-weight:900;color:var(--grn)}
+.blv2-p{font-size:12px;font-weight:700;color:var(--grn)}
+
+/* Sparkline */
+.spk{width:100%;height:44px}
+
+/* Action buttons */
+.bact{display:flex;gap:6px;margin-top:10px}
+.bact-btn{flex:1;padding:8px;border-radius:8px;font-size:10px;font-weight:700;text-align:center;cursor:pointer;border:none}
+.bact-pause{background:rgba(212,175,55,.1);color:#D4AF37;border:1px solid rgba(212,175,55,.15)}
+.bact-chart{background:rgba(59,130,246,.1);color:var(--gold);border:1px solid rgba(59,130,246,.15)}
+.bact-stop{background:rgba(255,71,87,.06);color:var(--red);border:1px solid rgba(255,71,87,.1)}
+</style>
+</head>
+<body>
+
+<div class="app">
+<!-- SIDEBAR -->
+<div class="sb">
+  <div class="sb-logo"><div class="sb-logo-i">K</div><div><div class="sb-logo-t">KAIROS</div><div class="sb-logo-s">TRADE</div></div></div>
+  <div class="sb-u"><div class="sb-av">👤</div><div><div class="sb-nm">Carlos Martinez</div><div class="sb-pl"><span style="color:#D4AF37">👑 FREE PLAN</span></div></div></div>
+  <div class="sb-nav">
+    <div class="sc"><div class="sc-lb k">Kairos</div><div class="ni k"><span class="ni-i">📈</span><div>Kairos Broker</div></div><div class="ni k"><span class="ni-i">🏦</span><div>Kairos Vault</div></div><div class="ni k"><span class="ni-i">💳</span><div>Comprar KAIROS</div></div></div>
+    <div class="sc"><div class="sc-lb">Principal</div><div class="ni"><span class="ni-i">📊</span><div>Dashboard</div></div><div class="ni"><span class="ni-i">📉</span><div>Trading</div></div><div class="ni"><span class="ni-i">🎯</span><div>Multi-Chart</div></div><div class="ni"><span class="ni-i">🔥</span><div>Heatmap</div></div></div>
+    <div class="sc"><div class="sc-lb">Automatización</div><div class="ni act"><span class="ni-i">🤖</span><div>Bots<div class="ni-d">Gestión de bots</div></div><span class="ni-b">6</span></div><div class="ni"><span class="ni-i">⚡</span>Estrategias</div><div class="ni"><span class="ni-i">✨</span>Kairos AI</div></div>
+    <div class="sc"><div class="sc-lb">Analytics</div><div class="ni"><span class="ni-i">📊</span>Portfolio</div><div class="ni"><span class="ni-i">📖</span>Journal</div></div>
+  </div>
+  <div class="sb-bt"><div class="ni"><span class="ni-i">💼</span>Wallet</div><div class="ni"><span class="ni-i">⚙️</span>Ajustes</div></div>
+</div>
+
+<!-- MAIN -->
+<div class="mn">
+  <div class="hd2">
+    <div class="hd-l">
+      <div class="hd-pi">BTC</div>
+      <div><div class="hd-p">BTC / USDT</div><div class="hd-t">Spot</div></div>
+      <div style="width:1px;height:22px;background:var(--brd)"></div>
+      <div class="hd-pr">$97,234.50</div>
+      <div class="hd-ch">▲ +4.28%</div>
+    </div>
+    <div class="hd-r">
+      <div class="hd-bg hd-cn"><div class="hd-dt"></div> Binance</div>
+      <div class="hd-bg hd-ln">🌐 ES</div>
+      <div class="hd-bg hd-ai">🧠 AI</div>
+      <div class="hd-bl">🔔<div class="hd-bd"></div></div>
+    </div>
+  </div>
+
+  <div class="ds">
+    <!-- Title -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px">🤖 Bot Manager
+        <span style="font-size:10px;font-weight:700;color:var(--grn);background:rgba(0,220,130,.06);padding:4px 10px;border-radius:6px;border:1px solid rgba(0,220,130,.1)">6 activos</span>
+        <span style="font-size:10px;font-weight:700;color:#D4AF37;background:rgba(212,175,55,.06);padding:4px 10px;border-radius:6px;border:1px solid rgba(212,175,55,.1)">P&L Total: +$27,832</span>
+      </div>
+      <div style="padding:8px 16px;border-radius:8px;background:linear-gradient(135deg,var(--gold),#2563EB);color:white;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(59,130,246,.3)">+ Crear Nuevo Bot</div>
+    </div>
+
+    <!-- Summary KPIs -->
+    <div class="sk">
+      <div class="skc g"><div class="sk-l">💰 P&L Total Bots</div><div class="sk-v" style="color:var(--grn)">+$27,832</div><div class="sk-s" style="color:var(--grn)">+139.2% ROI</div></div>
+      <div class="skc b"><div class="sk-l">📊 Total Trades</div><div class="sk-v" style="color:var(--gold)">5,563</div><div class="sk-s" style="color:var(--dim)">87 hoy</div></div>
+      <div class="skc y"><div class="sk-l">🎯 Win Rate Prom.</div><div class="sk-v" style="color:#D4AF37">88.7%</div><div class="sk-s" style="color:var(--grn)">▲ +2.4%</div></div>
+      <div class="skc p"><div class="sk-l">⚡ Capital Invertido</div><div class="sk-v">$52,832</div><div class="sk-s" style="color:var(--dim)">6 bots activos</div></div>
+      <div class="skc c"><div class="sk-l">⏱️ Uptime</div><div class="sk-v" style="color:#22D3EE">99.8%</div><div class="sk-s" style="color:var(--grn)">24/7 automático</div></div>
+    </div>
+
+    <!-- Bot Cards Grid 2x3 -->
+    <div class="bg2">
+      <!-- Bot 1: BTC Alpha Scalper -->
+      <div class="bc2">
+        <div class="bh2">
+          <div class="bl2"><div class="bi2 blu">⚡</div><div><div class="bn2">BTC Alpha Scalper</div><div class="bp2">BTC/USDT · Timeframe: 1h</div></div></div>
+          <div class="bt2"><span class="btype sig">SIGNAL BOT</span><span class="bstat"><span class="bstat-d"></span>ACTIVO</span></div>
+        </div>
+        <div class="bb">🔗 Exchange: <span class="bb-n">Binance</span> · API: ✓ Conectada · Balance: $18,432</div>
+        <div class="bsg2">
+          <div class="bs2"><div class="bs2-l">Trades</div><div class="bs2-v">847</div></div>
+          <div class="bs2"><div class="bs2-l">P&L Vivo</div><div class="bs2-v" style="color:var(--grn)">+$8,247</div></div>
+          <div class="bs2"><div class="bs2-l">Win Rate</div><div class="bs2-v" style="color:#D4AF37">92.1%</div></div>
+          <div class="bs2"><div class="bs2-l">Balance</div><div class="bs2-v">$18,432</div></div>
+        </div>
+        <div class="blv2"><div class="blv2-l"><span class="bstat-d"></span>Posición abierta · BUY @ $96,842</div><div style="text-align:right"><div class="blv2-v">+$392.20</div><div class="blv2-p">+0.41%</div></div></div>
+        <svg class="spk" viewBox="0 0 400 44" preserveAspectRatio="none"><defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00DC82" stop-opacity=".25"/><stop offset="100%" stop-color="#00DC82" stop-opacity="0"/></linearGradient></defs><path d="M0,38 L20,35 L40,36 L60,30 L80,32 L100,26 L120,28 L140,22 L160,24 L180,18 L200,20 L220,15 L240,17 L260,12 L280,14 L300,9 L320,10 L340,6 L360,7 L380,4 L400,2 L400,44 L0,44Z" fill="url(#g1)"/><path d="M0,38 L20,35 L40,36 L60,30 L80,32 L100,26 L120,28 L140,22 L160,24 L180,18 L200,20 L220,15 L240,17 L260,12 L280,14 L300,9 L320,10 L340,6 L360,7 L380,4 L400,2" fill="none" stroke="#00DC82" stroke-width="1.5"/></svg>
+        <div class="bact"><button class="bact-btn bact-pause">⏸ Pausar</button><button class="bact-btn bact-chart">📊 Ver Gráfico</button><button class="bact-btn bact-stop">⏹ Detener</button></div>
+      </div>
+
+      <!-- Bot 2: ETH Grid Master -->
+      <div class="bc2">
+        <div class="bh2">
+          <div class="bl2"><div class="bi2 grn">📊</div><div><div class="bn2">ETH Grid Master</div><div class="bp2">ETH/USDT · 12 niveles de grid</div></div></div>
+          <div class="bt2"><span class="btype grid">GRID BOT</span><span class="bstat"><span class="bstat-d"></span>ACTIVO</span></div>
+        </div>
+        <div class="bb">🔗 Exchange: <span class="bb-n">Binance</span> · API: ✓ Conectada · Balance: $12,800</div>
+        <div class="bsg2">
+          <div class="bs2"><div class="bs2-l">Trades</div><div class="bs2-v">1,243</div></div>
+          <div class="bs2"><div class="bs2-l">P&L Vivo</div><div class="bs2-v" style="color:var(--grn)">+$5,632</div></div>
+          <div class="bs2"><div class="bs2-l">Win Rate</div><div class="bs2-v" style="color:#D4AF37">88.4%</div></div>
+          <div class="bs2"><div class="bs2-l">Balance</div><div class="bs2-v">$12,800</div></div>
+        </div>
+        <div class="blv2"><div class="blv2-l"><span class="bstat-d"></span>4 grids activos · Range: $3,400-$3,550</div><div style="text-align:right"><div class="blv2-v">+$674.00</div><div class="blv2-p">+5.27%</div></div></div>
+        <svg class="spk" viewBox="0 0 400 44" preserveAspectRatio="none"><defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3B82F6" stop-opacity=".25"/><stop offset="100%" stop-color="#3B82F6" stop-opacity="0"/></linearGradient></defs><path d="M0,36 L25,33 L50,28 L75,31 L100,24 L125,26 L150,19 L175,21 L200,15 L225,17 L250,12 L275,14 L300,9 L325,10 L350,6 L375,4 L400,2 L400,44 L0,44Z" fill="url(#g2)"/><path d="M0,36 L25,33 L50,28 L75,31 L100,24 L125,26 L150,19 L175,21 L200,15 L225,17 L250,12 L275,14 L300,9 L325,10 L350,6 L375,4 L400,2" fill="none" stroke="#3B82F6" stroke-width="1.5"/></svg>
+        <div class="bact"><button class="bact-btn bact-pause">⏸ Pausar</button><button class="bact-btn bact-chart">📊 Ver Gráfico</button><button class="bact-btn bact-stop">⏹ Detener</button></div>
+      </div>
+
+      <!-- Bot 3: SOL Momentum AI -->
+      <div class="bc2">
+        <div class="bh2">
+          <div class="bl2"><div class="bi2 pur">🧠</div><div><div class="bn2">SOL Momentum AI</div><div class="bp2">SOL/USDT · Timeframe: 15m</div></div></div>
+          <div class="bt2"><span class="btype scr">SCRIPT BOT</span><span class="bstat"><span class="bstat-d"></span>ACTIVO</span></div>
+        </div>
+        <div class="bb">🔗 Exchange: <span class="bb-n">Binance</span> · API: ✓ Conectada · Balance: $8,500</div>
+        <div class="bsg2">
+          <div class="bs2"><div class="bs2-l">Trades</div><div class="bs2-v">2,156</div></div>
+          <div class="bs2"><div class="bs2-l">P&L Vivo</div><div class="bs2-v" style="color:var(--grn)">+$6,215</div></div>
+          <div class="bs2"><div class="bs2-l">Win Rate</div><div class="bs2-v" style="color:#D4AF37">91.8%</div></div>
+          <div class="bs2"><div class="bs2-l">Balance</div><div class="bs2-v">$8,500</div></div>
+        </div>
+        <div class="blv2"><div class="blv2-l"><span class="bstat-d"></span>Posición abierta · LONG 100 SOL @ $187.42</div><div style="text-align:right"><div class="blv2-v">+$543.00</div><div class="blv2-p">+2.90%</div></div></div>
+        <svg class="spk" viewBox="0 0 400 44" preserveAspectRatio="none"><defs><linearGradient id="g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#A855F7" stop-opacity=".25"/><stop offset="100%" stop-color="#A855F7" stop-opacity="0"/></linearGradient></defs><path d="M0,38 L30,33 L60,35 L90,26 L120,28 L150,18 L180,20 L210,12 L240,14 L270,8 L300,10 L330,5 L360,6 L400,2 L400,44 L0,44Z" fill="url(#g3)"/><path d="M0,38 L30,33 L60,35 L90,26 L120,28 L150,18 L180,20 L210,12 L240,14 L270,8 L300,10 L330,5 L360,6 L400,2" fill="none" stroke="#A855F7" stroke-width="1.5"/></svg>
+        <div class="bact"><button class="bact-btn bact-pause">⏸ Pausar</button><button class="bact-btn bact-chart">📊 Ver Gráfico</button><button class="bact-btn bact-stop">⏹ Detener</button></div>
+      </div>
+
+      <!-- Bot 4: BNB DCA Smart -->
+      <div class="bc2">
+        <div class="bh2">
+          <div class="bl2"><div class="bi2 cyn">💰</div><div><div class="bn2">BNB DCA Smart</div><div class="bp2">BNB/USDT · Intervalo: 4h</div></div></div>
+          <div class="bt2"><span class="btype dca">DCA BOT</span><span class="bstat"><span class="bstat-d"></span>ACTIVO</span></div>
+        </div>
+        <div class="bb">🔗 Exchange: <span class="bb-n">Binance</span> · API: ✓ Conectada · Balance: $5,200</div>
+        <div class="bsg2">
+          <div class="bs2"><div class="bs2-l">Trades</div><div class="bs2-v">432</div></div>
+          <div class="bs2"><div class="bs2-l">P&L Vivo</div><div class="bs2-v" style="color:var(--grn)">+$3,890</div></div>
+          <div class="bs2"><div class="bs2-l">Win Rate</div><div class="bs2-v" style="color:#D4AF37">86.3%</div></div>
+          <div class="bs2"><div class="bs2-l">Balance</div><div class="bs2-v">$5,200</div></div>
+        </div>
+        <div class="blv2"><div class="blv2-l"><span class="bstat-d"></span>DCA activo · 3 órdenes pendientes</div><div style="text-align:right"><div class="blv2-v">+$285.00</div><div class="blv2-p">+5.48%</div></div></div>
+        <svg class="spk" viewBox="0 0 400 44" preserveAspectRatio="none"><path d="M0,37 L35,32 L70,34 L105,26 L140,22 L175,19 L210,16 L245,14 L280,10 L315,8 L350,5 L400,2 L400,44 L0,44Z" fill="url(#g1)"/><path d="M0,37 L35,32 L70,34 L105,26 L140,22 L175,19 L210,16 L245,14 L280,10 L315,8 L350,5 L400,2" fill="none" stroke="#00DC82" stroke-width="1.5"/></svg>
+        <div class="bact"><button class="bact-btn bact-pause">⏸ Pausar</button><button class="bact-btn bact-chart">📊 Ver Gráfico</button><button class="bact-btn bact-stop">⏹ Detener</button></div>
+      </div>
+
+      <!-- Bot 5: XRP Breakout -->
+      <div class="bc2">
+        <div class="bh2">
+          <div class="bl2"><div class="bi2 blu">⚡</div><div><div class="bn2">XRP Breakout</div><div class="bp2">XRP/USDT · Timeframe: 4h</div></div></div>
+          <div class="bt2"><span class="btype sig">SIGNAL BOT</span><span class="bstat"><span class="bstat-d"></span>ACTIVO</span></div>
+        </div>
+        <div class="bb">🔗 Exchange: <span class="bb-n">Binance</span> · API: ✓ Conectada · Balance: $3,900</div>
+        <div class="bsg2">
+          <div class="bs2"><div class="bs2-l">Trades</div><div class="bs2-v">318</div></div>
+          <div class="bs2"><div class="bs2-l">P&L Vivo</div><div class="bs2-v" style="color:var(--grn)">+$2,156</div></div>
+          <div class="bs2"><div class="bs2-l">Win Rate</div><div class="bs2-v" style="color:#D4AF37">85.8%</div></div>
+          <div class="bs2"><div class="bs2-l">Balance</div><div class="bs2-v">$3,900</div></div>
+        </div>
+        <div class="blv2"><div class="blv2-l"><span class="bstat-d"></span>Posición abierta · LONG 5000 XRP @ $2.34</div><div style="text-align:right"><div class="blv2-v">+$175.00</div><div class="blv2-p">+2.99%</div></div></div>
+        <svg class="spk" viewBox="0 0 400 44" preserveAspectRatio="none"><path d="M0,39 L30,35 L60,32 L90,33 L120,26 L150,22 L180,18 L210,20 L240,14 L270,11 L300,8 L340,5 L400,2 L400,44 L0,44Z" fill="url(#g2)"/><path d="M0,39 L30,35 L60,32 L90,33 L120,26 L150,22 L180,18 L210,20 L240,14 L270,11 L300,8 L340,5 L400,2" fill="none" stroke="#3B82F6" stroke-width="1.5"/></svg>
+        <div class="bact"><button class="bact-btn bact-pause">⏸ Pausar</button><button class="bact-btn bact-chart">📊 Ver Gráfico</button><button class="bact-btn bact-stop">⏹ Detener</button></div>
+      </div>
+
+      <!-- Bot 6: ADA Grid Yield -->
+      <div class="bc2">
+        <div class="bh2">
+          <div class="bl2"><div class="bi2 grn">📊</div><div><div class="bn2">ADA Grid Yield</div><div class="bp2">ADA/USDT · 8 niveles de grid</div></div></div>
+          <div class="bt2"><span class="btype grid">GRID BOT</span><span class="bstat"><span class="bstat-d"></span>ACTIVO</span></div>
+        </div>
+        <div class="bb">🔗 Exchange: <span class="bb-n">Binance</span> · API: ✓ Conectada · Balance: $4,000</div>
+        <div class="bsg2">
+          <div class="bs2"><div class="bs2-l">Trades</div><div class="bs2-v">567</div></div>
+          <div class="bs2"><div class="bs2-l">P&L Vivo</div><div class="bs2-v" style="color:var(--grn)">+$1,691</div></div>
+          <div class="bs2"><div class="bs2-l">Win Rate</div><div class="bs2-v" style="color:#D4AF37">87.6%</div></div>
+          <div class="bs2"><div class="bs2-l">Balance</div><div class="bs2-v">$4,000</div></div>
+        </div>
+        <div class="blv2"><div class="blv2-l"><span class="bstat-d"></span>3 grids activos · Range: $0.76-$0.82</div><div style="text-align:right"><div class="blv2-v">+$128.00</div><div class="blv2-p">+3.20%</div></div></div>
+        <svg class="spk" viewBox="0 0 400 44" preserveAspectRatio="none"><path d="M0,36 L25,33 L50,30 L75,27 L100,29 L125,22 L150,19 L175,21 L200,15 L225,12 L250,10 L275,8 L300,6 L350,4 L400,2 L400,44 L0,44Z" fill="url(#g1)"/><path d="M0,36 L25,33 L50,30 L75,27 L100,29 L125,22 L150,19 L175,21 L200,15 L225,12 L250,10 L275,8 L300,6 L350,4 L400,2" fill="none" stroke="#00DC82" stroke-width="1.5"/></svg>
+        <div class="bact"><button class="bact-btn bact-pause">⏸ Pausar</button><button class="bact-btn bact-chart">📊 Ver Gráfico</button><button class="bact-btn bact-stop">⏹ Detener</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+</body>
+</html>

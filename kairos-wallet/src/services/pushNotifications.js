@@ -157,7 +157,7 @@ export async function unsubscribeFromPush() {
  * Register subscription with backend
  */
 async function registerSubscription(subscription) {
-  const address = localStorage.getItem('kairos_active_address') || '';
+  const address = localStorage.getItem('kairos_active_wallet') || '';
   try {
     await fetch(`${API_URL}/api/push/subscribe`, {
       method: 'POST',

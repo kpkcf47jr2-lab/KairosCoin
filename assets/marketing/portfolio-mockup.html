@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kairos Trade — Portfolio Analytics (Marketing)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--gold:#3B82F6;--dk:#08090C;--sf:#0E1015;--sf2:#14161C;--brd:#1A1D26;--grn:#00DC82;--red:#FF4757;--txt:#F0F0F0;--dim:#6B7080}
+body{font-family:'Inter',sans-serif;background:#111;color:var(--txt)}
+.app{width:1920px;height:1080px;display:flex;background:var(--dk);overflow:hidden}
+
+/* Sidebar (same as dashboard) */
+.sb{width:272px;flex-shrink:0;background:linear-gradient(180deg,#0E1015,#08090C);border-right:1px solid var(--brd);display:flex;flex-direction:column}
+.sb-logo{display:flex;align-items:center;gap:12px;padding:16px 22px;height:60px;border-bottom:1px solid rgba(30,34,45,.6)}
+.sb-logo-i{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#3B82F6,#2563EB);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:#fff;box-shadow:0 0 20px rgba(59,130,246,.25)}
+.sb-logo-t{font-size:15px;font-weight:800;letter-spacing:2px}
+.sb-logo-s{font-size:9px;font-weight:700;color:var(--gold);letter-spacing:3px}
+.sb-u{margin:12px 16px 6px;padding:11px;border-radius:10px;background:linear-gradient(135deg,rgba(59,130,246,.04),rgba(26,29,38,.5));border:1px solid rgba(59,130,246,.06);display:flex;align-items:center;gap:10px}
+.sb-av{width:32px;height:32px;border-radius:8px;background:var(--sf2);display:flex;align-items:center;justify-content:center;font-size:12px}
+.sb-nm{font-size:12px;font-weight:600}
+.sb-pl{font-size:8px;font-weight:700;letter-spacing:1px;display:flex;align-items:center;gap:3px}
+.sb-nav{flex:1;padding:8px 16px;overflow:hidden}
+.sc{margin-top:14px}.sc:first-child{margin-top:0}
+.sc-lb{font-size:9px;font-weight:700;color:var(--dim);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.sc-lb::after{content:'';flex:1;height:1px;background:var(--brd)}
+.sc-lb.k{color:rgba(96,165,250,.8)}.sc-lb.k::after{background:rgba(59,130,246,.2)}
+.ni{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:9px;font-size:12px;font-weight:500;color:var(--dim)}
+.ni.act{color:#fff;font-weight:700;background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(59,130,246,.02));border:1px solid rgba(59,130,246,.1);position:relative}
+.ni.act::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:18px;border-radius:0 4px 4px 0;background:linear-gradient(180deg,#60A5FA,#3B82F6)}
+.ni.k{color:rgba(147,197,253,.8)}
+.ni-i{font-size:14px;width:16px;text-align:center}
+.ni-d{font-size:9px;color:rgba(107,112,128,.5)}
+.ni-b{margin-left:auto;font-size:8px;font-weight:700;background:rgba(59,130,246,.12);color:var(--gold);padding:2px 6px;border-radius:100px}
+.sb-bt{padding:8px 16px;border-top:1px solid rgba(30,34,45,.6)}
+
+/* Main */
+.mn{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.hd{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid rgba(26,29,38,.6);background:linear-gradient(180deg,rgba(14,16,21,.95),rgba(8,9,12,.95))}
+.hd-l{display:flex;align-items:center;gap:9px}
+.hd-pi{width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,rgba(59,130,246,.12),rgba(59,130,246,.04));border:1px solid rgba(59,130,246,.1);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:var(--gold)}
+.hd-p{font-size:12px;font-weight:700}
+.hd-t{font-size:7px;color:var(--dim)}
+.hd-pr{font-size:14px;font-weight:700;font-family:monospace}
+.hd-ch{font-size:10px;font-weight:600;padding:3px 8px;border-radius:6px;color:var(--grn);background:rgba(0,220,130,.08);border:1px solid rgba(0,220,130,.12)}
+.hd-r{display:flex;align-items:center;gap:7px}
+.hd-bg{display:flex;align-items:center;gap:4px;font-size:9px;font-weight:600;padding:4px 10px;border-radius:6px}
+.hd-cn{color:var(--grn);background:rgba(0,220,130,.06);border:1px solid rgba(0,220,130,.1)}
+.hd-dt{width:5px;height:5px;border-radius:50%;background:var(--grn);box-shadow:0 0 6px var(--grn)}
+.hd-ln{color:var(--dim);background:rgba(255,255,255,.02);border:1px solid rgba(26,29,38,.5)}
+.hd-ai{color:var(--gold);background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.15);font-weight:700}
+.hd-bl{width:32px;height:32px;border-radius:6px;background:rgba(255,255,255,.02);border:1px solid rgba(26,29,38,.5);display:flex;align-items:center;justify-content:center;font-size:12px;position:relative}
+.hd-bd{position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--gold)}
+
+/* Content */
+.ds{flex:1;overflow-y:auto;padding:18px}
+.card{padding:18px;border-radius:12px;background:var(--sf);border:1px solid var(--brd);margin-bottom:14px}
+.ct{font-size:13px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:6px}
+
+/* KPI grid */
+.kpi6{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+.kc{padding:16px;border-radius:12px;background:var(--sf);border:1px solid var(--brd);position:relative;overflow:hidden;text-align:center}
+.kc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.kc.g::before{background:linear-gradient(90deg,var(--grn),transparent)}
+.kc.b::before{background:linear-gradient(90deg,var(--gold),transparent)}
+.kc.gd::before{background:linear-gradient(90deg,#D4AF37,transparent)}
+.kc.p::before{background:linear-gradient(90deg,#A855F7,transparent)}
+.kc.r::before{background:linear-gradient(90deg,#22D3EE,transparent)}
+.kc.o::before{background:linear-gradient(90deg,#F97316,transparent)}
+.kc-l{font-size:9px;color:var(--dim);font-weight:600;margin-bottom:6px}
+.kc-v{font-size:24px;font-weight:800}
+.kc-s{font-size:9px;color:var(--dim);margin-top:3px}
+
+/* Distribution bar */
+.dist{height:14px;border-radius:7px;overflow:hidden;display:flex;margin-top:8px;background:var(--sf2)}
+.dist-g{background:linear-gradient(90deg,#00DC82,#00B36B);border-radius:7px 0 0 7px}
+.dist-r{background:linear-gradient(90deg,#FF4757,#CC3945)}
+
+/* Heatmap */
+.hm{display:flex;gap:3px;flex-wrap:wrap}
+.hm-sq{width:18px;height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:700;color:rgba(255,255,255,.6)}
+
+/* Metrics table */
+.mt{width:100%;border-collapse:collapse;font-size:11px}
+.mt td{padding:10px 14px;border-bottom:1px solid rgba(26,29,38,.4)}
+.mt td:first-child{color:var(--dim);font-weight:600;font-size:10px}
+.mt td:last-child{text-align:right;font-weight:700}
+
+/* Trades table */
+.tt{width:100%;border-collapse:collapse;font-size:11px}
+.tt th{text-align:left;padding:8px 10px;color:var(--dim);font-weight:600;font-size:9px;letter-spacing:.5px;border-bottom:1px solid var(--brd)}
+.tt td{padding:8px 10px;border-bottom:1px solid rgba(26,29,38,.4);font-weight:500}
+.ts{font-weight:700;font-size:9px;padding:2px 6px;border-radius:4px}
+.ts.buy{color:var(--grn);background:rgba(0,220,130,.08)}
+.ts.sell{color:var(--red);background:rgba(255,71,87,.08)}
+
+@keyframes pu{0%,100%{opacity:1}50%{opacity:.3}}
+</style>
+</head>
+<body>
+
+<div class="app">
+<!-- SIDEBAR -->
+<div class="sb">
+  <div class="sb-logo"><div class="sb-logo-i">K</div><div><div class="sb-logo-t">KAIROS</div><div class="sb-logo-s">TRADE</div></div></div>
+  <div class="sb-u"><div class="sb-av">👤</div><div><div class="sb-nm">Carlos Martinez</div><div class="sb-pl"><span style="color:#D4AF37">👑 FREE PLAN</span></div></div></div>
+  <div class="sb-nav">
+    <div class="sc"><div class="sc-lb k">Kairos</div><div class="ni k"><span class="ni-i">📈</span><div>Kairos Broker<div class="ni-d">Trading con apalancamiento</div></div></div><div class="ni k"><span class="ni-i">🏦</span><div>Kairos Vault</div></div><div class="ni k"><span class="ni-i">💳</span><div>Comprar KAIROS</div></div></div>
+    <div class="sc"><div class="sc-lb">Principal</div><div class="ni"><span class="ni-i">📊</span><div>Dashboard</div></div><div class="ni"><span class="ni-i">📉</span><div>Trading</div></div><div class="ni"><span class="ni-i">🎯</span><div>Multi-Chart</div></div><div class="ni"><span class="ni-i">🔥</span><div>Heatmap</div></div><div class="ni"><span class="ni-i">▶️</span><div>Simulador</div></div></div>
+    <div class="sc"><div class="sc-lb">Automatización</div><div class="ni"><span class="ni-i">🤖</span>Bots<span class="ni-b">6</span></div><div class="ni"><span class="ni-i">⚡</span>Estrategias</div><div class="ni"><span class="ni-i">✨</span>Kairos AI</div></div>
+    <div class="sc"><div class="sc-lb">Analytics</div><div class="ni act"><span class="ni-i">📊</span><div>Portfolio<div class="ni-d">Análisis completo</div></div></div><div class="ni"><span class="ni-i">📖</span>Journal</div><div class="ni"><span class="ni-i">🛡️</span>Riesgo</div></div>
+  </div>
+  <div class="sb-bt"><div class="ni"><span class="ni-i">💼</span>Wallet</div><div class="ni"><span class="ni-i">⚙️</span>Ajustes</div></div>
+</div>
+
+<!-- MAIN -->
+<div class="mn">
+  <div class="hd">
+    <div class="hd-l">
+      <div class="hd-pi">BTC</div>
+      <div><div class="hd-p">BTC / USDT</div><div class="hd-t">Spot Trading</div></div>
+      <div style="width:1px;height:22px;background:var(--brd)"></div>
+      <div class="hd-pr">$97,234.50</div>
+      <div class="hd-ch">▲ +4.28%</div>
+    </div>
+    <div class="hd-r">
+      <div class="hd-bg hd-cn"><div class="hd-dt"></div> Binance</div>
+      <div class="hd-bg hd-ln">🌐 ES</div>
+      <div class="hd-bg hd-ai">🧠 AI</div>
+      <div class="hd-bl">🔔<div class="hd-bd"></div></div>
+    </div>
+  </div>
+
+  <div class="ds">
+    <!-- Title -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px">📊 Portfolio Analytics <span style="font-size:10px;font-weight:600;color:var(--dim);background:var(--sf);padding:4px 10px;border-radius:6px;border:1px solid var(--brd)">Últimos 30 días</span></div>
+      <div style="display:flex;gap:6px">
+        <span style="font-size:10px;font-weight:700;color:var(--grn);background:rgba(0,220,130,.06);padding:5px 12px;border-radius:7px;border:1px solid rgba(0,220,130,.1)">📈 En racha ganadora: 12 días</span>
+        <span style="font-size:10px;font-weight:700;color:#D4AF37;background:rgba(212,175,55,.06);padding:5px 12px;border-radius:7px;border:1px solid rgba(212,175,55,.1)">⭐ Top 3% de traders</span>
+      </div>
+    </div>
+
+    <!-- 6 KPIs -->
+    <div class="kpi6">
+      <div class="kc g">
+        <div class="kc-l">💰 P&L Total</div>
+        <div class="kc-v" style="color:var(--grn)">+$27,832</div>
+        <div class="kc-s">+139.2% ROI</div>
+      </div>
+      <div class="kc g">
+        <div class="kc-l">🎯 Win Rate</div>
+        <div class="kc-v" style="color:var(--grn)">89.2%</div>
+        <div class="kc-s">341W / 41L</div>
+      </div>
+      <div class="kc gd">
+        <div class="kc-l">⭐ Profit Factor</div>
+        <div class="kc-v" style="color:#D4AF37">3.42</div>
+        <div class="kc-s">Excelente</div>
+      </div>
+      <div class="kc g">
+        <div class="kc-l">📉 Max Drawdown</div>
+        <div class="kc-v" style="color:var(--grn)">4.8%</div>
+        <div class="kc-s">Riesgo bajo</div>
+      </div>
+      <div class="kc b">
+        <div class="kc-l">📊 Sharpe Ratio</div>
+        <div class="kc-v" style="color:var(--gold)">2.18</div>
+        <div class="kc-s">Superior</div>
+      </div>
+      <div class="kc p">
+        <div class="kc-l">💎 Expectancy</div>
+        <div class="kc-v" style="color:#A855F7">+$72.86</div>
+        <div class="kc-s">Por trade</div>
+      </div>
+    </div>
+
+    <!-- Equity Chart (LARGE) -->
+    <div class="card">
+      <div class="ct">📈 Curva de Equity — Crecimiento acumulado
+        <span style="margin-left:auto;font-size:10px;font-weight:700;color:var(--grn);background:rgba(0,220,130,.06);padding:3px 10px;border-radius:100px;border:1px solid rgba(0,220,130,.1)">+139.2% total</span>
+      </div>
+      <svg width="100%" height="260" viewBox="0 0 1580 260" preserveAspectRatio="none" style="border-radius:8px">
+        <defs>
+          <linearGradient id="eq" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#D4AF37" stop-opacity=".20"/><stop offset="100%" stop-color="#D4AF37" stop-opacity="0"/></linearGradient>
+          <linearGradient id="dd" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FF4757" stop-opacity=".08"/><stop offset="100%" stop-color="#FF4757" stop-opacity="0"/></linearGradient>
+        </defs>
+        <!-- Grid -->
+        <line x1="0" y1="52" x2="1580" y2="52" stroke="rgba(107,112,128,.06)" stroke-dasharray="4"/>
+        <line x1="0" y1="104" x2="1580" y2="104" stroke="rgba(107,112,128,.06)" stroke-dasharray="4"/>
+        <line x1="0" y1="156" x2="1580" y2="156" stroke="rgba(107,112,128,.06)" stroke-dasharray="4"/>
+        <line x1="0" y1="208" x2="1580" y2="208" stroke="rgba(107,112,128,.06)" stroke-dasharray="4"/>
+        <!-- Equity fill -->
+        <path d="M0,240 L52,237 L105,232 L158,228 L210,230 L263,222 L316,218 L368,210 L421,214 L474,205 L526,198 L579,192 L632,186 L684,180 L737,176 L790,170 L842,164 L895,155 L948,148 L1000,140 L1053,132 L1105,120 L1158,110 L1210,98 L1263,85 L1316,72 L1368,60 L1421,48 L1474,35 L1526,22 L1580,10 L1580,260 L0,260Z" fill="url(#eq)"/>
+        <!-- Main equity line -->
+        <path d="M0,240 L52,237 L105,232 L158,228 L210,230 L263,222 L316,218 L368,210 L421,214 L474,205 L526,198 L579,192 L632,186 L684,180 L737,176 L790,170 L842,164 L895,155 L948,148 L1000,140 L1053,132 L1105,120 L1158,110 L1210,98 L1263,85 L1316,72 L1368,60 L1421,48 L1474,35 L1526,22 L1580,10" fill="none" stroke="#D4AF37" stroke-width="3"/>
+        <!-- End glow -->
+        <circle cx="1580" cy="10" r="6" fill="#D4AF37" stroke="#08090C" stroke-width="3"/>
+        <circle cx="1580" cy="10" r="12" fill="none" stroke="#D4AF37" stroke-opacity=".2" stroke-width="1"/>
+        <!-- Y labels -->
+        <text x="8" y="50" fill="rgba(107,112,128,.4)" font-size="10" font-family="Inter">$48K</text>
+        <text x="8" y="102" fill="rgba(107,112,128,.4)" font-size="10" font-family="Inter">$40K</text>
+        <text x="8" y="154" fill="rgba(107,112,128,.4)" font-size="10" font-family="Inter">$32K</text>
+        <text x="8" y="206" fill="rgba(107,112,128,.4)" font-size="10" font-family="Inter">$24K</text>
+        <!-- X labels -->
+        <text x="50" y="256" fill="rgba(107,112,128,.35)" font-size="9" font-family="Inter">26 ene</text>
+        <text x="368" y="256" fill="rgba(107,112,128,.35)" font-size="9" font-family="Inter">2 feb</text>
+        <text x="700" y="256" fill="rgba(107,112,128,.35)" font-size="9" font-family="Inter">9 feb</text>
+        <text x="1050" y="256" fill="rgba(107,112,128,.35)" font-size="9" font-family="Inter">16 feb</text>
+        <text x="1380" y="256" fill="rgba(107,112,128,.35)" font-size="9" font-family="Inter">23 feb</text>
+        <!-- Annotations -->
+        <circle cx="316" cy="218" r="3" fill="#3B82F6"/>
+        <text x="322" y="215" fill="#3B82F6" font-size="8" font-family="Inter" font-weight="600">BTC Scalper ON</text>
+        <circle cx="790" cy="170" r="3" fill="#A855F7"/>
+        <text x="796" y="167" fill="#A855F7" font-size="8" font-family="Inter" font-weight="600">SOL AI activado</text>
+        <circle cx="1210" cy="98" r="3" fill="#00DC82"/>
+        <text x="1216" y="95" fill="#00DC82" font-size="8" font-family="Inter" font-weight="600">Racha ganadora 12d</text>
+      </svg>
+    </div>
+
+    <!-- 3-column row -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
+      <!-- Win/Loss Distribution -->
+      <div class="card">
+        <div class="ct">🎯 Distribución Win/Loss</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div><span style="font-size:28px;font-weight:800;color:var(--grn)">341</span><span style="font-size:11px;color:var(--dim);margin-left:4px">wins</span></div>
+          <div style="font-size:24px;font-weight:800;color:var(--dim)">/</div>
+          <div><span style="font-size:28px;font-weight:800;color:var(--red)">41</span><span style="font-size:11px;color:var(--dim);margin-left:4px">losses</span></div>
+        </div>
+        <div class="dist">
+          <div class="dist-g" style="width:89.2%"></div>
+          <div class="dist-r" style="width:10.8%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;font-weight:700">
+          <span style="color:var(--grn)">89.2%</span>
+          <span style="color:var(--red)">10.8%</span>
+        </div>
+        <div style="margin-top:14px">
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(26,29,38,.3)">
+            <span style="font-size:10px;color:var(--dim)">Avg Win</span>
+            <span style="font-size:11px;font-weight:700;color:var(--grn)">+$96.42</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(26,29,38,.3)">
+            <span style="font-size:10px;color:var(--dim)">Avg Loss</span>
+            <span style="font-size:11px;font-weight:700;color:var(--red)">-$28.13</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:6px 0">
+            <span style="font-size:10px;color:var(--dim)">Risk/Reward</span>
+            <span style="font-size:11px;font-weight:700;color:#D4AF37">1 : 3.43</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Key Metrics Table -->
+      <div class="card">
+        <div class="ct">📊 Métricas Clave</div>
+        <table class="mt">
+          <tr><td>Total Trades</td><td>382</td></tr>
+          <tr><td>Profit Factor</td><td style="color:#D4AF37">3.42</td></tr>
+          <tr><td>Sharpe Ratio</td><td style="color:var(--gold)">2.18</td></tr>
+          <tr><td>Max Drawdown</td><td style="color:var(--grn)">4.8%</td></tr>
+          <tr><td>Avg Holding Time</td><td>14m 32s</td></tr>
+          <tr><td>Mejor Trade</td><td style="color:var(--grn)">+$1,842.00</td></tr>
+          <tr><td>Peor Trade</td><td style="color:var(--red)">-$89.30</td></tr>
+          <tr><td>Racha Ganadora</td><td style="color:var(--grn)">12 días 🔥</td></tr>
+        </table>
+      </div>
+
+      <!-- Daily P&L Heatmap -->
+      <div class="card">
+        <div class="ct">📅 Heatmap Diario P&L</div>
+        <div style="display:flex;gap:2px;margin-bottom:6px">
+          <span style="font-size:8px;color:var(--dim);width:20px">L</span>
+          <span style="font-size:8px;color:var(--dim);width:20px">M</span>
+          <span style="font-size:8px;color:var(--dim);width:20px">X</span>
+          <span style="font-size:8px;color:var(--dim);width:20px">J</span>
+          <span style="font-size:8px;color:var(--dim);width:20px">V</span>
+          <span style="font-size:8px;color:var(--dim);width:20px">S</span>
+          <span style="font-size:8px;color:var(--dim);width:20px">D</span>
+        </div>
+        <div class="hm" id="heatmap"></div>
+        <div style="display:flex;align-items:center;gap:3px;margin-top:10px;font-size:8px;color:var(--dim)">
+          <span>Pérdida</span>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(255,71,87,.5)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(255,71,87,.2)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(107,112,128,.1)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(0,220,130,.3)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(0,220,130,.6)"></div>
+          <div style="width:12px;height:12px;border-radius:2px;background:rgba(0,220,130,.9)"></div>
+          <span>Ganancia</span>
+        </div>
+        <div style="margin-top:10px;padding:10px;border-radius:8px;background:rgba(0,220,130,.04);border:1px solid rgba(0,220,130,.08)">
+          <div style="font-size:10px;color:var(--dim)">Mejor día</div>
+          <div style="font-size:16px;font-weight:800;color:var(--grn)">+$2,341.00</div>
+          <div style="font-size:9px;color:var(--dim)">Feb 18 — BTC rally</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Últimos Trades -->
+    <div class="card">
+      <div class="ct">📋 Últimos 10 Trades
+        <span style="margin-left:auto;font-size:9px;font-weight:700;color:var(--grn);background:rgba(0,220,130,.06);padding:2px 8px;border-radius:100px;border:1px solid rgba(0,220,130,.1)">9 de 10 ganadores ✓</span>
+      </div>
+      <table class="tt">
+        <thead><tr><th>Bot</th><th>Par</th><th>Lado</th><th>Entrada</th><th>Salida</th><th>Tamaño</th><th>P&L</th><th>ROI</th><th>Duración</th></tr></thead>
+        <tbody>
+          <tr><td style="font-weight:700">BTC Alpha Scalper</td><td style="font-family:monospace">BTC/USDT</td><td><span class="ts buy">LONG</span></td><td style="font-family:monospace">$96,842</td><td style="font-family:monospace">$97,234</td><td>0.5 BTC</td><td style="color:var(--grn);font-weight:700">+$392.20</td><td style="color:var(--grn);font-weight:700">+2.13%</td><td>12m</td></tr>
+          <tr><td style="font-weight:700">ETH Grid Master</td><td style="font-family:monospace">ETH/USDT</td><td><span class="ts buy">LONG</span></td><td style="font-family:monospace">$3,421</td><td style="font-family:monospace">$3,489</td><td>10 ETH</td><td style="color:var(--grn);font-weight:700">+$674.00</td><td style="color:var(--grn);font-weight:700">+1.97%</td><td>28m</td></tr>
+          <tr><td style="font-weight:700">SOL Momentum AI</td><td style="font-family:monospace">SOL/USDT</td><td><span class="ts buy">LONG</span></td><td style="font-family:monospace">$187.42</td><td style="font-family:monospace">$192.85</td><td>100 SOL</td><td style="color:var(--grn);font-weight:700">+$543.00</td><td style="color:var(--grn);font-weight:700">+2.90%</td><td>8m</td></tr>
+          <tr><td style="font-weight:700">BTC Alpha Scalper</td><td style="font-family:monospace">BTC/USDT</td><td><span class="ts sell">SHORT</span></td><td style="font-family:monospace">$97,105</td><td style="font-family:monospace">$96,842</td><td>0.3 BTC</td><td style="color:var(--grn);font-weight:700">+$262.70</td><td style="color:var(--grn);font-weight:700">+0.27%</td><td>6m</td></tr>
+          <tr><td style="font-weight:700">BNB DCA Smart</td><td style="font-family:monospace">BNB/USDT</td><td><span class="ts buy">LONG</span></td><td style="font-family:monospace">$648.50</td><td style="font-family:monospace">$654.20</td><td>50 BNB</td><td style="color:var(--grn);font-weight:700">+$285.00</td><td style="color:var(--grn);font-weight:700">+0.88%</td><td>15m</td></tr>
+          <tr><td style="font-weight:700">XRP Breakout</td><td style="font-family:monospace">XRP/USDT</td><td><span class="ts buy">LONG</span></td><td style="font-family:monospace">$2.34</td><td style="font-family:monospace">$2.41</td><td>5000 XRP</td><td style="color:var(--grn);font-weight:700">+$175.00</td><td style="color:var(--grn);font-weight:700">+2.99%</td><td>32m</td></tr>
+          <tr><td style="font-weight:700">SOL Momentum AI</td><td style="font-family:monospace">SOL/USDT</td><td><span class="ts sell">SHORT</span></td><td style="font-family:monospace">$193.20</td><td style="font-family:monospace">$191.85</td><td>80 SOL</td><td style="color:var(--grn);font-weight:700">+$135.00</td><td style="color:var(--grn);font-weight:700">+0.70%</td><td>4m</td></tr>
+          <tr><td style="font-weight:700">ADA Grid Yield</td><td style="font-family:monospace">ADA/USDT</td><td><span class="ts buy">LONG</span></td><td style="font-family:monospace">$0.782</td><td style="font-family:monospace">$0.798</td><td>8000 ADA</td><td style="color:var(--grn);font-weight:700">+$128.00</td><td style="color:var(--grn);font-weight:700">+2.05%</td><td>20m</td></tr>
+          <tr><td style="font-weight:700">ETH Grid Master</td><td style="font-family:monospace">ETH/USDT</td><td><span class="ts sell">SHORT</span></td><td style="font-family:monospace">$3,510</td><td style="font-family:monospace">$3,522</td><td>5 ETH</td><td style="color:var(--red);font-weight:700">-$60.00</td><td style="color:var(--red);font-weight:700">-0.34%</td><td>3m</td></tr>
+          <tr><td style="font-weight:700">BTC Alpha Scalper</td><td style="font-family:monospace">BTC/USDT</td><td><span class="ts buy">LONG</span></td><td style="font-family:monospace">$96,510</td><td style="font-family:monospace">$96,842</td><td>0.4 BTC</td><td style="color:var(--grn);font-weight:700">+$332.80</td><td style="color:var(--grn);font-weight:700">+0.34%</td><td>18m</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const hm=document.getElementById('heatmap');
+const data=[
+  420,180,350,520,280,-45,0,
+  380,610,290,450,820,150,0,
+  540,320,480,710,390,-80,0,
+  680,420,560,2341,480,210,0,
+  750,890,640,520,0,0,0
+];
+data.forEach(v=>{
+  const d=document.createElement('div');
+  d.className='hm-sq';
+  if(v===0){d.style.background='rgba(107,112,128,.06)';d.textContent='—';}
+  else if(v>0){
+    const i=Math.min(v/1000,.9);
+    d.style.background=`rgba(0,220,130,${.15+i*.75})`;
+    d.textContent=v>500?'$'+Math.round(v/100)+'00':'';
+  } else {
+    d.style.background=`rgba(255,71,87,${.15+Math.min(Math.abs(v)/500,.5)})`;
+  }
+  hm.appendChild(d);
+});
+</script>
+</body>
+</html>

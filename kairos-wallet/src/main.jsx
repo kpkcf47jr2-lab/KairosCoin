@@ -63,12 +63,17 @@ try {
   );
 } catch (e) {
   console.error('Fatal Kairos error:', e);
-  document.getElementById('root').innerHTML = `
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#05050f;color:white;font-family:Inter,sans-serif;text-align:center;padding:20px;gap:16px;">
-      <img src="/icons/logo-128.png" width="64" height="64" />
-      <h2 style="color:#f7c948;">Error Fatal</h2>
-      <p style="color:#9d9db8;font-size:14px;">${e.message}</p>
-      <button onclick="localStorage.clear();location.reload()" style="padding:12px 24px;border-radius:12px;background:linear-gradient(135deg,#f7c948,#d4a017);color:#05050f;font-weight:bold;border:none;cursor:pointer;">Reiniciar</button>
-    </div>
-  `;
+  const root = document.getElementById('root');
+  root.textContent = ''; // Clear safely
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#05050f;color:white;font-family:Inter,sans-serif;text-align:center;padding:20px;gap:16px;';
+  const img = document.createElement('img'); img.src = '/icons/logo-128.png'; img.width = 64; img.height = 64;
+  const h2 = document.createElement('h2'); h2.style.color = '#f7c948'; h2.textContent = 'Error Fatal';
+  const p = document.createElement('p'); p.style.cssText = 'color:#9d9db8;font-size:14px;'; p.textContent = String(e.message);
+  const btn = document.createElement('button');
+  btn.style.cssText = 'padding:12px 24px;border-radius:12px;background:linear-gradient(135deg,#f7c948,#d4a017);color:#05050f;font-weight:bold;border:none;cursor:pointer;';
+  btn.textContent = 'Reiniciar';
+  btn.onclick = () => { localStorage.clear(); location.reload(); };
+  wrapper.append(img, h2, p, btn);
+  root.appendChild(wrapper);
 }

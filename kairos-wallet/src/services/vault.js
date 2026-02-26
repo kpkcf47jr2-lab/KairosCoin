@@ -6,6 +6,7 @@
 
 import { ethers } from 'ethers';
 import { CHAINS } from '../constants/chains';
+import { getProvider } from './blockchain';
 
 // ── Protocol ABIs (minimal) ──
 
@@ -111,12 +112,7 @@ const VAULT_TOKENS = {
 };
 
 // ── Helpers ──
-
-function getProvider(chainId) {
-  const chain = CHAINS[chainId];
-  if (!chain) throw new Error(`Chain ${chainId} not supported`);
-  return new ethers.JsonRpcProvider(chain.rpcUrls[0]);
-}
+// Uses cached getProvider from blockchain.js (imported above)
 
 function getSigner(chainId, privateKey) {
   return new ethers.Wallet(privateKey, getProvider(chainId));

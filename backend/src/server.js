@@ -164,7 +164,7 @@ app.use((req, res, next) => {
 app.get("/", (req, res) => {
   res.json({
     service: "KairosCoin Stablecoin Backend",
-    version: "1.0.0",
+    version: "1.3.0",
     description:
       "Real-time automated mint/burn system with transparent Proof of Reserves",
     token: {
@@ -244,7 +244,7 @@ app.get("/api/engine/status", (req, res) => {
     success: true,
     data: {
       engine: "KairosCoin Auto Mint/Burn Engine",
-      version: "1.0.0",
+      version: "1.3.0",
       enabled: config.autoEngineEnabled,
       depositMonitor: depositMonitor.getStatus(),
       redemptionMonitor: redemptionMonitor.getStatus(),
@@ -287,7 +287,7 @@ app.use((err, req, res, _next) => {
 async function start() {
   console.log(`
   ╔══════════════════════════════════════════════════════════════╗
-  ║            KairosCoin Stablecoin Backend v1.0.0             ║
+  ║            KairosCoin Stablecoin Backend v1.3.0             ║
   ║        Real-time Mint/Burn • Proof of Reserves • API        ║
   ╚══════════════════════════════════════════════════════════════╝
   `);
@@ -295,7 +295,10 @@ async function start() {
   try {
     // 1. Validate configuration
     logger.info("Validating configuration...");
-    config.validate();
+    const configErrors = config.validate();
+    if (configErrors && configErrors.length > 0) {
+      configErrors.forEach(err => logger.warn(`Config warning: ${err}`));
+    }
     logger.info("Configuration valid ✓");
 
     // 2. Initialize database

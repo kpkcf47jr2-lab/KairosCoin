@@ -378,12 +378,19 @@
        ═══════════════════════════════════════════════════════════════ */
 
     const API_BASE = 'https://kairos-api-u6k5.onrender.com'; // Production API
-    const LOCAL_API = 'http://localhost:3001'; // Development fallback
+    const LOCAL_API = 'http://localhost:3001'; // Development fallback (only used on localhost)
     const CONTRACT = '0x14D41707269c7D8b8DFa5095b38824a46dA05da3';
+    const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-    let apiBase = API_BASE;
+    let apiBase = IS_LOCAL ? LOCAL_API : API_BASE;
 
     // ── Helpers ─────────────────────────────────────────────────
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = String(str);
+      return div.innerHTML;
+    }
+
     function fmt(n, decimals = 2) {
       const num = parseFloat(n) || 0;
       return num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -416,8 +423,8 @@
         if (!res.ok) throw new Error(res.status);
         return await res.json();
       } catch (e) {
-        // Fallback to local
-        if (apiBase !== LOCAL_API) {
+        // Fallback to local only if running in dev
+        if (IS_LOCAL && apiBase !== LOCAL_API) {
           apiBase = LOCAL_API;
           const res = await fetch(LOCAL_API + path);
           if (!res.ok) throw new Error(res.status);

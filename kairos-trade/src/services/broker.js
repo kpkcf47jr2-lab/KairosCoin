@@ -1514,7 +1514,7 @@ class BrokerService {
       try {
         const params = { limit };
         if (symbol) params.symbol = symbol;
-        const data = await this._binanceRequest(conn.creds, 'GET', '/api/v3/allOrders', params);
+        const data = await this._binanceSignedRequest(conn.creds, 'GET', '/api/v3/allOrders', params);
         const orders = Array.isArray(data) ? data : [];
         return orders.filter(o => o.status !== 'NEW' && o.status !== 'PARTIALLY_FILLED').map(o => normalize(o, {
           id: 'orderId', symbol: 'symbol', side: 'side', type: 'type',

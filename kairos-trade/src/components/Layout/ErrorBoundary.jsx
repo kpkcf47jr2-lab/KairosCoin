@@ -28,8 +28,7 @@ export default class ErrorBoundary extends Component {
     this.setState({ hasError: false, error: null, errorInfo: null });
     // Reset to dashboard
     try {
-      const storeModule = require('../../store/useStore');
-      storeModule.default.getState().setPage('dashboard');
+      useStore.getState().setPage('dashboard');
     } catch {
       window.location.reload();
     }

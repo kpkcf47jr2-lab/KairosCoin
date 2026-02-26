@@ -192,8 +192,8 @@ export async function checkAndApprove(chainId, privateKey, tokenAddress, spender
     return null; // Already approved
   }
   
-  // Approve max uint256 for convenience (standard practice like MetaMask)
-  const tx = await token.approve(spenderAddress, ethers.MaxUint256);
+  // Approve only exact amount needed (safer than MaxUint256)
+  const tx = await token.approve(spenderAddress, parsedAmount);
   await tx.wait();
   
   return {

@@ -50,7 +50,7 @@ const KNOWN_TOKEN_LOGOS = {
   '0x7130d2a12b9bcbfae4f2634d864a1ee1ce3ead9c': 'https://assets.coingecko.com/coins/images/1/small/bitcoin.png',         // BTCB
   '0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c': 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',  // WBNB
   '0x0e09fabb73bd3ade0a17ecc321fd13a19e81ce82': 'https://assets.coingecko.com/coins/images/12632/small/pancakeswap-cake-logo_%281%29.png', // CAKE
-  '0x1d2f0da169ceb9fc7b3144628db156f3f6c60dbe': 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',  // XRP BSC
+  '0x1d2f0da169ceb9fc7b3144628db156f3f6c60dbe': 'https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png',  // XRP BSC
   
   // Ethereum (1)
   '0xdac17f958d2ee523a2206206994597c13d831ec7': 'https://assets.coingecko.com/coins/images/325/small/Tether.png',        // USDT
