@@ -342,23 +342,21 @@ router.post('/admin/unlock', requireMasterKey, (req, res) => {
 
 router.post('/admin/set-wallet', requireMasterKey, (req, res) => {
   try {
-    const { email, walletAddress } = req.body;
-    if (!email || !walletAddress) {
-      return res.status(400).json({ success: false, error: 'email and walletAddress are required' });
+    const { email, walletAddress, encryptedKey } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'email is required' });
     }
-    if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+    if (!walletAddress && !encryptedKey) {
+      return res.status(400).json({ success: false, error: 'walletAddress or encryptedKey is required' });
+    }
+    if (walletAddress && !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
       return res.status(400).json({ success: false, error: 'Invalid wallet address format' });
     }
-    const db = require('../services/database').getAuthDb();
-    const user = db.prepare('SELECT id, wallet_address FROM users WHERE email = ?').get(email.toLowerCase());
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-    db.prepare('UPDATE users SET wallet_address = ?, encrypted_key = \'\', updated_at = ? WHERE id = ?')
-      .run(walletAddress, new Date().toISOString(), user.id);
-    res.json({ success: true, message: `Wallet updated for ${email}`, data: { email, walletAddress, previousWallet: user.wallet_address || 'none' } });
+    const result = authService.updateUserWallet(email, walletAddress, encryptedKey);
+    res.json({ success: true, message: `Wallet updated for ${email}`, data: result });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    const status = err.statusCode || 500;
+    res.status(status).json({ success: false, error: err.message });
   }
 });
 
@@ -372,19 +370,11 @@ router.post('/update-key', requireAuth, (req, res) => {
     if (!encryptedKey) {
       return res.status(400).json({ success: false, error: 'encryptedKey is required' });
     }
-    const db = require('../services/database').getAuthDb();
-    if (walletAddress) {
-      // Full wallet setup (new wallet generation or migration)
-      db.prepare('UPDATE users SET encrypted_key = ?, wallet_address = ?, updated_at = ? WHERE id = ?')
-        .run(encryptedKey, walletAddress, new Date().toISOString(), req.user.id);
-    } else {
-      // Key-only update (legacy migration)
-      db.prepare('UPDATE users SET encrypted_key = ?, updated_at = ? WHERE id = ?')
-        .run(encryptedKey, new Date().toISOString(), req.user.id);
-    }
+    authService.updateUserWallet(req.user.email, walletAddress || null, encryptedKey);
     res.json({ success: true, message: 'Wallet updated' });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
+    const status = err.statusCode || 500;
+    res.status(status).json({ success: false, error: err.message });
   }
 });
 

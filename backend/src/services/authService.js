@@ -570,6 +570,35 @@ function unlockAccount(email) {
   return { unlocked: true, email: user.email };
 }
 
+/**
+ * Admin: update wallet address and/or encrypted key for a user by email.
+ * @param {string} email
+ * @param {string} [walletAddress]
+ * @param {string} [encryptedKey]
+ */
+function updateUserWallet(email, walletAddress, encryptedKey) {
+  if (!email) throw new AuthError('Email is required', 400);
+  const user = db.prepare('SELECT id, wallet_address FROM users WHERE email = ?').get(email.toLowerCase());
+  if (!user) throw new AuthError('User not found', 404);
+
+  const now = new Date().toISOString();
+  if (walletAddress && encryptedKey) {
+    db.prepare('UPDATE users SET wallet_address = ?, encrypted_key = ?, updated_at = ? WHERE id = ?')
+      .run(walletAddress, encryptedKey, now, user.id);
+  } else if (walletAddress) {
+    db.prepare('UPDATE users SET wallet_address = ?, updated_at = ? WHERE id = ?')
+      .run(walletAddress, now, user.id);
+  } else if (encryptedKey) {
+    db.prepare('UPDATE users SET encrypted_key = ?, updated_at = ? WHERE id = ?')
+      .run(encryptedKey, now, user.id);
+  } else {
+    throw new AuthError('walletAddress or encryptedKey is required', 400);
+  }
+
+  logger.info(`🔑 Admin updated wallet for ${email}: addr=${walletAddress ? 'yes' : 'no'}, key=${encryptedKey ? 'yes' : 'no'}`);
+  return { email, walletAddress: walletAddress || user.wallet_address, previousWallet: user.wallet_address || 'none' };
+}
+
 module.exports = {
   initialize,
   register,
@@ -583,6 +612,7 @@ module.exports = {
   changePassword,
   forceResetPassword,
   unlockAccount,
+  updateUserWallet,
   getUser,
   getUserSessions,
   getAuthLog,
