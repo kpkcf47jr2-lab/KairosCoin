@@ -627,7 +627,7 @@ export default function AuthScreen() {
                       <AnimatePresence>
                         {error && (
                           <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                            className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl text-center">{error}</motion.div>
+                            className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl text-center">{typeof error === 'string' ? error : String(error)}</motion.div>
                         )}
                       </AnimatePresence>
 
@@ -671,7 +671,7 @@ export default function AuthScreen() {
                         <AnimatePresence>
                           {error && (
                             <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                              className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl">{error}</motion.div>
+                              className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl">{typeof error === 'string' ? error : String(error)}</motion.div>
                           )}
                         </AnimatePresence>
                         <button type="submit" disabled={loading}
@@ -705,7 +705,7 @@ export default function AuthScreen() {
                         <AnimatePresence>
                           {error && (
                             <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                              className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl">{error}</motion.div>
+                              className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl">{typeof error === 'string' ? error : String(error)}</motion.div>
                           )}
                         </AnimatePresence>
                         <button type="submit" disabled={loading}
@@ -791,7 +791,7 @@ export default function AuthScreen() {
                       <AnimatePresence>
                         {error && (
                           <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                            className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl">{error}</motion.div>
+                            className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl">{typeof error === 'string' ? error : String(error)}</motion.div>
                         )}
                       </AnimatePresence>
                       <button type="submit" disabled={loading}

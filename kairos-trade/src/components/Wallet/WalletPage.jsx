@@ -620,7 +620,7 @@ function SendModal({ chains, walletAddress, privateKey, onClose, onSuccess }) {
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-red-400"
                 style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)' }}>
                 <AlertTriangle size={12} />
-                {error}
+                {typeof error === 'string' ? error : String(error)}
               </div>
             )}
 

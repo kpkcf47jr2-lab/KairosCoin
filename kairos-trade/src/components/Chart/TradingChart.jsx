@@ -393,7 +393,7 @@ export default function TradingChart() {
         {error && !loading && (
           <div className="absolute inset-0 flex items-center justify-center z-20" style={{ background: 'rgba(11,14,17,0.9)' }}>
             <div className="text-center">
-              <p className="text-sm text-[var(--red)] mb-2">{error}</p>
+              <p className="text-sm text-[var(--red)] mb-2">{typeof error === 'string' ? error : String(error)}</p>
               <button
                 onClick={() => { setError(null); setLoading(true); }}
                 className="px-4 py-2 text-xs bg-[var(--gold)] text-white rounded-lg font-semibold"

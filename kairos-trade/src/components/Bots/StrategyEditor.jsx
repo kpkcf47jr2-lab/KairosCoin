@@ -75,7 +75,7 @@ function CodeEditor({ code, onChange, error }) {
       {error && (
         <div className="flex items-center gap-2 px-4 py-2" style={{ background: 'rgba(239,68,68,0.08)', borderBottom: '1px solid rgba(239,68,68,0.2)' }}>
           <AlertTriangle size={13} style={{ color: '#ef4444' }} />
-          <span className="text-xs" style={{ color: '#ef4444' }}>{error}</span>
+          <span className="text-xs" style={{ color: '#ef4444' }}>{typeof error === 'string' ? error : String(error)}</span>
         </div>
       )}
       <div className="flex" style={{ background: '#0d1117' }}>
