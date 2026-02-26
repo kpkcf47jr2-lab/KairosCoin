@@ -5,7 +5,7 @@
 
 import { STORAGE_KEYS } from '../constants';
 
-const API_HOST = 'https://kairos-api-u6k5.onrender.com';
+const API_HOST = import.meta.env.DEV ? '' : 'https://kairos-api-u6k5.onrender.com';
 
 // Flag to prevent multiple refresh attempts at the same time
 let isRefreshing = false;

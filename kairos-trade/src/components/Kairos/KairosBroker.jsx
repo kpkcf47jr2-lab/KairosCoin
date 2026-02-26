@@ -787,7 +787,7 @@ function BrokerChart({ pair, height = 280 }) {
     candleRef.current = candle;
     volRef.current = vol;
 
-    const ro = new ResizeObserver(([e]) => { chart.applyOptions({ width: e.contentRect.width }); });
+    const ro = new ResizeObserver(([e]) => { try { chart.applyOptions({ width: e.contentRect.width }); } catch {} });
     ro.observe(containerRef.current);
     return () => { ro.disconnect(); chart.remove(); chartRef.current = null; };
   }, []);

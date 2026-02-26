@@ -198,6 +198,17 @@ function App() {
     }
   }, [isAuthenticated, user?.id]);
 
+  // Close mobile menu on page change
+  // NOTE: These hooks MUST be before any conditional returns to obey Rules of Hooks
+  useEffect(() => { setMobileMenuOpen(false); }, [currentPage]);
+
+  // Guard treasury page — redirect non-admins
+  useEffect(() => {
+    if (currentPage === 'kairos-treasury' && !isAdmin(user)) {
+      setPage('dashboard');
+    }
+  }, [currentPage, user, setPage]);
+
   if (!isAuthenticated) {
     return <AuthScreen />;
   }
@@ -242,16 +253,6 @@ function App() {
       default: return <Dashboard />;
     }
   };
-
-  // Close mobile menu on page change
-  useEffect(() => { setMobileMenuOpen(false); }, [currentPage]);
-
-  // Guard treasury page — redirect non-admins
-  useEffect(() => {
-    if (currentPage === 'kairos-treasury' && !isAdmin(user)) {
-      setPage('dashboard');
-    }
-  }, [currentPage, user, setPage]);
 
   return (
     <div className="flex h-screen bg-[var(--dark)] overflow-hidden">

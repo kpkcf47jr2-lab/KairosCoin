@@ -1,5 +1,6 @@
 // Kairos Trade — Zustand Store
 import { create } from 'zustand';
+import { toast } from 'react-hot-toast';
 import { STORAGE_KEYS, ADMIN_CONFIG, USER_SCOPED_KEYS, getUserKey } from '../constants';
 import { feeService } from '../services/feeService';
 
@@ -100,7 +101,8 @@ const useStore = create((set, get) => ({
     // Revoke server session if we have a token
     if (user?.accessToken) {
       try {
-        await fetch('https://kairos-api-u6k5.onrender.com/api/auth/logout', {
+        const host = import.meta.env.DEV ? '' : 'https://kairos-api-u6k5.onrender.com';
+        await fetch(`${host}/api/auth/logout`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${user.accessToken}`, 'Content-Type': 'application/json' },
         });
@@ -116,6 +118,13 @@ const useStore = create((set, get) => ({
 
   // Helper to get current userId for storage
   _uid: () => get().user?.id || null,
+
+  // ─── Toast (global helper for components) ───
+  showToast: (message, type = 'success') => {
+    if (type === 'error') toast.error(String(message), { duration: 4000 });
+    else if (type === 'success') toast.success(String(message), { duration: 3000 });
+    else toast(String(message), { duration: 3000 });
+  },
 
   // ─── Navigation ───
   currentPage: 'dashboard',

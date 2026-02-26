@@ -106,7 +106,7 @@ export default function TradingChart() {
       if (!entries || !entries[0]) return;
       const { width, height } = entries[0].contentRect;
       if (width > 0 && height > 0) {
-        chart.applyOptions({ width, height });
+        try { chart.applyOptions({ width, height }); } catch (e) { /* chart may be disposed */ }
       }
     });
     ro.observe(container);
@@ -193,15 +193,19 @@ export default function TradingChart() {
         setPriceChange24h(data.changePercent);
       },
       onCandle: (candle) => {
-        if (candleSeriesRef.current) {
-          candleSeriesRef.current.update(candle);
-        }
-        if (volumeSeriesRef.current) {
-          volumeSeriesRef.current.update({
-            time: candle.time,
-            value: candle.volume || 0,
-            color: candle.close >= candle.open ? 'rgba(14,203,129,0.2)' : 'rgba(246,70,93,0.2)',
-          });
+        try {
+          if (candleSeriesRef.current) {
+            candleSeriesRef.current.update(candle);
+          }
+          if (volumeSeriesRef.current) {
+            volumeSeriesRef.current.update({
+              time: candle.time,
+              value: candle.volume || 0,
+              color: candle.close >= candle.open ? 'rgba(14,203,129,0.2)' : 'rgba(246,70,93,0.2)',
+            });
+          }
+        } catch (e) {
+          // Chart may be disposed during navigation — safe to ignore
         }
       },
     });

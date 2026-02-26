@@ -121,7 +121,7 @@ app.use(
       "https://global.transak.com",
       "https://staging.transak.com",
       "https://kairos-trade.netlify.app",
-      ...(process.env.NODE_ENV !== "production" ? ["http://localhost:3000", "http://localhost:5173"] : []),
+      ...(process.env.NODE_ENV !== "production" ? ["http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175"] : []),
     ],
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Transak-Signature", "Webhook-Secret"],

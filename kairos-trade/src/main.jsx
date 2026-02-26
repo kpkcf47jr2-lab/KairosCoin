@@ -3,27 +3,6 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// ─── Debug interceptor: catch objects rendered as React children ───
-if (typeof window !== 'undefined') {
-  const origCreateElement = React.createElement;
-  React.createElement = function(type, props, ...children) {
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i];
-      if (child && typeof child === 'object' && !React.isValidElement(child) && !Array.isArray(child) && typeof child.$$typeof !== 'symbol' && !(child instanceof Promise)) {
-        console.error(
-          '[DEBUG-310] Object as React child detected!',
-          '\n  Component:', typeof type === 'string' ? type : type?.displayName || type?.name || type,
-          '\n  Child index:', i,
-          '\n  Object keys:', Object.keys(child),
-          '\n  Object preview:', JSON.stringify(child).slice(0, 300),
-          '\n  Full object:', child
-        );
-      }
-    }
-    return origCreateElement.apply(this, [type, props, ...children]);
-  };
-}
-
 // Global Error Boundary — catches any crash from App or its children
 class GlobalErrorBoundary extends Component {
   constructor(props) {

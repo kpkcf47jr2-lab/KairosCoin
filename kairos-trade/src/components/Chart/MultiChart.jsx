@@ -120,7 +120,7 @@ function MiniChart({ pair, timeframe, height = 300, onPriceUpdate }) {
     const ro = new ResizeObserver(() => {
       const r = container.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) {
-        chart.applyOptions({ width: r.width, height: r.height - 30 });
+        try { chart.applyOptions({ width: r.width, height: r.height - 30 }); } catch (e) { /* disposed */ }
       }
     });
     ro.observe(container);
