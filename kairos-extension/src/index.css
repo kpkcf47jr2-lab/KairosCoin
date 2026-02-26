@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #05050f;
+  color: #e4e4ed;
+  width: 360px;
+  height: 600px;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 360px;
+  height: 600px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(247, 201, 72, 0.2); border-radius: 4px; }
+
+/* Gold gradient button */
+.btn-gold {
+  background: linear-gradient(135deg, #f7c948, #D4AF37);
+  color: #05050f;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-gold:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.btn-gold:active { transform: translateY(0); }
+.btn-gold:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Surface card */
+.card {
+  background: #0f0f1a;
+  border: 1px solid rgba(247, 201, 72, 0.08);
+  border-radius: 16px;
+}
+
+/* Input styles */
+input, textarea {
+  background: #0a0a14;
+  border: 1px solid rgba(247, 201, 72, 0.12);
+  border-radius: 12px;
+  color: #e4e4ed;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+input:focus, textarea:focus {
+  border-color: rgba(247, 201, 72, 0.4);
+}

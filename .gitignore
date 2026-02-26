@@ -29,3 +29,5 @@ Thumbs.db
 # Misc
 *.log
 npm-debug.log*
+kairos-extension/node_modules/
+kairos-extension/dist/
