@@ -3,8 +3,8 @@
 //  Offline Cache + Smart Caching Strategies
 // ═══════════════════════════════════════════════════════
 
-const CACHE_NAME = 'kairos-trade-v1';
-const RUNTIME_CACHE = 'kairos-trade-runtime-v1';
+const CACHE_NAME = 'kairos-trade-v2';
+const RUNTIME_CACHE = 'kairos-trade-runtime-v2';
 
 const STATIC_ASSETS = [
   '/',
@@ -50,12 +50,29 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   if (BYPASS_HOSTS.some((h) => url.hostname.includes(h))) return;
 
-  // Cache-first for static assets (JS, CSS, images, fonts)
+  // Network-first for scripts/styles (prevents stale build artifacts)
+  // Cache-first only for images and fonts (stable across deploys)
   if (
     url.origin === self.location.origin &&
-    (request.destination === 'script' ||
-      request.destination === 'style' ||
-      request.destination === 'image' ||
+    (request.destination === 'script' || request.destination === 'style')
+  ) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(RUNTIME_CACHE).then((c) => c.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request).then((c) => c || fetch(request)))
+    );
+    return;
+  }
+
+  if (
+    url.origin === self.location.origin &&
+    (request.destination === 'image' ||
       request.destination === 'font' ||
       url.pathname.startsWith('/assets/') ||
       url.pathname.startsWith('/icons/'))

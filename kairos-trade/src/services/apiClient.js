@@ -87,6 +87,22 @@ async function getValidToken() {
 // ── Core API Method ──────────────────────────────────────────────────────────
 
 /**
+ * Fetch with auto-retry for network errors (Render cold-start resilience).
+ * Retries up to 2 times with increasing delay when fetch() itself throws.
+ */
+async function fetchWithRetry(url, options, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fetch(url, options);
+    } catch (err) {
+      if (attempt === retries) throw err;
+      // Wait before retry: 2s, then 4s
+      await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+    }
+  }
+}
+
+/**
  * Authenticated API request with auto token refresh.
  * 
  * @param {string} path    — API path (e.g. '/api/auth/me')
@@ -106,7 +122,7 @@ async function apiRequest(path, opts = {}) {
     }
   }
 
-  let res = await fetch(`${API_HOST}${path}`, {
+  let res = await fetchWithRetry(`${API_HOST}${path}`, {
     method,
     headers: reqHeaders,
     ...(body ? { body: JSON.stringify(body) } : {}),
@@ -117,7 +133,7 @@ async function apiRequest(path, opts = {}) {
     try {
       const newToken = await refreshAccessToken();
       reqHeaders['Authorization'] = `Bearer ${newToken}`;
-      res = await fetch(`${API_HOST}${path}`, {
+      res = await fetchWithRetry(`${API_HOST}${path}`, {
         method,
         headers: reqHeaders,
         ...(body ? { body: JSON.stringify(body) } : {}),

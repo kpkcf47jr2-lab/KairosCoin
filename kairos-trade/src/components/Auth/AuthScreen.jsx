@@ -258,7 +258,13 @@ export default function AuthScreen() {
         }
       }
     } catch (err) {
-      setError(err.message || 'Error de autenticación');
+      const msg = err.message || 'Error de autenticación';
+      // Friendly message for network errors (Render cold start)
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed')) {
+        setError('Servidor conectando… intenta de nuevo en unos segundos.');
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
