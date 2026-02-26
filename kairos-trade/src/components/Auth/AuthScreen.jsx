@@ -672,6 +672,14 @@ export default function AuthScreen() {
                         style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 0 30px rgba(59,130,246,0.2), 0 4px 15px rgba(59,130,246,0.2)' }}>
                         {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (<>{isLogin ? 'Acceder a la Plataforma' : 'Crear Cuenta'}<ArrowRight size={16} /></>)}
                       </button>
+
+                      {/* Forgot password link - only on login */}
+                      {isLogin && (
+                        <button type="button" onClick={() => { setShowForgot(true); setForgotEmail(form.email); setError(''); }}
+                          className="w-full text-center text-[12px] text-white/25 hover:text-[#3B82F6] transition-colors py-2 mt-1">
+                          ¿Olvidaste tu contraseña?
+                        </button>
+                      )}
                     </form>
 
                     {/* Wallet info */}
