@@ -23,6 +23,7 @@ const BCRYPT_ROUNDS = 12;
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_TIME_MS = 15 * 60 * 1000; // 15 minutes lockout
 const ADMIN_EMAILS = ['info@kairos-777.com'];
+const ADMIN_WALLET = '0xCee44904A6aA94dEa28754373887E07D4B6f4968'; // Owner wallet — fee recipient
 
 let db = null;
 
@@ -119,6 +120,20 @@ function initialize() {
   setInterval(cleanExpiredSessions, 60 * 60 * 1000);
   cleanExpiredSessions();
 
+  // ── Ensure admin account always has the correct owner wallet ──
+  try {
+    for (const adminEmail of ADMIN_EMAILS) {
+      const admin = db.prepare('SELECT id, wallet_address FROM users WHERE email = ?').get(adminEmail);
+      if (admin && admin.wallet_address !== ADMIN_WALLET) {
+        db.prepare('UPDATE users SET wallet_address = ?, encrypted_key = \'\', updated_at = ? WHERE id = ?')
+          .run(ADMIN_WALLET, new Date().toISOString(), admin.id);
+        logger.info(`👑 Admin wallet linked: ${adminEmail} → ${ADMIN_WALLET}`);
+      }
+    }
+  } catch (err) {
+    logger.warn('Admin wallet migration skipped:', err.message);
+  }
+
   logger.info('🔐 Auth service initialized (bcrypt + JWT + TOTP)');
 }
 
@@ -152,12 +167,16 @@ async function register({ email, password, name, walletAddress, encryptedKey, ip
   const displayName = isAdmin ? 'Kairos 777 Inc' : name;
   const plan = isAdmin ? 'enterprise' : 'free';
 
+  // Admin accounts always use the owner wallet (externally managed)
+  const finalWalletAddress = isAdmin ? ADMIN_WALLET : (walletAddress || '');
+  const finalEncryptedKey = isAdmin ? '' : (encryptedKey || '');
+
   const userId = crypto.randomUUID();
 
   withReconnect(() => db.prepare(`
     INSERT INTO users (id, email, name, password_hash, wallet_address, encrypted_key, role, plan)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(userId, email.toLowerCase(), displayName, passwordHash, walletAddress || '', encryptedKey || '', role, plan));
+  `).run(userId, email.toLowerCase(), displayName, passwordHash, finalWalletAddress, finalEncryptedKey, role, plan));
 
   logAuth(userId, email, 'register', ip, userAgent, true);
 

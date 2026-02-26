@@ -337,6 +337,32 @@ router.post('/admin/unlock', requireMasterKey, (req, res) => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
+//  POST /admin/set-wallet — Link a specific wallet to a user account (master key)
+// ═════════════════════════════════════════════════════════════════════════════
+
+router.post('/admin/set-wallet', requireMasterKey, (req, res) => {
+  try {
+    const { email, walletAddress } = req.body;
+    if (!email || !walletAddress) {
+      return res.status(400).json({ success: false, error: 'email and walletAddress are required' });
+    }
+    if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      return res.status(400).json({ success: false, error: 'Invalid wallet address format' });
+    }
+    const db = require('../services/database').getAuthDb();
+    const user = db.prepare('SELECT id, wallet_address FROM users WHERE email = ?').get(email.toLowerCase());
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    db.prepare('UPDATE users SET wallet_address = ?, encrypted_key = \'\', updated_at = ? WHERE id = ?')
+      .run(walletAddress, new Date().toISOString(), user.id);
+    res.json({ success: true, message: `Wallet updated for ${email}`, data: { email, walletAddress, previousWallet: user.wallet_address || 'none' } });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
 //  POST /update-key — Migrate encrypted key (legacy btoa → AES-256-GCM)
 // ═════════════════════════════════════════════════════════════════════════════
 

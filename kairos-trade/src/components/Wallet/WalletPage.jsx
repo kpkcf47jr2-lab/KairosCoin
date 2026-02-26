@@ -152,6 +152,7 @@ const getRecentTransfers = async (chain, address) => {
 export default function WalletPage() {
   const { user } = useStore();
   const walletAddress = user?.walletAddress || '';
+  const isAdmin = user?.role === 'admin';
 
   // State
   const [balances, setBalances] = useState({});       // { chainId: { kairos: '0', native: '0' } }
@@ -316,11 +317,22 @@ export default function WalletPage() {
             <Wallet size={22} className="text-[var(--gold)]" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">Kairos Wallet</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold">Kairos Wallet</h1>
+              {isAdmin && (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider"
+                  style={{ background: 'linear-gradient(135deg, #D4AF37, #B8972E)', color: '#0D0D0D' }}>
+                  Admin
+                </span>
+              )}
+            </div>
             <button onClick={() => handleCopy(walletAddress)} className="flex items-center gap-1.5 text-xs text-[var(--text-dim)] hover:text-[var(--gold)] transition-colors">
               {shortenAddress(walletAddress)}
               {copied ? <Check size={10} className="text-green-400" /> : <Copy size={10} />}
             </button>
+            {isAdmin && (
+              <p className="text-[9px] text-[var(--gold)]/60 mt-0.5">Wallet de comisiones — Kairos 777 Inc</p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -380,12 +392,22 @@ export default function WalletPage() {
 
         {/* Action buttons */}
         <div className="flex gap-3 mt-5">
-          <button onClick={() => setShowSend(true)}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all hover:scale-[1.02]"
-            style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 20px rgba(59,130,246,0.2)' }}>
-            <Send size={16} />
-            Enviar
-          </button>
+          {isAdmin && !privateKey ? (
+            <button
+              onClick={() => window.open(`https://bscscan.com/address/${walletAddress}`, '_blank')}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all hover:scale-[1.02]"
+              style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 20px rgba(59,130,246,0.2)' }}>
+              <ExternalLink size={16} />
+              Ver en BSCScan
+            </button>
+          ) : (
+            <button onClick={() => setShowSend(true)}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all hover:scale-[1.02]"
+              style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 20px rgba(59,130,246,0.2)' }}>
+              <Send size={16} />
+              Enviar
+            </button>
+          )}
           <button onClick={() => setShowReceive(true)}
             className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all hover:scale-[1.02]"
             style={{ background: 'rgba(0,220,130,0.15)', border: '1px solid rgba(0,220,130,0.2)' }}>
@@ -400,6 +422,23 @@ export default function WalletPage() {
           </button>
         </div>
       </motion.div>
+
+      {/* ─── Admin Fee Wallet Banner ─── */}
+      {isAdmin && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl p-4" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.08), rgba(212,175,55,0.03))', border: '1px solid rgba(212,175,55,0.15)' }}>
+          <div className="flex items-start gap-3">
+            <Shield size={18} className="text-[var(--gold)] mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-[var(--gold)] mb-1">Wallet de Administrador</p>
+              <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">
+                Esta es la wallet principal de Kairos 777 Inc. Aquí se reciben todas las comisiones, fees de trading,
+                ingresos por mint y revenue del protocolo. Gestionada externamente vía MetaMask / hardware wallet.
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* ─── Chain Balances ─── */}
       <div className="space-y-2.5">
