@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 25, 2026 (Session 14D — Security Hardening + Dashboard Analytics)
+#  Last Updated: February 26, 2026 (Session 15 — Auth Integration + apiClient + i18n)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -1026,6 +1026,62 @@ After adding, click **"Save Changes"** → Render will auto-redeploy.
 - **Commit:** `9cdf95e`
 - **Deploy:** Backend auto-deployed via Render. Wallet + Website deployed to Netlify. Trade needs redeploy (Netlify credits depleted).
 - **NOTE:** Netlify deploy credits exhausted — trade redeploy pending credit renewal
+
+---
+
+## 23. SESSION 15 — i18n + Marketing + Auth Integration (Feb 26, 2026)
+
+### Internationalization (i18n) EN/ES
+- **`kairos-trade/src/i18n/`** — Full i18n system: `es.js`, `en.js`, `index.js` (dot-notation lookup), `useTranslation.js` hook
+- Applied to: Header (Globe toggle), Sidebar (labelKey), Dashboard, ErrorBoundary
+- **Commit:** `0b7f93f` — Deployed to Netlify
+
+### Marketing Materials
+- **`assets/marketing/banners.html`** — 3 banner sizes (Instagram 1080², Story, Twitter)
+- **`assets/marketing/dashboard-mockup.html`** — Regular user "Carlos Martinez · Free Plan"
+- **`assets/marketing/portfolio-mockup.html`** — Portfolio analytics mockup
+- **`assets/marketing/bots-mockup.html`** — 6 bot cards with sparklines
+- **`assets/marketing/heygen-video-script.md`** — 75s HeyGen script (ES + EN)
+- **`scripts/generate-marketing-pngs.js`** — Puppeteer HTML→PNG (3840x2160)
+- 7-day marketing campaigns written for X/Twitter, Instagram, Telegram (ES + EN)
+
+### Centralized Auth Integration (Critical)
+- **`kairos-trade/src/services/apiClient.js`** — NEW centralized API client:
+  - Auto Bearer token injection from localStorage
+  - JWT expiry detection (decodes payload, refreshes if <5min left)
+  - Auto token refresh on 401 via `/api/auth/refresh`
+  - Debounced refresh (only 1 concurrent refresh)
+  - `kairos:session-expired` custom event on refresh failure → auto-logout
+  - Methods: `get()`, `post()`, `put()`, `delete()`, `publicPost()`, `validateSession()`, `refreshToken()`
+- **`kairos-trade/src/App.jsx`** — v2.4: Session validation on mount:
+  - Calls `/api/auth/me` on page reload to validate stored token
+  - Syncs server-side profile updates (role, plan, name, has2FA)
+  - Listens for `kairos:session-expired` event → forces logout + toast
+  - Loading spinner while validating session
+- **`kairos-trade/src/components/Auth/AuthScreen.jsx`** — Uses `apiClient.publicPost()` for register/login
+- **`kairos-trade/src/components/Settings/SecuritySettings.jsx`** — Uses `apiClient` instead of local `authFetch`
+- **Commit:** `a6f6764` — Deployed to Netlify + pushed to GitHub
+
+### Auth System Summary (Full Stack)
+**Backend** (15 endpoints on Render):
+- `POST /register` — bcrypt 12 rounds, creates wallet, referral bonus
+- `POST /login` — Returns JWT (24h access + 7d refresh) or 2FA challenge
+- `POST /verify-2fa` — Completes 2FA login with TOTP code
+- `POST /refresh` — Refreshes access token with refresh token
+- `GET /me` — Current user profile (requireAuth middleware)
+- `POST /logout` / `POST /logout-all` — Session revocation
+- `POST /2fa/setup` / `POST /2fa/verify` / `POST /2fa/disable` — TOTP management
+- `POST /change-password` — With current password verification
+- `GET /sessions` / `GET /log` — Active sessions + audit log
+- Brute force protection: 5 failed attempts → 15min lockout
+- Rate limiting: 10 req/15min auth, 5 req/hr strict ops
+
+**Frontend** (React + Zustand):
+- `AuthScreen.jsx` — Register (wallet generation + AES-256-GCM encryption), Login, 2FA flow
+- `apiClient.js` — Centralized HTTP client with auto token refresh
+- `SecuritySettings.jsx` — 2FA setup/disable, change password, active sessions, auth log
+- `useStore.js` — User-scoped storage (all data keyed by userId)
+- `App.jsx` — Session validation on reload, session-expired listener
 
 ---
 
