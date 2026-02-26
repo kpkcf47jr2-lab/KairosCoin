@@ -340,4 +340,47 @@ router.post('/update-key', requireAuth, (req, res) => {
   }
 });
 
+// ═════════════════════════════════════════════════════════════════════════════
+//  CROSS-APP INTEGRATION (Wallet ↔ Trade)
+// ═════════════════════════════════════════════════════════════════════════════
+
+// POST /cross-app-token — Generate a 60s token to pass to the other app
+router.post('/cross-app-token', requireAuth, (req, res) => {
+  try {
+    const { target } = req.body; // 'wallet' or 'trade'
+    if (!target || !['wallet', 'trade'].includes(target)) {
+      return res.status(400).json({ success: false, error: 'target must be "wallet" or "trade"' });
+    }
+
+    const token = authService.generateCrossAppToken(req.user.userId, target);
+    res.json({ success: true, data: { crossAppToken: token, expiresIn: 60 } });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, error: err.message });
+  }
+});
+
+// POST /exchange-token — Exchange a cross-app token for a full session
+router.post('/exchange-token', authLimiter, async (req, res) => {
+  try {
+    const { crossAppToken } = req.body;
+    if (!crossAppToken) {
+      return res.status(400).json({ success: false, error: 'crossAppToken required' });
+    }
+
+    const { ip, userAgent } = getClientInfo(req);
+    const result = authService.exchangeCrossAppToken(crossAppToken, ip, userAgent);
+
+    res.json({
+      success: true,
+      data: {
+        user: result.user,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      },
+    });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, error: err.message });
+  }
+});
+
 module.exports = router;

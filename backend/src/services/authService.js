@@ -337,6 +337,42 @@ function generateTempToken(userId) {
   );
 }
 
+/**
+ * Generate a short-lived cross-app token (60s) for Wallet ↔ Trade linking.
+ * The receiving app exchanges this token for a full session.
+ */
+function generateCrossAppToken(userId, targetApp) {
+  return jwt.sign(
+    { userId, type: 'cross_app', target: targetApp },
+    JWT_SECRET,
+    { expiresIn: '60s' }
+  );
+}
+
+/**
+ * Exchange a cross-app token for a full session (access + refresh tokens).
+ */
+function exchangeCrossAppToken(token, ip, userAgent) {
+  const decoded = verifyToken(token);
+  if (decoded.type !== 'cross_app') {
+    throw new AuthError('Invalid cross-app token', 401);
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.userId);
+  if (!user) throw new AuthError('User not found', 404);
+
+  const tokens = generateTokens(user.id, user.email, user.role);
+  saveSession(user.id, tokens.accessToken, ip, userAgent);
+
+  logAuth(user.id, user.email, 'cross_app_exchange', ip, userAgent, true, `target: ${decoded.target}`);
+  logger.info(`🔗 Cross-app exchange: ${user.email} → ${decoded.target}`);
+
+  return {
+    user: sanitizeUser(user),
+    ...tokens,
+  };
+}
+
 function verifyToken(token) {
   try {
     return jwt.verify(token, JWT_SECRET);
@@ -490,5 +526,7 @@ module.exports = {
   getAuthLog,
   revokeAllSessions,
   validateSession,
+  generateCrossAppToken,
+  exchangeCrossAppToken,
   AuthError,
 };
