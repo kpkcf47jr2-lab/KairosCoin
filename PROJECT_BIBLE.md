@@ -1233,5 +1233,94 @@ Schema: `{ id, symbol, side, type, quantity, price, filledQty, avgPrice, status,
 
 ---
 
+## Session 18 — Feb 26, 2026 — Security Audit + Browser Extension Wallet
+
+### Security Audit (20 Critical/High Fixes)
+
+**Wallet (7 fixes):**
+- XSS fix in main.jsx (innerHTML → DOM API)
+- MaxUint256 approval → exact amount only (safer)
+- vault.js duplicate getProvider → uses cached blockchain.js import
+- cloudBackup PBKDF2 iterations 300K → 600K (OWASP recommendation)
+- pushNotifications.js wrong localStorage key fixed
+- XRP token logo was showing BNB icon → fixed
+- manifest.json added `id` and `scope` for PWA compliance
+
+**Trade (6 fixes):**
+- broker.js: `_binanceRequest` → `_binanceSignedRequest` for getClosedOrders (was failing)
+- ErrorBoundary: `require()` → direct import (ESM compatibility)
+- App.jsx: duplicate `useState` import removed
+- netlify.toml: CSP updated with all 10 broker API hosts
+- setPage() called during render → moved to useEffect guard
+- Duplicate SPA redirect condition removed
+
+**Website (5 fixes):**
+- CSP: added cdnjs.cloudflare.com, transak, frame-src for iframes
+- URL injection: all wallet addresses now use encodeURIComponent
+- XSS: escapeHtml() added to buy.html modal and reserves.html
+- localhost API fallback restricted to actual localhost only
+- tokenlist.json updated from 1 chain (BSC) to 4 chains (BSC, Polygon, Base, Arbitrum)
+- Permissions-Policy: payment allowed for Transak/Stripe
+- X-XSS-Protection: 1; mode=block → 0 (modern CSP deprecation)
+
+**Backend (2 fixes):**
+- treasury.js: auth middleware now validates JWT with jsonwebtoken (was accepting any Bearer token)
+- server.js: version updated 1.0.0 → 1.3.0 everywhere, validateConfig checks errors properly
+
+### Browser Extension Wallet (NEW: kairos-extension/)
+
+Full Chrome-compatible browser extension (also works on Brave, Edge, Opera):
+
+**Architecture:**
+- Manifest V3 with service worker (background.js)
+- Content script injects EIP-1193 provider (window.kairos)
+- EIP-6963 Provider Discovery for modern dApp compatibility
+- React + Zustand + Tailwind popup (360x600px)
+
+**Features:**
+- BIP-39 mnemonic generation + BIP-44 HD wallet derivation
+- AES-256-GCM vault encryption with 600K PBKDF2 iterations
+- Multi-chain support: BSC, Polygon, Base, Arbitrum, Ethereum, Avalanche
+- Send native + ERC-20 tokens (KAIROS)
+- Receive with QR code
+- dApp connection approval
+- Transaction signing approval
+- 15-minute auto-lock security
+- Chain switching
+- Private key export (password-protected)
+- Wallet reset option
+
+**10 Screens:** Welcome, CreateWallet, ImportWallet, Unlock, Dashboard, Send, Receive, Settings, TxApproval, ConnectApproval
+
+**Build Output:**
+- popup.js: 26KB (app logic)
+- vendor.js: 142KB (React, Zustand)
+- crypto.js: 331KB (ethers.js)
+- 10 lazy-loaded component chunks
+
+**Install:** Chrome → chrome://extensions → Developer mode ON → Load unpacked → select `kairos-extension/dist/`
+
+**Build:** `cd kairos-extension && npm install && npm run build`
+
+### Deployments
+- Wallet: Deployed to Netlify (kairos-wallet.netlify.app)
+- Trade: Deployed to Netlify (kairos-trade.netlify.app)
+- Website: Deployed to Netlify (kairos-777.com)
+- Backend: Auto-deployed via git push (Render)
+- Extension: Local build (Chrome Web Store submission pending)
+
+### Commits
+- `dfd862e` — feat: SESSION 18 - Security audit 20 fixes + Browser extension wallet
+
+### Next Priorities
+1. **Chrome Web Store submission** — Publish extension for public install
+2. **Native apps** — React Native for Wallet + Trade (iOS/Android)
+3. **Add PancakeSwap liquidity** — Need $5K+ per side for CoinGecko listing
+4. **CoinGecko/CoinMarketCap listing** — Submit once liquidity is sufficient
+5. **Ethereum mainnet deploy** — Need ETH for gas
+6. **Multi-broker live test** — Connect exchange API keys
+
+---
+
 *This file should be updated after every significant work session.*
 *To onboard a new Copilot chat: "Read PROJECT_BIBLE.md and continue from where we left off."*
