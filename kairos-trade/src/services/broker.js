@@ -1491,6 +1491,165 @@ class BrokerService {
     return [];
   }
 
+  // ─── Get closed/completed orders (filled, cancelled, expired) ───
+  async getClosedOrders(brokerId, symbol, limit = 50) {
+    const conn = this.connections.get(brokerId);
+    if (!conn) throw new Error('Broker not connected');
+
+    const normalize = (o, fields) => ({
+      id: o[fields.id]?.toString() || '',
+      symbol: o[fields.symbol] || '',
+      side: (o[fields.side] || '').toLowerCase(),
+      type: (o[fields.type] || '').toLowerCase(),
+      quantity: parseFloat(o[fields.qty] || 0),
+      price: parseFloat(o[fields.price] || 0),
+      filledQty: parseFloat(o[fields.filledQty] || 0),
+      avgPrice: parseFloat(o[fields.avgPrice] || o[fields.price] || 0),
+      status: (o[fields.status] || 'closed').toLowerCase(),
+      time: fields.timeFn ? fields.timeFn(o) : null,
+    });
+
+    // ─── BINANCE ───
+    if (conn.config.id === 'binance') {
+      try {
+        const params = { limit };
+        if (symbol) params.symbol = symbol;
+        const data = await this._binanceRequest(conn.creds, 'GET', '/api/v3/allOrders', params);
+        const orders = Array.isArray(data) ? data : [];
+        return orders.filter(o => o.status !== 'NEW' && o.status !== 'PARTIALLY_FILLED').map(o => normalize(o, {
+          id: 'orderId', symbol: 'symbol', side: 'side', type: 'type',
+          qty: 'origQty', price: 'price', filledQty: 'executedQty', avgPrice: 'price',
+          status: 'status', timeFn: (o) => o.time ? new Date(o.time).toISOString() : null,
+        }));
+      } catch (err) { console.error('Binance getClosedOrders:', err.message); return []; }
+    }
+
+    // ─── COINBASE ───
+    if (conn.config.id === 'coinbase') {
+      try {
+        const params = { order_status: ['FILLED', 'CANCELLED', 'EXPIRED'], limit };
+        if (symbol) params.product_id = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const data = await this._coinbaseRequest(conn.creds, 'GET', '/api/v3/brokerage/orders/historical/batch', params);
+        return (data?.orders || []).map(o => normalize(o, {
+          id: 'order_id', symbol: 'product_id', side: 'side', type: 'order_type',
+          qty: 'base_size', price: 'average_filled_price', filledQty: 'filled_size', avgPrice: 'average_filled_price',
+          status: 'status', timeFn: (o) => o.created_time || null,
+        }));
+      } catch (err) { console.error('Coinbase getClosedOrders:', err.message); return []; }
+    }
+
+    // ─── BYBIT v5 ───
+    if (conn.config.id === 'bybit') {
+      try {
+        const params = { category: 'spot', limit: limit.toString() };
+        if (symbol) params.symbol = symbol;
+        const data = await this._bybitRequest(conn.creds, 'GET', '/v5/order/history', params);
+        return (data?.list || []).map(o => normalize(o, {
+          id: 'orderId', symbol: 'symbol', side: 'side', type: 'orderType',
+          qty: 'qty', price: 'price', filledQty: 'cumExecQty', avgPrice: 'avgPrice',
+          status: 'orderStatus', timeFn: (o) => o.createdTime ? new Date(parseInt(o.createdTime)).toISOString() : null,
+        }));
+      } catch (err) { console.error('Bybit getClosedOrders:', err.message); return []; }
+    }
+
+    // ─── KRAKEN ───
+    if (conn.config.id === 'kraken') {
+      try {
+        const data = await this._krakenRequest(conn.creds, '/0/private/ClosedOrders');
+        const orders = data?.closed || {};
+        return Object.entries(orders).slice(0, limit).map(([txid, o]) => ({
+          id: txid,
+          symbol: o.descr?.pair || '',
+          side: (o.descr?.type || '').toLowerCase(),
+          type: (o.descr?.ordertype || '').toLowerCase(),
+          quantity: parseFloat(o.vol || 0),
+          price: parseFloat(o.descr?.price || 0),
+          filledQty: parseFloat(o.vol_exec || 0),
+          avgPrice: parseFloat(o.price || o.descr?.price || 0),
+          status: (o.status || 'closed').toLowerCase(),
+          time: o.closetm ? new Date(o.closetm * 1000).toISOString() : null,
+        }));
+      } catch (err) { console.error('Kraken getClosedOrders:', err.message); return []; }
+    }
+
+    // ─── KUCOIN ───
+    if (conn.config.id === 'kucoin') {
+      try {
+        const params = { status: 'done' };
+        if (symbol) params.symbol = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const data = await this._kucoinRequest(conn.creds, 'GET', '/api/v1/orders', params);
+        const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
+        return items.slice(0, limit).map(o => normalize(o, {
+          id: 'id', symbol: 'symbol', side: 'side', type: 'type',
+          qty: 'size', price: 'price', filledQty: 'dealSize', avgPrice: 'dealFunds',
+          status: 'status', timeFn: (o) => o.createdAt ? new Date(parseInt(o.createdAt)).toISOString() : null,
+        }));
+      } catch (err) { console.error('KuCoin getClosedOrders:', err.message); return []; }
+    }
+
+    // ─── OKX ───
+    if (conn.config.id === 'okx') {
+      try {
+        const params = { instType: 'SPOT' };
+        if (symbol) params.instId = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const data = await this._okxRequest(conn.creds, 'GET', '/api/v5/trade/orders-history-archive', params);
+        const items = Array.isArray(data) ? data : [];
+        return items.slice(0, limit).map(o => normalize(o, {
+          id: 'ordId', symbol: 'instId', side: 'side', type: 'ordType',
+          qty: 'sz', price: 'px', filledQty: 'accFillSz', avgPrice: 'avgPx',
+          status: 'state', timeFn: (o) => o.cTime ? new Date(parseInt(o.cTime)).toISOString() : null,
+        }));
+      } catch (err) { console.error('OKX getClosedOrders:', err.message); return []; }
+    }
+
+    // ─── BINGX ───
+    if (conn.config.id === 'bingx') {
+      try {
+        const params = { limit: limit.toString() };
+        if (symbol) params.symbol = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const data = await this._bingxRequest(conn.creds, 'GET', '/openApi/spot/v1/trade/historyOrders', params);
+        const orders = data?.orders || (Array.isArray(data) ? data : []);
+        return orders.map(o => normalize(o, {
+          id: 'orderId', symbol: 'symbol', side: 'side', type: 'type',
+          qty: 'origQty', price: 'price', filledQty: 'executedQty', avgPrice: 'avgPrice',
+          status: 'status', timeFn: (o) => o.time ? new Date(parseInt(o.time)).toISOString() : null,
+        }));
+      } catch (err) { console.error('BingX getClosedOrders:', err.message); return []; }
+    }
+
+    // ─── BITGET ───
+    if (conn.config.id === 'bitget') {
+      try {
+        const params = { limit: limit.toString() };
+        if (symbol) params.symbol = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1$2').toUpperCase();
+        const data = await this._bitgetRequest(conn.creds, 'GET', '/api/v2/spot/trade/history-orders', params);
+        const items = Array.isArray(data) ? data : [];
+        return items.map(o => normalize(o, {
+          id: 'orderId', symbol: 'symbol', side: 'side', type: 'orderType',
+          qty: 'size', price: 'price', filledQty: 'baseVolume', avgPrice: 'priceAvg',
+          status: 'status', timeFn: (o) => o.cTime ? new Date(parseInt(o.cTime)).toISOString() : null,
+        }));
+      } catch (err) { console.error('Bitget getClosedOrders:', err.message); return []; }
+    }
+
+    // ─── MEXC ───
+    if (conn.config.id === 'mexc') {
+      try {
+        const params = { limit };
+        if (symbol) params.symbol = symbol;
+        const data = await this._mexcRequest(conn.creds, 'GET', '/api/v3/allOrders', params);
+        const orders = Array.isArray(data) ? data : [];
+        return orders.filter(o => o.status !== 'NEW').map(o => normalize(o, {
+          id: 'orderId', symbol: 'symbol', side: 'side', type: 'type',
+          qty: 'origQty', price: 'price', filledQty: 'executedQty', avgPrice: 'price',
+          status: 'status', timeFn: (o) => o.time ? new Date(o.time).toISOString() : null,
+        }));
+      } catch (err) { console.error('MEXC getClosedOrders:', err.message); return []; }
+    }
+
+    return [];
+  }
+
   // ─── Get trade history (real) ───
   async getTradeHistory(brokerId, symbol, limit = 50) {
     const conn = this.connections.get(brokerId);
