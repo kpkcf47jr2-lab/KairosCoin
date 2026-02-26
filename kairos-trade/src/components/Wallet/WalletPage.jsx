@@ -167,6 +167,10 @@ export default function WalletPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [showPK, setShowPK] = useState(false);
   const [openingWallet, setOpeningWallet] = useState(false);
+  const [showImportPK, setShowImportPK] = useState(false);
+  const [importPKValue, setImportPKValue] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState('');
 
   // Get private key from session memory (decrypted at login)
   const privateKey = useMemo(() => {
@@ -242,6 +246,46 @@ export default function WalletPage() {
       setTimeout(() => setCopied(false), 2000);
     } catch {}
   }, []);
+
+  /* ─── Import existing wallet (admin: paste PK to make it Kairos-native) ─── */
+  const importWallet = async () => {
+    setImportError('');
+    const pk = importPKValue.trim();
+    if (!pk.startsWith('0x') || pk.length !== 66) {
+      setImportError('Private key inválida. Debe empezar con 0x y tener 66 caracteres.');
+      return;
+    }
+    setImporting(true);
+    try {
+      const imported = new ethers.Wallet(pk);
+      // Verify it matches the admin wallet address
+      if (walletAddress && imported.address.toLowerCase() !== walletAddress.toLowerCase()) {
+        setImportError(`La PK no corresponde a ${walletAddress.slice(0,8)}... sino a ${imported.address.slice(0,8)}...`);
+        setImporting(false);
+        return;
+      }
+      const encKey = btoa(pk);
+      localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress: imported.address, encryptedKey: encKey }));
+      sessionStorage.setItem('kairos_pk', pk);
+      // Update backend
+      const host = import.meta.env.DEV ? '' : 'https://kairos-api-u6k5.onrender.com';
+      await fetch(`${host}/api/auth/update-key`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.accessToken}`,
+        },
+        body: JSON.stringify({ walletAddress: imported.address, encryptedKey: encKey }),
+      });
+      const { login } = useStore.getState();
+      login({ ...user, walletAddress: imported.address, encryptedKey: encKey });
+      setShowImportPK(false);
+      setImportPKValue('');
+    } catch (err) {
+      setImportError('Error al importar: ' + err.message);
+    }
+    setImporting(false);
+  };
 
   /* ─── Generate wallet for legacy accounts ─── */
   const [generating, setGenerating] = useState(false);
@@ -394,11 +438,11 @@ export default function WalletPage() {
         <div className="flex gap-3 mt-5">
           {isAdmin && !privateKey ? (
             <button
-              onClick={() => window.open(`https://bscscan.com/address/${walletAddress}`, '_blank')}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all hover:scale-[1.02]"
-              style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 20px rgba(59,130,246,0.2)' }}>
-              <ExternalLink size={16} />
-              Ver en BSCScan
+              onClick={() => setShowImportPK(true)}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-black transition-all hover:scale-[1.02]"
+              style={{ background: 'linear-gradient(135deg, #D4AF37, #B8972E)', boxShadow: '0 4px 20px rgba(212,175,55,0.3)' }}>
+              <Download size={16} />
+              Importar Wallet
             </button>
           ) : (
             <button onClick={() => setShowSend(true)}
@@ -430,10 +474,12 @@ export default function WalletPage() {
           <div className="flex items-start gap-3">
             <Shield size={18} className="text-[var(--gold)] mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-xs font-bold text-[var(--gold)] mb-1">Wallet de Administrador</p>
+              <p className="text-xs font-bold text-[var(--gold)] mb-1">Kairos Wallet — Administrador</p>
               <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">
-                Esta es la wallet principal de Kairos 777 Inc. Aquí se reciben todas las comisiones, fees de trading,
-                ingresos por mint y revenue del protocolo. Gestionada externamente vía MetaMask / hardware wallet.
+                Wallet principal de Kairos 777 Inc. Aquí se reciben todas las comisiones, fees de trading,
+                ingresos por mint y revenue del protocolo.
+                {!privateKey && ' Importa tu clave privada para gestionar todo desde Kairos.'}
+                {privateKey && ' Wallet activa — puedes enviar, recibir y operar directamente desde Kairos Trade.'}
               </p>
             </div>
           </div>
@@ -552,6 +598,63 @@ export default function WalletPage() {
       </div>
 
       {/* ══════════ MODALS ══════════ */}
+
+      {/* ─── Import PK Modal (Admin) ─── */}
+      <AnimatePresence>
+        {showImportPK && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl p-6"
+              style={{ background: 'var(--bg-card)', border: '1px solid rgba(212,175,55,0.2)' }}>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-lg font-bold flex items-center gap-2">
+                  <Download size={18} className="text-[var(--gold)]" />
+                  Importar Wallet a Kairos
+                </h3>
+                <button onClick={() => { setShowImportPK(false); setImportPKValue(''); setImportError(''); }}
+                  className="p-1 rounded-lg hover:bg-white/10"><X size={18} /></button>
+              </div>
+              <p className="text-xs text-[var(--text-dim)] mb-4 leading-relaxed">
+                Pega tu clave privada para vincular tu wallet existente como wallet nativa de Kairos.
+                La PK se encripta y almacena de forma segura en tu dispositivo.
+              </p>
+              <div className="mb-3">
+                <label className="text-[10px] text-[var(--text-dim)] uppercase tracking-wider mb-1 block">Private Key</label>
+                <input
+                  type="password"
+                  value={importPKValue}
+                  onChange={e => { setImportPKValue(e.target.value); setImportError(''); }}
+                  placeholder="0x..."
+                  className="w-full px-4 py-3 rounded-xl text-sm bg-white/5 border border-white/10 focus:border-[var(--gold)] focus:outline-none font-mono"
+                />
+              </div>
+              {importError && (
+                <div className="flex items-center gap-2 text-xs text-red-400 mb-3">
+                  <AlertTriangle size={12} /> {importError}
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-[10px] text-amber-400/80 mb-4 p-2 rounded-lg" style={{ background: 'rgba(255,191,0,0.06)' }}>
+                <Shield size={12} className="flex-shrink-0" />
+                <span>Tu PK nunca se envía a ningún servidor. Se encripta localmente en tu navegador.</span>
+              </div>
+              <button
+                onClick={importWallet}
+                disabled={importing || !importPKValue.trim()}
+                className="w-full py-3 rounded-xl text-sm font-bold text-black transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{ background: 'linear-gradient(135deg, #D4AF37, #B8972E)' }}>
+                {importing ? (
+                  <><Loader2 size={16} className="animate-spin" /> Importando...</>
+                ) : (
+                  <><Wallet size={16} /> Importar y Vincular</>
+                )}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ─── Send Modal ─── */}
       <AnimatePresence>
