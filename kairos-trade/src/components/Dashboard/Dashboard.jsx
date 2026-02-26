@@ -208,7 +208,7 @@ export default function Dashboard() {
   }, [user]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5" style={{ maxWidth: '100%' }}>
+    <div className="flex-1 overflow-y-auto px-3 md:px-5 py-4 md:py-5 space-y-4 md:space-y-5" style={{ maxWidth: '100%' }}>
       {/* Welcome section */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -216,10 +216,10 @@ export default function Dashboard() {
         className="flex items-center justify-between gap-3"
       >
         <div className="min-w-0">
-          <h1 className="text-[22px] font-bold tracking-tight truncate">
+          <h1 className="text-[18px] md:text-[22px] font-bold tracking-tight truncate">
             Bienvenido, <span className="text-[var(--gold)]">{user?.name || 'Trader'}</span>
           </h1>
-          <p className="text-sm text-[var(--text-dim)] mt-0.5">Tu centro de control de trading automatizado</p>
+          <p className="text-sm text-[var(--text-dim)] mt-0.5 hidden sm:block">Tu centro de control de trading automatizado</p>
         </div>
         <button
           onClick={() => setPage('chart')}
@@ -548,11 +548,11 @@ export default function Dashboard() {
         </div>
 
         {/* Table header */}
-        <div className="grid grid-cols-4 gap-2 px-4 py-2 text-[10px] font-bold text-[var(--text-dim)]/50 uppercase tracking-wider">
+        <div className="grid grid-cols-3 md:grid-cols-4 gap-2 px-3 md:px-4 py-2 text-[10px] font-bold text-[var(--text-dim)]/50 uppercase tracking-wider">
           <span>{t('dashboard.pair')}</span>
           <span className="text-right">{t('dashboard.price')}</span>
           <span className="text-right">{t('dashboard.change24h')}</span>
-          <span className="text-right">{t('dashboard.action')}</span>
+          <span className="text-right hidden md:block">{t('dashboard.action')}</span>
         </div>
 
         <div className="divide-y divide-[var(--border)]/30">
@@ -565,7 +565,7 @@ export default function Dashboard() {
               animate={{ opacity: 1 }}
               transition={{ delay: i * 0.05 }}
               onClick={() => { useStore.getState().setSelectedPair(toDisplayPair(ticker.symbol)); setPage('chart'); }}
-              className="group w-full grid grid-cols-4 gap-2 items-center px-4 py-3 hover:bg-white/[0.02] transition-colors"
+              className="group w-full grid grid-cols-3 md:grid-cols-4 gap-2 items-center px-3 md:px-4 py-3 hover:bg-white/[0.02] transition-colors"
             >
               {/* Pair */}
               <div className="flex items-center gap-3">
@@ -598,7 +598,7 @@ export default function Dashboard() {
               </div>
 
               {/* Action */}
-              <div className="text-right">
+              <div className="text-right hidden md:block">
                 <span className="text-[10px] font-semibold text-[var(--gold)] opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--gold)]/10 px-2 py-1 rounded-md">
                   {t('dashboard.trade')} →
                 </span>

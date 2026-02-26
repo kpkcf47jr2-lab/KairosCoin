@@ -319,7 +319,7 @@ export default function BotManager() {
   const getTypeInfo = (type) => BOT_TYPES.find(t => t.id === type) || BOT_TYPES[0];
 
   return (
-    <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 py-5 space-y-5 min-w-0">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 md:px-5 py-4 md:py-5 space-y-4 md:space-y-5 min-w-0">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-lg font-bold">Trading Bots</h1>
@@ -665,16 +665,16 @@ export default function BotManager() {
                   const isUp = totalPnl >= 0;
                   const hasPosition = !!live?.position;
                   return (
-                <div className="grid grid-cols-4 gap-px" style={{ background: 'var(--border)', borderTop: '1px solid var(--border)' }}>
-                  <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
-                    <p className="text-xs text-[var(--text-dim)] mb-1">Trades</p>
-                    <p className="text-lg font-bold">{bot.trades || 0}</p>
+                <div className="grid grid-cols-2 gap-px" style={{ background: 'var(--border)', borderTop: '1px solid var(--border)' }}>
+                  <div className="p-3 sm:p-3.5 text-center" style={{ background: 'var(--surface)' }}>
+                    <p className="text-[10px] sm:text-xs text-[var(--text-dim)] mb-1">Trades</p>
+                    <p className="text-base sm:text-lg font-bold">{bot.trades || 0}</p>
                   </div>
-                  <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
-                    <p className="text-xs text-[var(--text-dim)] mb-1">
+                  <div className="p-3 sm:p-3.5 text-center" style={{ background: 'var(--surface)' }}>
+                    <p className="text-[10px] sm:text-xs text-[var(--text-dim)] mb-1">
                       {hasPosition ? '📊 P&L Vivo' : 'P&L'}
                     </p>
-                    <p className={`text-lg font-bold ${isUp ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
+                    <p className={`text-base sm:text-lg font-bold ${isUp ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
                       {isUp ? '+' : ''}${totalPnl.toFixed(2)}
                     </p>
                     {hasPosition && (
@@ -683,14 +683,14 @@ export default function BotManager() {
                       </p>
                     )}
                   </div>
-                  <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
-                    <p className="text-xs text-[var(--text-dim)] mb-1">Win Rate</p>
-                    <p className="text-lg font-bold text-[var(--gold)]">{(bot.winRate || 0).toFixed(0)}%</p>
+                  <div className="p-3 sm:p-3.5 text-center" style={{ background: 'var(--surface)' }}>
+                    <p className="text-[10px] sm:text-xs text-[var(--text-dim)] mb-1">Win Rate</p>
+                    <p className="text-base sm:text-lg font-bold text-[var(--gold)]">{(bot.winRate || 0).toFixed(0)}%</p>
                   </div>
-                  <div className="p-3.5 text-center" style={{ background: 'var(--surface)' }}>
-                    <p className="text-xs text-[var(--text-dim)] mb-1">Balance</p>
+                  <div className="p-3 sm:p-3.5 text-center" style={{ background: 'var(--surface)' }}>
+                    <p className="text-[10px] sm:text-xs text-[var(--text-dim)] mb-1">Balance</p>
                     <div>
-                      <p className={`text-lg font-bold ${currentBal >= initial ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
+                      <p className={`text-base sm:text-lg font-bold ${currentBal >= initial ? 'text-[var(--green)]' : 'text-[var(--red)]'}`}>
                         ${currentBal.toFixed(2)}
                       </p>
                       <p className="text-[10px] text-[var(--text-dim)]">
@@ -703,7 +703,7 @@ export default function BotManager() {
                 })()}
 
                 {/* Action buttons — bigger */}
-                <div className="flex gap-3 p-4 flex-wrap items-center" style={{ borderTop: '1px solid var(--border)' }}>
+                <div className="flex gap-2 sm:gap-3 p-3 sm:p-4 flex-wrap items-center" style={{ borderTop: '1px solid var(--border)' }}>
                   {bot.status !== 'active' ? (
                     <button onClick={(e) => { e.stopPropagation(); handleStart(bot); }}
                       className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--green)]/10 text-[var(--green)] rounded-xl text-sm font-bold hover:bg-[var(--green)]/20 transition-colors border border-[var(--green)]/20">
@@ -796,7 +796,7 @@ export default function BotManager() {
               <Plus size={14} /> Nueva
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {strategies.filter(s => s.type === 'custom_script').map(s => (
               <div key={s.id} className="rounded-xl p-4 transition-colors hover:bg-[var(--dark-3)] min-w-0"
                 style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
