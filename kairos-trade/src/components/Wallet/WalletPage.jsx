@@ -166,6 +166,11 @@ export default function WalletPage() {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [showPK, setShowPK] = useState(false);
+  const [showSecurityPanel, setShowSecurityPanel] = useState(false);
+  const [securityUnlocked, setSecurityUnlocked] = useState(false);
+  const [securityPassword, setSecurityPassword] = useState('');
+  const [securityError, setSecurityError] = useState('');
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
   const [openingWallet, setOpeningWallet] = useState(false);
   const [showImportPK, setShowImportPK] = useState(false);
   const [importPKValue, setImportPKValue] = useState('');
@@ -246,6 +251,34 @@ export default function WalletPage() {
       setTimeout(() => setCopied(false), 2000);
     } catch {}
   }, []);
+
+  /* ─── Verify password to unlock security panel ─── */
+  const handleSecurityUnlock = async () => {
+    if (!securityPassword) return;
+    setVerifyingPassword(true);
+    setSecurityError('');
+    try {
+      const res = await apiClient.post('/auth/login', {
+        email: user?.email,
+        password: securityPassword,
+      });
+      if (res.data?.success) {
+        setSecurityUnlocked(true);
+        setSecurityPassword('');
+        // Auto-lock after 60 seconds
+        setTimeout(() => {
+          setSecurityUnlocked(false);
+          setShowPK(false);
+        }, 60000);
+      } else {
+        setSecurityError('Contraseña incorrecta');
+      }
+    } catch (err) {
+      setSecurityError('Contraseña incorrecta');
+    } finally {
+      setVerifyingPassword(false);
+    }
+  };
 
   /* ─── Import existing wallet (admin: paste PK to make it Kairos-native) ─── */
   const importWallet = async () => {
@@ -539,43 +572,104 @@ export default function WalletPage() {
         })}
       </div>
 
-      {/* ─── Private Key Reveal ─── */}
+      {/* ─── Security Settings (Hidden by default) ─── */}
       {privateKey && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="rounded-xl p-4"
-          style={{
-            background: 'linear-gradient(135deg, rgba(239,68,68,0.04), rgba(239,68,68,0.01))',
-            border: '1px solid rgba(239,68,68,0.1)',
-          }}
         >
-          <div className="flex items-center justify-between mb-2">
+          {/* Toggle button — subtle, doesn't scream "private key here" */}
+          <button
+            onClick={() => { setShowSecurityPanel(!showSecurityPanel); setShowPK(false); setSecurityError(''); }}
+            className="w-full flex items-center justify-between rounded-xl px-4 py-3 transition-all hover:scale-[1.005]"
+            style={{
+              background: 'rgba(255,255,255,0.02)',
+              border: '1px solid rgba(255,255,255,0.06)',
+            }}
+          >
             <div className="flex items-center gap-2">
-              <AlertTriangle size={14} className="text-red-400" />
-              <span className="text-xs font-bold text-red-400/80">Clave Privada</span>
+              <Shield size={14} className="text-[var(--text-dim)]" />
+              <span className="text-xs font-medium text-[var(--text-dim)]">Seguridad Avanzada</span>
             </div>
-            <button onClick={() => setShowPK(!showPK)}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold text-red-400/60 hover:text-red-400 transition-colors"
-              style={{ background: 'rgba(239,68,68,0.06)' }}>
-              {showPK ? <EyeOff size={10} /> : <Eye size={10} />}
-              {showPK ? 'Ocultar' : 'Mostrar'}
-            </button>
-          </div>
-          {showPK && (
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-[10px] text-red-400/70 font-mono break-all bg-black/20 rounded-lg p-2">
-                {privateKey}
-              </code>
-              <button onClick={() => handleCopy(privateKey)} className="p-2 rounded-lg hover:bg-red-400/10">
-                <Copy size={12} className="text-red-400/50" />
-              </button>
-            </div>
-          )}
-          <p className="text-[9px] text-red-400/30 mt-2">
-            ⚠️ Nunca compartas tu clave privada. Impórtala en Kairos Wallet para acceso completo.
-          </p>
+            <ChevronDown size={14} className={`text-[var(--text-dim)] transition-transform ${showSecurityPanel ? 'rotate-180' : ''}`} />
+          </button>
+
+          <AnimatePresence>
+            {showSecurityPanel && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="overflow-hidden"
+              >
+                <div className="rounded-xl p-4 mt-2" style={{
+                  background: 'linear-gradient(135deg, rgba(239,68,68,0.03), rgba(239,68,68,0.01))',
+                  border: '1px solid rgba(239,68,68,0.08)',
+                }}>
+                  {!securityUnlocked ? (
+                    /* ── Password gate ── */
+                    <div>
+                      <p className="text-[10px] text-[var(--text-dim)] mb-3">
+                        Ingresa tu contraseña para acceder a la clave privada.
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="password"
+                          value={securityPassword}
+                          onChange={(e) => { setSecurityPassword(e.target.value); setSecurityError(''); }}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSecurityUnlock()}
+                          placeholder="Contraseña"
+                          className="flex-1 bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-[var(--gold)]/40"
+                        />
+                        <button
+                          onClick={handleSecurityUnlock}
+                          disabled={verifyingPassword || !securityPassword}
+                          className="px-4 py-2 rounded-lg text-xs font-semibold transition-all disabled:opacity-30"
+                          style={{ background: 'rgba(239,68,68,0.15)', color: 'rgba(239,68,68,0.8)' }}
+                        >
+                          {verifyingPassword ? <Loader2 size={12} className="animate-spin" /> : 'Verificar'}
+                        </button>
+                      </div>
+                      {securityError && (
+                        <p className="text-[10px] text-red-400 mt-2">{securityError}</p>
+                      )}
+                    </div>
+                  ) : (
+                    /* ── Unlocked: show PK toggle ── */
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle size={14} className="text-red-400" />
+                          <span className="text-xs font-bold text-red-400/80">Clave Privada</span>
+                        </div>
+                        <button onClick={() => setShowPK(!showPK)}
+                          className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold text-red-400/60 hover:text-red-400 transition-colors"
+                          style={{ background: 'rgba(239,68,68,0.06)' }}>
+                          {showPK ? <EyeOff size={10} /> : <Eye size={10} />}
+                          {showPK ? 'Ocultar' : 'Mostrar'}
+                        </button>
+                      </div>
+                      {showPK && (
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 text-[10px] text-red-400/70 font-mono break-all bg-black/20 rounded-lg p-2">
+                            {privateKey}
+                          </code>
+                          <button onClick={() => handleCopy(privateKey)} className="p-2 rounded-lg hover:bg-red-400/10">
+                            <Copy size={12} className="text-red-400/50" />
+                          </button>
+                        </div>
+                      )}
+                      <p className="text-[9px] text-red-400/30 mt-2">
+                        ⚠️ Nunca compartas tu clave privada.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
 
