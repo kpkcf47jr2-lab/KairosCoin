@@ -255,12 +255,14 @@ function App() {
 
   return (
     <div className="flex h-screen bg-[var(--dark)] overflow-hidden">
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          style: { background: '#181A20', color: '#EAECEF', border: '1px solid #1E222D', fontSize: '13px' },
-        }}
-      />
+      <ErrorBoundary level="widget">
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            style: { background: '#181A20', color: '#EAECEF', border: '1px solid #1E222D', fontSize: '13px' },
+          }}
+        />
+      </ErrorBoundary>
 
       {/* Onboarding Wizard (shows once for new users) */}
       <AnimatePresence>

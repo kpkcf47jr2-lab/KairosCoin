@@ -1,5 +1,5 @@
 // Kairos Trade — Dashboard (Premium v3.1 — i18n + Analytics)
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   TrendingUp, TrendingDown, Bot, Link2, BarChart3, Brain,
@@ -14,6 +14,16 @@ import { feeService } from '../../services/feeService';
 import { isAdmin } from '../../constants';
 import { toDisplayPair, getBase, formatPair } from '../../utils/pairUtils';
 import useTranslation from '../../hooks/useTranslation';
+
+// ─── Safe render helper — prevents Error #310 (objects as React children) ───
+function safe(val) {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') return val;
+  if (React.isValidElement(val)) return val;
+  if (Array.isArray(val)) return val;
+  console.error('[SAFE] Object caught as React child:', JSON.stringify(val).slice(0, 200), val);
+  return String(val);
+}
 
 // ─── Mini sparkline (canvas) ───
 function MiniSparkline({ data, color = '#D4AF37', height = 48, width = 140 }) {
@@ -217,7 +227,7 @@ export default function Dashboard() {
       >
         <div className="min-w-0">
           <h1 className="text-[18px] md:text-[22px] font-bold tracking-tight truncate">
-            Bienvenido, <span className="text-[var(--gold)]">{user?.name || 'Trader'}</span>
+            Bienvenido, <span className="text-[var(--gold)]">{safe(user?.name) || 'Trader'}</span>
           </h1>
           <p className="text-sm text-[var(--text-dim)] mt-0.5 hidden sm:block">Tu centro de control de trading automatizado</p>
         </div>
@@ -254,8 +264,8 @@ export default function Dashboard() {
                 </div>
                 <ChevronRight size={14} className="text-[var(--text-dim)]/30 group-hover:text-[var(--text-dim)] transition-colors" />
               </div>
-              <p className="text-[22px] font-bold leading-none truncate" style={{ color: stat.color }}>{stat.value}</p>
-              <p className="text-[11px] text-[var(--text-dim)] mt-1.5 font-medium truncate">{stat.label}</p>
+              <p className="text-[22px] font-bold leading-none truncate" style={{ color: stat.color }}>{safe(stat.value)}</p>
+              <p className="text-[11px] text-[var(--text-dim)] mt-1.5 font-medium truncate">{safe(stat.label)}</p>
             </motion.button>
           );
         })}
@@ -324,8 +334,8 @@ export default function Dashboard() {
                   <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: `${kpi.color}08`, border: `1px solid ${kpi.color}15` }}>
                     <I size={13} style={{ color: kpi.color }} />
                     <div>
-                      <p className="text-[9px] text-[var(--text-dim)] uppercase font-semibold">{kpi.label}</p>
-                      <p className="text-sm font-bold" style={{ color: kpi.color }}>{kpi.value}</p>
+                      <p className="text-[9px] text-[var(--text-dim)] uppercase font-semibold">{safe(kpi.label)}</p>
+                      <p className="text-sm font-bold" style={{ color: kpi.color }}>{safe(kpi.value)}</p>
                     </div>
                   </div>
                 );
@@ -347,11 +357,11 @@ export default function Dashboard() {
               <Bot size={14} className="text-blue-400" />
               Bots Activos
               <span className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
-                {activeBotsList.length} {t('dashboard.running')}
+                {activeBotsList.length} {safe(t('dashboard.running'))}
               </span>
             </h2>
             <button onClick={() => setPage('bots')} className="text-[11px] text-[var(--gold)] hover:text-[var(--gold-light)] font-semibold flex items-center gap-1 transition-colors">
-              {t('dashboard.viewAll')} <ChevronRight size={12} />
+              {safe(t('dashboard.viewAll'))} <ChevronRight size={12} />
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -373,9 +383,9 @@ export default function Dashboard() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                      <span className="text-xs font-bold truncate max-w-[120px]">{bot.name}</span>
+                      <span className="text-xs font-bold truncate max-w-[120px]">{safe(bot.name)}</span>
                     </div>
-                    <span className="text-[10px] font-mono text-[var(--text-dim)]">{bot.pair}</span>
+                    <span className="text-[10px] font-mono text-[var(--text-dim)]">{safe(bot.pair)}</span>
                   </div>
                   {pos ? (
                     <div className="flex items-center justify-between">
@@ -438,8 +448,8 @@ export default function Dashboard() {
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${evt.color}12` }}>
                       <I size={13} style={{ color: evt.color }} />
                     </div>
-                    <p className="flex-1 text-xs truncate">{evt.text}</p>
-                    <span className="text-[10px] text-[var(--text-dim)] shrink-0">{ago}</span>
+                    <p className="flex-1 text-xs truncate">{safe(evt.text)}</p>
+                    <span className="text-[10px] text-[var(--text-dim)] shrink-0">{safe(ago)}</span>
                   </div>
                 );
               })}
@@ -472,23 +482,23 @@ export default function Dashboard() {
             <div className="p-4 grid grid-cols-2 gap-3">
               <div className="rounded-lg p-3" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.1)' }}>
                 <p className="text-[10px] text-[var(--text-dim)] uppercase font-semibold mb-1">Total Recaudado</p>
-                <p className="text-lg font-bold text-emerald-400">${treasuryStats.totalCollected.toFixed(2)}</p>
-                <p className="text-[10px] text-[var(--text-dim)]">{treasuryStats.totalTrades} trades</p>
+                <p className="text-lg font-bold text-emerald-400">${safe(treasuryStats.totalCollected.toFixed(2))}</p>
+                <p className="text-[10px] text-[var(--text-dim)]">{safe(treasuryStats.totalTrades)} trades</p>
               </div>
               <div className="rounded-lg p-3" style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.1)' }}>
                 <p className="text-[10px] text-[var(--text-dim)] uppercase font-semibold mb-1">Hoy</p>
-                <p className="text-lg font-bold text-blue-400">${treasuryStats.today.fees.toFixed(2)}</p>
-                <p className="text-[10px] text-[var(--text-dim)]">{treasuryStats.today.trades} trades • ${treasuryStats.today.volume.toLocaleString()} vol</p>
+                <p className="text-lg font-bold text-blue-400">${safe(treasuryStats.today.fees.toFixed(2))}</p>
+                <p className="text-[10px] text-[var(--text-dim)]">{safe(treasuryStats.today.trades)} trades • ${safe(treasuryStats.today.volume.toLocaleString())} vol</p>
               </div>
               <div className="rounded-lg p-3" style={{ background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.1)' }}>
                 <p className="text-[10px] text-[var(--text-dim)] uppercase font-semibold mb-1">7 Días</p>
-                <p className="text-lg font-bold text-purple-400">${treasuryStats.last7days.fees.toFixed(2)}</p>
-                <p className="text-[10px] text-[var(--text-dim)]">{treasuryStats.last7days.trades} trades</p>
+                <p className="text-lg font-bold text-purple-400">${safe(treasuryStats.last7days.fees.toFixed(2))}</p>
+                <p className="text-[10px] text-[var(--text-dim)]">{safe(treasuryStats.last7days.trades)} trades</p>
               </div>
               <div className="rounded-lg p-3" style={{ background: 'rgba(212,175,55,0.06)', border: '1px solid rgba(212,175,55,0.1)' }}>
                 <p className="text-[10px] text-[var(--text-dim)] uppercase font-semibold mb-1">30 Días</p>
-                <p className="text-lg font-bold text-amber-400">${treasuryStats.last30days.fees.toFixed(2)}</p>
-                <p className="text-[10px] text-[var(--text-dim)]">${treasuryStats.last30days.volume.toLocaleString()} volumen</p>
+                <p className="text-lg font-bold text-amber-400">${safe(treasuryStats.last30days.fees.toFixed(2))}</p>
+                <p className="text-[10px] text-[var(--text-dim)]">${safe(treasuryStats.last30days.volume.toLocaleString())} volumen</p>
               </div>
             </div>
           </motion.div>
@@ -523,8 +533,8 @@ export default function Dashboard() {
                   style={{ background: `${action.color}12` }}>
                   <Icon size={20} style={{ color: action.color }} />
                 </div>
-                <p className="text-[13px] font-bold text-[var(--text)] truncate">{action.label}</p>
-                <p className="text-[11px] text-[var(--text-dim)] mt-0.5 truncate">{action.desc}</p>
+                <p className="text-[13px] font-bold text-[var(--text)] truncate">{safe(action.label)}</p>
+                <p className="text-[11px] text-[var(--text-dim)] mt-0.5 truncate">{safe(action.desc)}</p>
               </motion.button>
             );
           })}
@@ -540,24 +550,24 @@ export default function Dashboard() {
         <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(30,34,45,0.5)' }}>
           <div className="flex items-center gap-2">
             <Activity size={14} className="text-[var(--gold)]" />
-            <h2 className="text-sm font-bold">{t('dashboard.realtimeMarket')}</h2>
+            <h2 className="text-sm font-bold">{safe(t('dashboard.realtimeMarket'))}</h2>
           </div>
           <button onClick={() => setPage('chart')} className="text-[11px] text-[var(--gold)] hover:text-[var(--gold-light)] font-semibold flex items-center gap-1 transition-colors">
-            {t('dashboard.viewChart')} <ChevronRight size={12} />
+            {safe(t('dashboard.viewChart'))} <ChevronRight size={12} />
           </button>
         </div>
 
         {/* Table header */}
         <div className="grid grid-cols-3 md:grid-cols-4 gap-2 px-3 md:px-4 py-2 text-[10px] font-bold text-[var(--text-dim)]/50 uppercase tracking-wider">
-          <span>{t('dashboard.pair')}</span>
-          <span className="text-right">{t('dashboard.price')}</span>
-          <span className="text-right">{t('dashboard.change24h')}</span>
-          <span className="text-right hidden md:block">{t('dashboard.action')}</span>
+          <span>{safe(t('dashboard.pair'))}</span>
+          <span className="text-right">{safe(t('dashboard.price'))}</span>
+          <span className="text-right">{safe(t('dashboard.change24h'))}</span>
+          <span className="text-right hidden md:block">{safe(t('dashboard.action'))}</span>
         </div>
 
         <div className="divide-y divide-[var(--border)]/30">
           {loading ? (
-            <div className="p-8 text-center text-sm text-[var(--text-dim)] animate-pulse">{t('dashboard.loadingMarket')}</div>
+            <div className="p-8 text-center text-sm text-[var(--text-dim)] animate-pulse">{safe(t('dashboard.loadingMarket'))}</div>
           ) : marketOverview.map((ticker, i) => (
             <motion.button
               key={ticker.symbol}
@@ -580,7 +590,7 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <div className="text-left">
-                  <p className="text-[13px] font-bold leading-none">{getBase(ticker.symbol)}</p>
+                  <p className="text-[13px] font-bold leading-none">{safe(getBase(ticker.symbol))}</p>
                   <p className="text-[10px] text-[var(--text-dim)]/50 mt-0.5">KAIROS</p>
                 </div>
               </div>
@@ -600,7 +610,7 @@ export default function Dashboard() {
               {/* Action */}
               <div className="text-right hidden md:block">
                 <span className="text-[10px] font-semibold text-[var(--gold)] opacity-0 group-hover:opacity-100 transition-opacity bg-[var(--gold)]/10 px-2 py-1 rounded-md">
-                  {t('dashboard.trade')} →
+                  {safe(t('dashboard.trade'))} →
                 </span>
               </div>
             </motion.button>
