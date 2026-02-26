@@ -290,8 +290,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="bg-[#050507] flex flex-col items-center relative overflow-hidden"
-      style={{ height: '100dvh', minHeight: '-webkit-fill-available' }}>
+    <div className="fixed inset-0 bg-[#050507] flex flex-col items-center overflow-hidden">
 
       {/* ── Background layers ── */}
       <ParticleField />
@@ -312,16 +311,16 @@ export default function AuthScreen() {
       </div>
 
       {/* ── Main Content ── */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {!showForm ? (
           /* ─────── LANDING PAGE — Scroll conversion ─────── */
           <motion.div key="splash" className="relative z-10 w-full flex-1 overflow-y-auto"
-            exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
+            initial={false}
+            exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
             style={{ scrollbarWidth: 'thin', scrollbarColor: '#1e293b transparent', WebkitOverflowScrolling: 'touch' }}>
 
             {/* ── Hero Section ── */}
-            <div className="flex flex-col items-center justify-center px-6 relative"
-              style={{ minHeight: '100dvh' }}>
+            <div className="min-h-screen flex flex-col items-center justify-center px-6 relative">
 
               {/* KairosCoin Logo */}
               <motion.div className="relative mb-6"
@@ -517,10 +516,11 @@ export default function AuthScreen() {
           </motion.div>
         ) : (
           /* ─────── LOGIN/REGISTER FORM ─────── */
-          <motion.div key="form" className="relative z-10 w-full max-w-[420px] px-6 my-auto"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}>
+          <motion.div key="form" className="relative z-10 w-full flex-1 flex items-center justify-center overflow-y-auto px-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}>
+          <div className="w-full max-w-[420px]">
 
             {/* Back to splash + mini logo */}
             <div className="flex items-center justify-between mb-8">
@@ -682,6 +682,7 @@ export default function AuthScreen() {
             <p className="text-[10px] text-white/15 text-center mt-6">
               Parte del ecosistema <span className="text-[#3B82F6]/40 font-semibold">Kairos 777</span>
             </p>
+          </div>
           </motion.div>
         )}
       </AnimatePresence>
