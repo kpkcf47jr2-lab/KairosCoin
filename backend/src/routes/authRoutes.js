@@ -181,7 +181,7 @@ router.post('/verify-2fa', authLimiter, async (req, res) => {
 //  POST /refresh — Refresh access token
 // ═════════════════════════════════════════════════════════════════════════════
 
-router.post('/refresh', async (req, res) => {
+router.post('/refresh', authLimiter, async (req, res) => {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) {
