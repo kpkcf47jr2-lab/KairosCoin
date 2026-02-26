@@ -7,6 +7,7 @@ export const translations = { es, en };
 /**
  * Get a nested translation value by dot-notation key.
  * e.g. t('sidebar.kairos') → 'Kairos'
+ * SAFETY: Always returns a string or number — never an object.
  */
 export function getTranslation(lang, key) {
   const dict = translations[lang] || translations.es;
@@ -24,5 +25,11 @@ export function getTranslation(lang, key) {
       if (val === undefined) break;
     }
   }
-  return val ?? key;
+  const result = val ?? key;
+  // Guard: never return objects/arrays — they crash React rendering
+  if (typeof result === 'string' || typeof result === 'number') {
+    return result;
+  }
+  console.warn('[i18n] Key resolved to non-primitive:', key, typeof result);
+  return key;
 }

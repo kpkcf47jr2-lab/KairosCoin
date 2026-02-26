@@ -14,7 +14,11 @@ export default function useTranslation() {
   const updateSettings = useStore((s) => s.updateSettings);
 
   const t = useCallback(
-    (key) => getTranslation(lang, key),
+    (key) => {
+      const val = getTranslation(lang, key);
+      // Double safety — ensure JSX always receives a renderable value
+      return (typeof val === 'string' || typeof val === 'number') ? val : String(key);
+    },
     [lang]
   );
 

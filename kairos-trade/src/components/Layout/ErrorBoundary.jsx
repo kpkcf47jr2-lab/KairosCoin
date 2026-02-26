@@ -37,8 +37,16 @@ export default class ErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       const { level = 'page' } = this.props;
-      const lang = useStore.getState().settings?.language || 'es';
-      const t = (key) => getTranslation(lang, key);
+      let t;
+      try {
+        const lang = useStore.getState().settings?.language || 'es';
+        t = (key) => {
+          const val = getTranslation(lang, key);
+          return (typeof val === 'string') ? val : key;
+        };
+      } catch {
+        t = (key) => key;
+      }
 
       // Inline/widget level — minimal error
       if (level === 'widget') {

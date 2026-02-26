@@ -41,6 +41,22 @@ const MarketHeatmap = lazy(() => import('./components/Dashboard/MarketHeatmap'))
 import { isAdmin } from './constants';
 import { telegramService } from './services/telegram';
 
+/* ─── Global error fallback (catches crashes outside ErrorBoundary) ─── */
+function AppCrashFallback({ error }) {
+  return (
+    <div style={{ background: '#08090C', color: '#F0F0F0', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', fontFamily: 'Inter, sans-serif' }}>
+      <div style={{ background: '#1A1D26', padding: '2rem', borderRadius: '16px', maxWidth: '420px', width: '100%', border: '1px solid #252836' }}>
+        <h2 style={{ color: '#FF4757', marginBottom: '12px', fontSize: '18px' }}>Error de aplicación</h2>
+        <p style={{ color: '#B8BCC8', fontSize: '14px', marginBottom: '16px' }}>{error?.message || 'Algo salió mal'}</p>
+        <button onClick={() => { localStorage.clear(); window.location.reload(); }}
+          style={{ background: '#3B82F6', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
+          Reiniciar App
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Loading fallback ─── */
 function PageLoader() {
   return (
@@ -166,11 +182,19 @@ function App() {
     return () => window.removeEventListener('kairos:session-expired', handleExpired);
   }, [logout]);
 
-  // Show onboarding wizard for new users (only once per user)
+  // Show onboarding wizard for NEW registrations only (skip for existing returning users)
   useEffect(() => {
     if (isAuthenticated && user?.id) {
       const done = localStorage.getItem(`kairos_onboarding_done_${user.id}`);
-      if (!done) setShowOnboarding(true);
+      // Only show if user explicitly came from registration (flag set during register)
+      const justRegistered = sessionStorage.getItem('kairos_just_registered');
+      if (!done && justRegistered) {
+        setShowOnboarding(true);
+        sessionStorage.removeItem('kairos_just_registered');
+      } else if (!done) {
+        // Mark as done for existing users who never saw it — skip silently
+        localStorage.setItem(`kairos_onboarding_done_${user.id}`, '1');
+      }
     }
   }, [isAuthenticated, user?.id]);
 
@@ -245,40 +269,44 @@ function App() {
 
       {/* Sidebar — desktop: inline, mobile: overlay */}
       <div className="hidden md:flex">
-        <Sidebar />
+        <ErrorBoundary level="widget"><Sidebar /></ErrorBoundary>
       </div>
 
       {/* Mobile sidebar overlay */}
       <AnimatePresence>
         {mobileMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 z-40 md:hidden"
-              onClick={() => setMobileMenuOpen(false)}
-            />
-            <motion.div
-              initial={{ x: -300 }}
-              animate={{ x: 0 }}
-              exit={{ x: -300 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed left-0 top-0 bottom-0 z-50 md:hidden"
-            >
-              <Sidebar forceMobileOpen />
-            </motion.div>
-          </>
+          <motion.div
+            key="mobile-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-40 md:hidden"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+        )}
+        {mobileMenuOpen && (
+          <motion.div
+            key="mobile-sidebar"
+            initial={{ x: -300 }}
+            animate={{ x: 0 }}
+            exit={{ x: -300 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="fixed left-0 top-0 bottom-0 z-50 md:hidden"
+          >
+            <Sidebar forceMobileOpen />
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* Main area */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <Header onMenuToggle={() => setMobileMenuOpen(v => !v)} mobileMenuOpen={mobileMenuOpen} />
+        <ErrorBoundary level="widget">
+          <Header onMenuToggle={() => setMobileMenuOpen(v => !v)} mobileMenuOpen={mobileMenuOpen} />
+        </ErrorBoundary>
 
         <div className="flex flex-1 overflow-hidden">
           {/* Page content */}
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={currentPage}
               initial={{ opacity: 0 }}

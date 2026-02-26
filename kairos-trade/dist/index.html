@@ -15,13 +15,29 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-CFxt9ITC.js"></script>
+    <script type="module" crossorigin src="/assets/index-D_6OLlYW.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/vendor-CUCP814w.js">
     <link rel="modulepreload" crossorigin href="/assets/ui-BpW-uvdI.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-BvnfITrX.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-BM6JAoGm.css">
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Global JS error catcher — shows errors visually if React fails to mount
+      window.onerror = function(msg, src, line, col, err) {
+        var el = document.getElementById('js-error-overlay');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'js-error-overlay';
+          el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#1A1D26;color:#FF6B7A;padding:12px 16px;font:12px/1.4 monospace;border-bottom:2px solid #FF4757;max-height:40vh;overflow:auto;';
+          document.body.prepend(el);
+        }
+        el.innerHTML += '<b>ERROR:</b> ' + msg + '<br><small>' + (src||'') + ':' + line + '</small><br>';
+      };
+      window.addEventListener('unhandledrejection', function(e) {
+        window.onerror('Promise: ' + (e.reason?.message || e.reason || 'unknown'), '', 0, 0, e.reason);
+      });
+    </script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {

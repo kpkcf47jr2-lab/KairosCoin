@@ -3,7 +3,7 @@
 //  Offline Cache + Smart Caching Strategies
 // ═══════════════════════════════════════════════════════
 
-const CACHE_NAME = 'kairos-trade-v2';
+const CACHE_NAME = 'kairos-trade-v3';
 const RUNTIME_CACHE = 'kairos-trade-runtime-v2';
 
 const STATIC_ASSETS = [
