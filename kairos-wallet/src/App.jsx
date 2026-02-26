@@ -55,7 +55,7 @@ const pageTransition = {
 };
 
 export default function App() {
-  const { currentScreen, navigate, isUnlocked, lock } = useStore();
+  const { currentScreen, navigate, isUnlocked, lock, showToast } = useStore();
 
   useEffect(() => {
     // Determine initial screen
@@ -63,6 +63,34 @@ export default function App() {
       navigate('unlock');
     } else {
       navigate('welcome');
+    }
+
+    // Handle cross-app token from Kairos Trade (?cat=...)
+    const params = new URLSearchParams(window.location.search);
+    const crossAppToken = params.get('cat');
+    if (crossAppToken) {
+      // Clean URL without reload
+      window.history.replaceState({}, '', window.location.pathname);
+      // Exchange token for Trade account info
+      fetch('https://kairos-api-u6k5.onrender.com/api/auth/exchange-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ crossAppToken }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success && data.data?.user) {
+            localStorage.setItem('kairos_linked_trade', JSON.stringify({
+              email: data.data.user.email,
+              name: data.data.user.name,
+              walletAddress: data.data.user.wallet_address || '',
+              linkedAt: new Date().toISOString(),
+            }));
+            // Don't store tokens — Wallet has its own auth
+            setTimeout(() => showToast('✅ Cuenta de Kairos Trade vinculada', 'success'), 1500);
+          }
+        })
+        .catch(() => {}); // Silently fail — non-critical
     }
   }, []);
 

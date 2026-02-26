@@ -40,6 +40,9 @@ export default function Dashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [alertCount, setAlertCount] = useState(getActiveAlertCount());
 
+  // Check for linked Trade account
+  const linkedTrade = JSON.parse(localStorage.getItem('kairos_linked_trade') || 'null');
+
   const chain = CHAINS[activeChainId];
   const account = getActiveAccount();
   const portfolioValue = getTotalPortfolioValue();
@@ -255,6 +258,26 @@ export default function Dashboard() {
 
       {/* ── Quick Actions ── */}
       <div className="px-5 mb-5">
+        {/* Kairos Trade banner — always visible */}
+        <a
+          href="https://kairos-trade.netlify.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 w-full mb-3 p-3 rounded-xl transition-all active:scale-[0.98]"
+          style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.04))', border: '1px solid rgba(59,130,246,0.15)' }}
+        >
+          <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center shrink-0">
+            <TrendingUp size={18} className="text-blue-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-white">Kairos Trade</p>
+            <p className="text-[10px] text-dark-400 truncate">
+              {linkedTrade ? `Conectado · ${linkedTrade.email}` : 'Trading con AI · Bots · 10 Brokers'}
+            </p>
+          </div>
+          <ExternalLink size={14} className="text-blue-400 shrink-0" />
+        </a>
+
         <div className="grid grid-cols-4 gap-2">
           {[
             { icon: Send, label: t('action.send'), screen: 'send', color: 'bg-blue-500/10 text-blue-400' },

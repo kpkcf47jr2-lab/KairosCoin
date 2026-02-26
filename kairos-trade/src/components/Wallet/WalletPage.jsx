@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wallet, Send, Download, Copy, Check, ExternalLink, RefreshCw,
   ChevronRight, ChevronDown, Shield, Globe, ArrowUpRight,
-  ArrowDownRight, AlertTriangle, Eye, EyeOff, QrCode, X, Loader2
+  ArrowDownRight, AlertTriangle, Eye, EyeOff, QrCode, X, Loader2, Link2
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import useStore from '../../store/useStore';
+import apiClient from '../../services/apiClient';
 import { KAIROS_COIN } from '../../constants';
 
 /* ─── Chain Configurations ─── */
@@ -164,6 +165,7 @@ export default function WalletPage() {
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [showPK, setShowPK] = useState(false);
+  const [openingWallet, setOpeningWallet] = useState(false);
 
   // Get private key from session memory (decrypted at login)
   const privateKey = useMemo(() => {
@@ -278,12 +280,26 @@ export default function WalletPage() {
             className="p-2 rounded-xl transition-all hover:bg-white/5">
             <RefreshCw size={16} className={`text-[var(--text-dim)] ${refreshing ? 'animate-spin' : ''}`} />
           </button>
-          <a href="https://kairos-wallet.netlify.app" target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--gold)] transition-all hover:bg-[var(--gold)]/10"
+          <button onClick={async () => {
+              setOpeningWallet(true);
+              try {
+                const res = await apiClient.post('/api/auth/cross-app-token', { target: 'wallet' });
+                if (res.success) {
+                  window.open(`https://kairos-wallet.netlify.app?cat=${res.data.crossAppToken}`, '_blank');
+                } else {
+                  window.open('https://kairos-wallet.netlify.app', '_blank');
+                }
+              } catch {
+                window.open('https://kairos-wallet.netlify.app', '_blank');
+              }
+              setOpeningWallet(false);
+            }}
+            disabled={openingWallet}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--gold)] transition-all hover:bg-[var(--gold)]/10 disabled:opacity-50"
             style={{ border: '1px solid rgba(59,130,246,0.15)' }}>
-            <ExternalLink size={12} />
+            {openingWallet ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />}
             Wallet Completa
-          </a>
+          </button>
         </div>
       </motion.div>
 
