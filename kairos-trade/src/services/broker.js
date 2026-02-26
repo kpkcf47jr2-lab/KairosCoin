@@ -1344,6 +1344,150 @@ class BrokerService {
       }
     }
 
+    // ─── BYBIT v5 ───
+    if (conn.config.id === 'bybit') {
+      try {
+        const params = { category: 'spot' };
+        if (symbol) params.symbol = symbol;
+        const data = await this._bybitRequest(conn.creds, 'GET', '/v5/order/realtime', params);
+        return (data?.list || []).map(o => ({
+          id: o.orderId,
+          symbol: o.symbol,
+          side: o.side?.toLowerCase(),
+          type: o.orderType?.toLowerCase(),
+          quantity: parseFloat(o.qty || 0),
+          price: parseFloat(o.price || 0),
+          filledQty: parseFloat(o.cumExecQty || 0),
+          status: o.orderStatus?.toLowerCase(),
+          time: o.createdTime ? new Date(parseInt(o.createdTime)).toISOString() : null,
+        }));
+      } catch (err) { console.error('Bybit getOpenOrders:', err.message); return []; }
+    }
+
+    // ─── KRAKEN ───
+    if (conn.config.id === 'kraken') {
+      try {
+        const data = await this._krakenRequest(conn.creds, '/0/private/OpenOrders');
+        const orders = data?.open || {};
+        return Object.entries(orders).map(([txid, o]) => ({
+          id: txid,
+          symbol: o.descr?.pair || '',
+          side: o.descr?.type?.toLowerCase(),
+          type: o.descr?.ordertype?.toLowerCase(),
+          quantity: parseFloat(o.vol || 0),
+          price: parseFloat(o.descr?.price || 0),
+          filledQty: parseFloat(o.vol_exec || 0),
+          status: o.status?.toLowerCase() || 'open',
+          time: o.opentm ? new Date(o.opentm * 1000).toISOString() : null,
+        }));
+      } catch (err) { console.error('Kraken getOpenOrders:', err.message); return []; }
+    }
+
+    // ─── KUCOIN ───
+    if (conn.config.id === 'kucoin') {
+      try {
+        const params = { status: 'active' };
+        if (symbol) params.symbol = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const data = await this._kucoinRequest(conn.creds, 'GET', '/api/v1/orders', params);
+        const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
+        return items.map(o => ({
+          id: o.id,
+          symbol: o.symbol,
+          side: o.side?.toLowerCase(),
+          type: o.type?.toLowerCase(),
+          quantity: parseFloat(o.size || 0),
+          price: parseFloat(o.price || 0),
+          filledQty: parseFloat(o.dealSize || 0),
+          status: o.isActive ? 'open' : 'done',
+          time: o.createdAt ? new Date(parseInt(o.createdAt)).toISOString() : null,
+        }));
+      } catch (err) { console.error('KuCoin getOpenOrders:', err.message); return []; }
+    }
+
+    // ─── OKX ───
+    if (conn.config.id === 'okx') {
+      try {
+        const params = { instType: 'SPOT' };
+        if (symbol) params.instId = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const data = await this._okxRequest(conn.creds, 'GET', '/api/v5/trade/orders-pending', params);
+        const items = Array.isArray(data) ? data : [];
+        return items.map(o => ({
+          id: o.ordId,
+          symbol: o.instId,
+          side: o.side?.toLowerCase(),
+          type: o.ordType?.toLowerCase(),
+          quantity: parseFloat(o.sz || 0),
+          price: parseFloat(o.px || 0),
+          filledQty: parseFloat(o.accFillSz || 0),
+          status: o.state?.toLowerCase() || 'open',
+          time: o.cTime ? new Date(parseInt(o.cTime)).toISOString() : null,
+        }));
+      } catch (err) { console.error('OKX getOpenOrders:', err.message); return []; }
+    }
+
+    // ─── BINGX ───
+    if (conn.config.id === 'bingx') {
+      try {
+        const params = {};
+        if (symbol) params.symbol = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const data = await this._bingxRequest(conn.creds, 'GET', '/openApi/spot/v1/trade/openOrders', params);
+        const orders = data?.orders || (Array.isArray(data) ? data : []);
+        return orders.map(o => ({
+          id: o.orderId?.toString(),
+          symbol: o.symbol,
+          side: o.side?.toLowerCase(),
+          type: o.type?.toLowerCase(),
+          quantity: parseFloat(o.origQty || 0),
+          price: parseFloat(o.price || 0),
+          filledQty: parseFloat(o.executedQty || 0),
+          status: o.status?.toLowerCase() || 'open',
+          time: o.time ? new Date(parseInt(o.time)).toISOString() : null,
+        }));
+      } catch (err) { console.error('BingX getOpenOrders:', err.message); return []; }
+    }
+
+    // ─── BITGET ───
+    if (conn.config.id === 'bitget') {
+      try {
+        const params = {};
+        if (symbol) params.symbol = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1$2').toUpperCase();
+        const data = await this._bitgetRequest(conn.creds, 'GET', '/api/v2/spot/trade/unfilled-orders', params);
+        const items = Array.isArray(data) ? data : [];
+        return items.map(o => ({
+          id: o.orderId,
+          symbol: o.symbol,
+          side: o.side?.toLowerCase(),
+          type: o.orderType?.toLowerCase(),
+          quantity: parseFloat(o.size || 0),
+          price: parseFloat(o.price || 0),
+          filledQty: parseFloat(o.baseVolume || 0),
+          status: o.status?.toLowerCase() || 'open',
+          time: o.cTime ? new Date(parseInt(o.cTime)).toISOString() : null,
+        }));
+      } catch (err) { console.error('Bitget getOpenOrders:', err.message); return []; }
+    }
+
+    // ─── MEXC ───
+    if (conn.config.id === 'mexc') {
+      try {
+        const params = {};
+        if (symbol) params.symbol = symbol;
+        const data = await this._mexcRequest(conn.creds, 'GET', '/api/v3/openOrders', params);
+        const orders = Array.isArray(data) ? data : [];
+        return orders.map(o => ({
+          id: o.orderId?.toString(),
+          symbol: o.symbol,
+          side: o.side?.toLowerCase(),
+          type: o.type?.toLowerCase(),
+          quantity: parseFloat(o.origQty || 0),
+          price: parseFloat(o.price || 0),
+          filledQty: parseFloat(o.executedQty || 0),
+          status: o.status?.toLowerCase() || 'open',
+          time: o.time ? new Date(o.time).toISOString() : null,
+        }));
+      } catch (err) { console.error('MEXC getOpenOrders:', err.message); return []; }
+    }
+
     return [];
   }
 
@@ -1397,6 +1541,157 @@ class BrokerService {
         console.error('[COINBASE] getTradeHistory error:', err.message);
         return [];
       }
+    }
+
+    // ─── BYBIT v5 ───
+    if (conn.config.id === 'bybit') {
+      try {
+        const params = { category: 'spot', limit: limit.toString() };
+        if (symbol) params.symbol = symbol;
+        const data = await this._bybitRequest(conn.creds, 'GET', '/v5/execution/list', params);
+        return (data?.list || []).map(t => ({
+          id: t.execId,
+          orderId: t.orderId,
+          symbol: t.symbol,
+          side: t.side?.toLowerCase(),
+          price: parseFloat(t.execPrice || 0),
+          quantity: parseFloat(t.execQty || 0),
+          commission: parseFloat(t.execFee || 0),
+          commissionAsset: t.feeCurrency || '',
+          time: t.execTime ? new Date(parseInt(t.execTime)).toISOString() : null,
+          isMaker: t.isMaker === 'true' || t.isMaker === true,
+        }));
+      } catch (err) { console.error('Bybit getTradeHistory:', err.message); return []; }
+    }
+
+    // ─── KRAKEN ───
+    if (conn.config.id === 'kraken') {
+      try {
+        const data = await this._krakenRequest(conn.creds, '/0/private/TradesHistory');
+        const trades = data?.trades || {};
+        return Object.entries(trades).slice(0, limit).map(([txid, t]) => ({
+          id: txid,
+          orderId: t.ordertxid,
+          symbol: t.pair,
+          side: t.type?.toLowerCase(),
+          price: parseFloat(t.price || 0),
+          quantity: parseFloat(t.vol || 0),
+          commission: parseFloat(t.fee || 0),
+          commissionAsset: '',
+          time: t.time ? new Date(t.time * 1000).toISOString() : null,
+          isMaker: t.maker === true,
+        }));
+      } catch (err) { console.error('Kraken getTradeHistory:', err.message); return []; }
+    }
+
+    // ─── KUCOIN ───
+    if (conn.config.id === 'kucoin') {
+      try {
+        const params = {};
+        if (symbol) params.symbol = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const data = await this._kucoinRequest(conn.creds, 'GET', '/api/v1/fills', params);
+        const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
+        return items.slice(0, limit).map(t => ({
+          id: t.tradeId || t.id,
+          orderId: t.orderId,
+          symbol: t.symbol,
+          side: t.side?.toLowerCase(),
+          price: parseFloat(t.price || 0),
+          quantity: parseFloat(t.size || 0),
+          commission: parseFloat(t.fee || 0),
+          commissionAsset: t.feeCurrency || '',
+          time: t.createdAt ? new Date(parseInt(t.createdAt)).toISOString() : null,
+          isMaker: t.liquidity === 'maker',
+        }));
+      } catch (err) { console.error('KuCoin getTradeHistory:', err.message); return []; }
+    }
+
+    // ─── OKX ───
+    if (conn.config.id === 'okx') {
+      try {
+        const params = { instType: 'SPOT' };
+        if (symbol) params.instId = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const data = await this._okxRequest(conn.creds, 'GET', '/api/v5/trade/fills-history', params);
+        const items = Array.isArray(data) ? data : [];
+        return items.slice(0, limit).map(t => ({
+          id: t.tradeId || t.billId,
+          orderId: t.ordId,
+          symbol: t.instId,
+          side: t.side?.toLowerCase(),
+          price: parseFloat(t.fillPx || 0),
+          quantity: parseFloat(t.fillSz || 0),
+          commission: Math.abs(parseFloat(t.fee || 0)),
+          commissionAsset: t.feeCcy || '',
+          time: t.ts ? new Date(parseInt(t.ts)).toISOString() : null,
+          isMaker: t.execType === 'M',
+        }));
+      } catch (err) { console.error('OKX getTradeHistory:', err.message); return []; }
+    }
+
+    // ─── BINGX ───
+    if (conn.config.id === 'bingx') {
+      try {
+        const params = { limit: limit.toString() };
+        if (symbol) params.symbol = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1-$2').toUpperCase();
+        const data = await this._bingxRequest(conn.creds, 'GET', '/openApi/spot/v1/trade/historyOrders', params);
+        const orders = data?.orders || (Array.isArray(data) ? data : []);
+        return orders.map(t => ({
+          id: t.orderId?.toString(),
+          orderId: t.orderId?.toString(),
+          symbol: t.symbol,
+          side: t.side?.toLowerCase(),
+          price: parseFloat(t.price || t.avgPrice || 0),
+          quantity: parseFloat(t.executedQty || t.origQty || 0),
+          commission: parseFloat(t.commission || 0),
+          commissionAsset: t.commissionAsset || '',
+          time: t.time ? new Date(parseInt(t.time)).toISOString() : null,
+          isMaker: false,
+        }));
+      } catch (err) { console.error('BingX getTradeHistory:', err.message); return []; }
+    }
+
+    // ─── BITGET ───
+    if (conn.config.id === 'bitget') {
+      try {
+        const params = { limit: limit.toString() };
+        if (symbol) params.symbol = symbol.replace(/([A-Z]+)(USDT|USDC|USD)$/i, '$1$2').toUpperCase();
+        const data = await this._bitgetRequest(conn.creds, 'GET', '/api/v2/spot/trade/fills', params);
+        const items = Array.isArray(data) ? data : [];
+        return items.map(t => ({
+          id: t.tradeId || t.fillId,
+          orderId: t.orderId,
+          symbol: t.symbol,
+          side: t.side?.toLowerCase(),
+          price: parseFloat(t.priceAvg || t.price || 0),
+          quantity: parseFloat(t.size || 0),
+          commission: parseFloat(t.fees || t.fee || 0),
+          commissionAsset: t.feeCcy || '',
+          time: t.cTime ? new Date(parseInt(t.cTime)).toISOString() : null,
+          isMaker: t.tradeScope === 'maker',
+        }));
+      } catch (err) { console.error('Bitget getTradeHistory:', err.message); return []; }
+    }
+
+    // ─── MEXC ───
+    if (conn.config.id === 'mexc') {
+      try {
+        const params = { limit };
+        if (symbol) params.symbol = symbol;
+        const data = await this._mexcRequest(conn.creds, 'GET', '/api/v3/myTrades', params);
+        const trades = Array.isArray(data) ? data : [];
+        return trades.map(t => ({
+          id: t.id?.toString(),
+          orderId: t.orderId?.toString(),
+          symbol: t.symbol,
+          side: t.isBuyer ? 'buy' : 'sell',
+          price: parseFloat(t.price || 0),
+          quantity: parseFloat(t.qty || 0),
+          commission: parseFloat(t.commission || 0),
+          commissionAsset: t.commissionAsset || '',
+          time: t.time ? new Date(t.time).toISOString() : null,
+          isMaker: t.isMaker === true,
+        }));
+      } catch (err) { console.error('MEXC getTradeHistory:', err.message); return []; }
     }
 
     return [];

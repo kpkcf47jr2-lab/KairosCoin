@@ -428,7 +428,7 @@ class TradingEngine {
         this._onTrade(bot.id, { ...closeOrder, ...result, profit: realProfit, real: true, confirmed, action: 'close', reason });
 
         // Telegram notification
-        telegramService.notifyTradeClose(bot.name, pos.side, bot.pair, entryPrice, realExitPrice, realProfit, reason);
+        telegramService.notifyTradeClose(bot.name, position.side, bot.pair, entryPrice, realExitPrice, realProfit, reason);
 
         // Auto-refresh balance from broker after closing
         this._refreshBotBalance(bot);
