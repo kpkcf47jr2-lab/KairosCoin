@@ -64,10 +64,15 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => req.ip,
+  skip: (req) => {
+    // Skip rate limiting for admin endpoints authenticated with master key
+    if (req.path.startsWith('/admin/') && req.headers['x-api-key']) return true;
+    return false;
+  },
   message: {
     success: false,
-    error: "Too many auth attempts",
-    message: "Cuenta bloqueada temporalmente. Intenta en 15 minutos.",
+    error: "Too many requests",
+    message: "Demasiadas solicitudes. Intenta más tarde.",
     retryAfter: "15 minutes",
   },
 });
