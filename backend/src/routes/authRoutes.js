@@ -342,12 +342,17 @@ router.post('/admin/unlock', requireMasterKey, (req, res) => {
 
 router.post('/admin/set-wallet', requireMasterKey, (req, res) => {
   try {
-    const { email, walletAddress, encryptedKey } = req.body;
+    const { email, walletAddress, encryptedKey, reset } = req.body;
     if (!email) {
       return res.status(400).json({ success: false, error: 'email is required' });
     }
+    // Allow reset to clear wallet
+    if (reset) {
+      const result = authService.updateUserWallet(email, '', '');
+      return res.json({ success: true, message: `Wallet reset for ${email}`, data: result });
+    }
     if (!walletAddress && !encryptedKey) {
-      return res.status(400).json({ success: false, error: 'walletAddress or encryptedKey is required' });
+      return res.status(400).json({ success: false, error: 'walletAddress or encryptedKey is required (or set reset:true)' });
     }
     if (walletAddress && !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
       return res.status(400).json({ success: false, error: 'Invalid wallet address format' });

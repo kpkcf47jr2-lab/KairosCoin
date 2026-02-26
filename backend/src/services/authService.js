@@ -120,19 +120,7 @@ function initialize() {
   setInterval(cleanExpiredSessions, 60 * 60 * 1000);
   cleanExpiredSessions();
 
-  // ── Ensure admin account always has the correct owner wallet ──
-  try {
-    for (const adminEmail of ADMIN_EMAILS) {
-      const admin = db.prepare('SELECT id, wallet_address FROM users WHERE email = ?').get(adminEmail);
-      if (admin && admin.wallet_address !== ADMIN_WALLET) {
-        db.prepare('UPDATE users SET wallet_address = ?, encrypted_key = \'\', updated_at = ? WHERE id = ?')
-          .run(ADMIN_WALLET, new Date().toISOString(), admin.id);
-        logger.info(`👑 Admin wallet linked: ${adminEmail} → ${ADMIN_WALLET}`);
-      }
-    }
-  } catch (err) {
-    logger.warn('Admin wallet migration skipped:', err.message);
-  }
+  // Admin wallet is no longer auto-forced — admin can set their own via Kairos Trade
 
   logger.info('🔐 Auth service initialized (bcrypt + JWT + TOTP)');
 }
@@ -167,9 +155,9 @@ async function register({ email, password, name, walletAddress, encryptedKey, ip
   const displayName = isAdmin ? 'Kairos 777 Inc' : name;
   const plan = isAdmin ? 'enterprise' : 'free';
 
-  // Admin accounts always use the owner wallet (externally managed)
-  const finalWalletAddress = isAdmin ? ADMIN_WALLET : (walletAddress || '');
-  const finalEncryptedKey = isAdmin ? '' : (encryptedKey || '');
+  // Admin can use any wallet — no longer forced to owner wallet
+  const finalWalletAddress = walletAddress || '';
+  const finalEncryptedKey = encryptedKey || '';
 
   const userId = crypto.randomUUID();
 
@@ -582,21 +570,25 @@ function updateUserWallet(email, walletAddress, encryptedKey) {
   if (!user) throw new AuthError('User not found', 404);
 
   const now = new Date().toISOString();
-  if (walletAddress && encryptedKey) {
+  // Allow explicit empty strings to reset wallet
+  const hasAddr = walletAddress !== undefined && walletAddress !== null;
+  const hasKey = encryptedKey !== undefined && encryptedKey !== null;
+
+  if (hasAddr && hasKey) {
     db.prepare('UPDATE users SET wallet_address = ?, encrypted_key = ?, updated_at = ? WHERE id = ?')
       .run(walletAddress, encryptedKey, now, user.id);
-  } else if (walletAddress) {
+  } else if (hasAddr) {
     db.prepare('UPDATE users SET wallet_address = ?, updated_at = ? WHERE id = ?')
       .run(walletAddress, now, user.id);
-  } else if (encryptedKey) {
+  } else if (hasKey) {
     db.prepare('UPDATE users SET encrypted_key = ?, updated_at = ? WHERE id = ?')
       .run(encryptedKey, now, user.id);
   } else {
     throw new AuthError('walletAddress or encryptedKey is required', 400);
   }
 
-  logger.info(`🔑 Admin updated wallet for ${email}: addr=${walletAddress ? 'yes' : 'no'}, key=${encryptedKey ? 'yes' : 'no'}`);
-  return { email, walletAddress: walletAddress || user.wallet_address, previousWallet: user.wallet_address || 'none' };
+  logger.info(`🔑 Admin updated wallet for ${email}: addr=${hasAddr ? (walletAddress || 'RESET') : 'no'}, key=${hasKey ? (encryptedKey ? 'yes' : 'RESET') : 'no'}`);
+  return { email, walletAddress: walletAddress || user.wallet_address || '', previousWallet: user.wallet_address || 'none' };
 }
 
 module.exports = {

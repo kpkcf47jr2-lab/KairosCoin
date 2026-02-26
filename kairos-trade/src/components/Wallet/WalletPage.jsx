@@ -291,12 +291,6 @@ export default function WalletPage() {
     setImporting(true);
     try {
       const imported = new ethers.Wallet(pk);
-      // Verify it matches the admin wallet address
-      if (walletAddress && imported.address.toLowerCase() !== walletAddress.toLowerCase()) {
-        setImportError(`La PK no corresponde a ${walletAddress.slice(0,8)}... sino a ${imported.address.slice(0,8)}...`);
-        setImporting(false);
-        return;
-      }
       const encKey = btoa(pk);
       localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress: imported.address, encryptedKey: encKey }));
       sessionStorage.setItem('kairos_pk', pk);
@@ -509,10 +503,9 @@ export default function WalletPage() {
             <div>
               <p className="text-xs font-bold text-[var(--gold)] mb-1">Kairos Wallet — Administrador</p>
               <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">
-                Wallet principal de Kairos 777 Inc. Aquí se reciben todas las comisiones, fees de trading,
-                ingresos por mint y revenue del protocolo.
-                {!privateKey && ' Importa tu clave privada para gestionar todo desde Kairos.'}
-                {privateKey && ' Wallet activa — puedes enviar, recibir y operar directamente desde Kairos Trade.'}
+                {!walletAddress && 'No tienes wallet vinculada. Genera una nueva o importa una existente para operar.'}
+                {walletAddress && !privateKey && 'Wallet vinculada. Importa tu clave privada para enviar transacciones.'}
+                {walletAddress && privateKey && 'Wallet activa — puedes enviar, recibir y operar directamente desde Kairos Trade.'}
               </p>
             </div>
           </div>
