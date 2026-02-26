@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 26, 2026 (Session 16 — Wallet↔Trade Cross-App Integration)
+#  Last Updated: February 27, 2026 (Session 19 — Production Safeguards & Error Recovery)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -89,15 +89,20 @@
 - **Tech:** React 18 + Vite 6 + Tailwind 4 + Zustand + lightweight-charts v4.1 + Framer Motion + Lucide Icons
 - **Purpose:** AI-powered automated trading platform with real-time charts, bots, paper trading, technical alerts
 - **Data Source:** Binance public WebSocket + REST API (no key needed)
-- **Status:** v3.0 Real Trading Engine + KairosBroker DEX (commit `d476f1d`)
+- **Status:** v3.1 Production Safeguards + Error Recovery (commit `726307f`)
 - **Bot Execution:** Real-time WebSocket per bot, Coinbase real order execution, position tracking + P&L
 - **KairosBroker:** DEX perpetual trading via GMX V2 on Arbitrum — dual mode (DEX/Internal toggle)
+- **Production Safeguards:**
+  - ESLint react-hooks/rules-of-hooks as ERROR (`.eslintrc.json`)
+  - `prebuild` script auto-runs `lint:hooks` before every `npm run build`
+  - GlobalErrorBoundary with auto-retry (3 attempts, 500ms delay, 10s stability reset)
+  - `scripts/deploy-trade.js` — full pipeline: lint → build → deploy → verify
 - **Deploy:** `npx netlify deploy --prod --dir=kairos-trade/dist --site=b7b3fd54-863a-4e6f-a334-460b1092045b --auth=nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93`
 
 ### GitHub Repository
 - **Repo:** `kpkcf47jr2-lab/KairosCoin`
 - **Branch:** main
-- **Latest Commit:** `40e41a0` (Feb 25, 2026)
+- **Latest Commit:** `726307f` (Feb 27, 2026)
 - **Backup Locations:** iCloud Drive + Desktop
 
 ### PancakeSwap Liquidity
@@ -1310,7 +1315,37 @@ Full Chrome-compatible browser extension (also works on Brave, Edge, Opera):
 - Extension: Local build (Chrome Web Store submission pending)
 
 ### Commits
+- `726307f` — feat(trade): 4-layer production safeguards + error recovery
+- `7f65373` — fix(trade): Error #310, showToast, chart disposed, CORS, CSP
 - `dfd862e` — feat: SESSION 18 - Security audit 20 fixes + Browser extension wallet
+
+### Session 19 — Production Safeguards & Error Recovery (Feb 27, 2026)
+
+**Problem:** React Error #310 crashed production (hooks called after conditional returns in App.jsx). Secondary: `showToast is not a function`, chart "Object is disposed" errors, hardcoded logout URL, missing CSP for OpenAI/Binance.
+
+**Fixes Applied:**
+- `App.jsx` — All 11 hooks moved before conditional returns (Error #310 root cause)
+- `useStore.js` — Added `showToast()` using react-hot-toast, fixed hardcoded logout URL
+- `TradingChart.jsx`, `MultiChart.jsx`, `KairosBroker.jsx` — try/catch on ResizeObserver + WebSocket callbacks
+- `netlify.toml` — CSP updated: added api.openai.com, api.binance.us to connect-src
+- `backend/src/server.js` — CORS whitelist updated for dev ports 5174, 5175
+- `vite.config.js` — Added `/api` proxy for dev, removed react-router-dom from manualChunks
+- `apiClient.js` — Dynamic API_HOST (empty in dev for proxy, full URL in prod)
+
+**Safeguards Implemented (4 Layers):**
+1. **ESLint Guard:** `eslint-plugin-react-hooks` with `rules-of-hooks: error` — catches hooks violations at lint time
+2. **Build Gate:** `prebuild` npm script auto-runs `lint:hooks` before every `npm run build` — blocks broken builds
+3. **Error Recovery:** `GlobalErrorBoundary` rewritten — auto-retries 3 times silently (500ms delay), shows friendly UI only after 3 failures, stability timer resets after 10s of stable running
+4. **Deploy Pipeline:** `scripts/deploy-trade.js` — runs lint → build → deploy → health check → API check in sequence
+
+**Files Created:**
+- `kairos-trade/.eslintrc.json` — ESLint config with react-hooks rules
+- `scripts/deploy-trade.js` — Automated deploy pipeline with verification
+
+**Production Audit Results:**
+- 54 files scanned, 0 hooks violations
+- 19 exhaustive-deps warnings (non-critical)
+- All 6 audit sections PASS (hooks, error boundaries, dynamic imports, store, API, charts)
 
 ### Next Priorities
 1. **Chrome Web Store submission** — Publish extension for public install
