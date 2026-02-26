@@ -1,8 +1,9 @@
-// Kairos Trade — Main Application (Premium v2.3 — Code Split + PWA)
-import { useEffect, useState, lazy, Suspense } from 'react';
-import { Toaster } from 'react-hot-toast';
+// Kairos Trade — Main Application (Premium v2.4 — Code Split + PWA + Auth Refresh)
+import { useEffect, useState, lazy, Suspense, useCallback } from 'react';
+import { Toaster, toast } from 'react-hot-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import useStore from './store/useStore';
+import apiClient from './services/apiClient';
 
 // Layout (always loaded — shell)
 import Sidebar from './components/Layout/Sidebar';
@@ -103,9 +104,10 @@ function TradingView() {
 }
 
 function App() {
-  const { isAuthenticated, currentPage, aiPanelOpen, seedDefaultStrategies, settings, user, setPage, sidebarOpen } = useStore();
+  const { isAuthenticated, currentPage, aiPanelOpen, seedDefaultStrategies, settings, user, setPage, sidebarOpen, logout, login } = useStore();
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [validatingSession, setValidatingSession] = useState(isAuthenticated);
 
   // Seed factory strategies on first load
   useEffect(() => { seedDefaultStrategies(); }, []);
@@ -117,6 +119,51 @@ function App() {
     }
   }, [settings?.telegramBotToken, settings?.telegramChatId]);
 
+  // ── Validate session on page reload ──
+  useEffect(() => {
+    if (!isAuthenticated) { setValidatingSession(false); return; }
+
+    let cancelled = false;
+    apiClient.validateSession().then(serverUser => {
+      if (cancelled) return;
+      if (!serverUser) {
+        // Token expired/invalid — force logout
+        logout();
+        toast.error('Sesión expirada. Inicia sesión de nuevo.', { duration: 4000 });
+      } else {
+        // Sync server-side profile updates (role, plan, name, has2FA)
+        const current = useStore.getState().user;
+        if (current && (
+          current.role !== serverUser.role ||
+          current.plan !== serverUser.plan ||
+          current.name !== serverUser.name ||
+          current.has2FA !== (serverUser.totp_enabled || false)
+        )) {
+          login({
+            ...current,
+            role: serverUser.role,
+            plan: serverUser.plan,
+            name: serverUser.name,
+            has2FA: serverUser.totp_enabled || false,
+          });
+        }
+      }
+      setValidatingSession(false);
+    });
+
+    return () => { cancelled = true; };
+  }, []); // Run once on mount
+
+  // ── Listen for session-expired events from apiClient ──
+  useEffect(() => {
+    const handleExpired = () => {
+      logout();
+      toast.error('Sesión expirada. Inicia sesión de nuevo.', { duration: 4000 });
+    };
+    window.addEventListener('kairos:session-expired', handleExpired);
+    return () => window.removeEventListener('kairos:session-expired', handleExpired);
+  }, [logout]);
+
   // Show onboarding wizard for new users (only once per user)
   useEffect(() => {
     if (isAuthenticated && user?.id) {
@@ -127,6 +174,18 @@ function App() {
 
   if (!isAuthenticated) {
     return <AuthScreen />;
+  }
+
+  // Show loading while validating session on reload
+  if (validatingSession) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#050507]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-zinc-500 font-medium">Verificando sesión...</span>
+        </div>
+      </div>
+    );
   }
 
   const renderPage = () => {

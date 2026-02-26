@@ -8,10 +8,11 @@ import {
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import useStore from '../../store/useStore';
+import apiClient from '../../services/apiClient';
 import { encrypt as vaultEncrypt, decryptKey, migrateLegacyKey, isLegacyKey } from '../../utils/keyVault';
 
 /* ─── API Host ─── */
-const API_HOST = 'https://kairos-api-u6k5.onrender.com';
+const API_HOST = apiClient.host;
 
 /* ─── Kairos Logo (real PNG from wallet) ─── */
 const KAIROS_LOGO = '/kairos-logo.png';
@@ -134,20 +135,13 @@ export default function AuthScreen() {
     }
   }, []);
 
-  /* ─── API helper ─── */
+  /* ─── API helper (uses centralized apiClient) ─── */
   const apiFetch = async (path, body, authToken) => {
-    const headers = { 'Content-Type': 'application/json' };
-    if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-    const res = await fetch(`${API_HOST}${path}`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok || data.success === false) {
-      throw new Error(data.message || data.error || 'Error del servidor');
+    // If authToken provided, use authenticated request; otherwise public
+    if (authToken) {
+      return apiClient.post(path, body);
     }
-    return data;
+    return apiClient.publicPost(path, body);
   };
 
   /* ─── Complete login (shared by login + 2FA verify) ─── */

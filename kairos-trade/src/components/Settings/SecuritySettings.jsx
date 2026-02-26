@@ -11,21 +11,18 @@ import {
   RefreshCw, Smartphone, Copy, Download
 } from 'lucide-react';
 import useStore from '../../store/useStore';
+import apiClient from '../../services/apiClient';
 
-const API_HOST = 'https://kairos-api-u6k5.onrender.com';
+const API_HOST = apiClient.host;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (d) => new Date(d).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
 
-function authFetch(path, token, opts = {}) {
-  return fetch(`${API_HOST}${path}`, {
-    method: opts.method || 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
-    ...(opts.body ? { body: JSON.stringify(opts.body) } : {}),
-  }).then(r => r.json());
+function authFetch(path, _token, opts = {}) {
+  // Uses centralized apiClient with auto token refresh
+  const method = opts.method || 'GET';
+  if (method === 'GET') return apiClient.get(path);
+  return apiClient.post(path, opts.body);
 }
 
 // ── OTP Input (6 digits) ────────────────────────────────────────────────────
