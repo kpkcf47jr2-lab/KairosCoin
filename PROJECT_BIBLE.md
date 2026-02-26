@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 26, 2026 (Session 15 — Auth Integration + apiClient + i18n)
+#  Last Updated: February 26, 2026 (Session 16 — Wallet↔Trade Cross-App Integration)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -1082,6 +1082,49 @@ After adding, click **"Save Changes"** → Render will auto-redeploy.
 - `SecuritySettings.jsx` — 2FA setup/disable, change password, active sessions, auth log
 - `useStore.js` — User-scoped storage (all data keyed by userId)
 - `App.jsx` — Session validation on reload, session-expired listener
+
+---
+
+## 24. SESSION 16 — Wallet↔Trade Cross-App Integration (Feb 26, 2026)
+
+### Problem
+Trade and Wallet apps live on different Netlify subdomains → can't share localStorage/cookies. Users who log into Trade should be able to open Wallet with their account linked, and vice versa.
+
+### Solution: Cross-App Tokens
+60-second JWTs passed via URL parameter `?cat=` (cross-app token), exchanged for full sessions on the receiving app.
+
+### Backend Changes
+- **`backend/src/services/authService.js`** — 2 new methods:
+  - `generateCrossAppToken(userId, targetApp)` — 60s JWT with `{userId, type:'cross_app', target}`
+  - `exchangeCrossAppToken(token, ip, userAgent)` — Validates cross_app type, creates full session
+- **`backend/src/routes/authRoutes.js`** — 2 new endpoints:
+  - `POST /api/auth/cross-app-token` (requireAuth) — Generates 60s token for target app ('wallet'|'trade')
+  - `POST /api/auth/exchange-token` (authLimiter) — Exchanges crossAppToken for full session (user + accessToken + refreshToken)
+- **Commit:** `659e3ba`
+
+### Trade Changes
+- **`kairos-trade/src/components/Wallet/WalletPage.jsx`** — Replaced static "Wallet Completa" link with async button:
+  - Calls `apiClient.post('/api/auth/cross-app-token', { target: 'wallet' })`
+  - Opens Wallet with `?cat=<token>` URL param
+  - Falls back to plain link on error
+
+### Wallet Changes
+- **`kairos-wallet/src/App.jsx`** — Cross-app token handler on mount:
+  - Reads `?cat=` from URL
+  - Exchanges via `POST /api/auth/exchange-token`
+  - Stores linked Trade account in `localStorage('kairos_linked_trade')` (email, name, walletAddress, linkedAt)
+  - Cleans URL, shows success toast
+- **`kairos-wallet/src/components/Dashboard/Dashboard.jsx`** — Kairos Trade banner:
+  - Shows "Conectado · {email}" if Trade account linked
+  - Shows "Trading con AI · Bots · 10 Brokers" if not linked
+  - Direct link to Trade app
+
+### Commits & Deploys
+- `659e3ba` — Backend cross-app token endpoints
+- `d156d5a` — Frontend cross-app integration (Trade + Wallet)
+- Backend auto-deployed to Render via git push
+- Trade deployed: https://kairos-trade.netlify.app
+- Wallet deployed: https://kairos-wallet.netlify.app
 
 ---
 
