@@ -30,19 +30,40 @@ let db = null;
 //                           INITIALIZATION
 // ═════════════════════════════════════════════════════════════════════════════
 
-function initialize() {
+function connectDb() {
   if (config.tursoAuthUrl && config.tursoAuthToken) {
-    // Cloud mode — Turso persistent database
     db = new Database(config.tursoAuthUrl, { authToken: config.tursoAuthToken });
     logger.info(`Auth DB connected to Turso cloud: ${config.tursoAuthUrl}`);
   } else {
-    // Local fallback
     const dbDir = path.join(__dirname, '../../data');
     if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
     db = new Database(path.join(dbDir, 'kairos_auth.db'));
     db.pragma('journal_mode = WAL');
     db.pragma('busy_timeout = 5000');
   }
+}
+
+/**
+ * Auto-reconnect wrapper: catches Turso "stream not found" errors,
+ * reconnects, and retries the operation once.
+ */
+function withReconnect(fn) {
+  try {
+    return fn(db);
+  } catch (err) {
+    const msg = String(err?.message || err);
+    if (msg.includes('stream not found') || msg.includes('STREAM_EXPIRED') || msg.includes('Hrana')) {
+      logger.warn('🔄 Turso stream expired — reconnecting auth DB...');
+      try { db.close(); } catch {}
+      connectDb();
+      return fn(db);  // retry once
+    }
+    throw err;
+  }
+}
+
+function initialize() {
+  connectDb();
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -117,7 +138,7 @@ async function register({ email, password, name, walletAddress, encryptedKey, ip
   }
 
   // Check existing
-  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  const existing = withReconnect(() => db.prepare('SELECT id FROM users WHERE email = ?').get(email));
   if (existing) {
     throw new AuthError('Email already registered', 409);
   }
@@ -133,10 +154,10 @@ async function register({ email, password, name, walletAddress, encryptedKey, ip
 
   const userId = crypto.randomUUID();
 
-  db.prepare(`
+  withReconnect(() => db.prepare(`
     INSERT INTO users (id, email, name, password_hash, wallet_address, encrypted_key, role, plan)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(userId, email.toLowerCase(), displayName, passwordHash, walletAddress || '', encryptedKey || '', role, plan);
+  `).run(userId, email.toLowerCase(), displayName, passwordHash, walletAddress || '', encryptedKey || '', role, plan));
 
   logAuth(userId, email, 'register', ip, userAgent, true);
 
@@ -161,7 +182,7 @@ async function login({ email, password, totpCode, ip, userAgent, _skipPassword }
     throw new AuthError('Email and password are required', 400);
   }
 
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase());
+  const user = withReconnect(() => db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase()));
   if (!user) {
     logAuth(null, email, 'login_failed', ip, userAgent, false, 'User not found');
     throw new AuthError('Invalid email or password', 401);

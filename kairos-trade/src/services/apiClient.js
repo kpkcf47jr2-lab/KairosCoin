@@ -88,16 +88,16 @@ async function getValidToken() {
 
 /**
  * Fetch with auto-retry for network errors (Render cold-start resilience).
- * Retries up to 2 times with increasing delay when fetch() itself throws.
+ * Retries up to 3 times with escalating delays: 3s → 8s → 15s (26s total).
  */
-async function fetchWithRetry(url, options, retries = 2) {
+async function fetchWithRetry(url, options, retries = 3) {
+  const delays = [3000, 8000, 15000];
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       return await fetch(url, options);
     } catch (err) {
       if (attempt === retries) throw err;
-      // Wait before retry: 2s, then 4s
-      await new Promise(r => setTimeout(r, (attempt + 1) * 2000));
+      await new Promise(r => setTimeout(r, delays[attempt] || 15000));
     }
   }
 }
@@ -155,7 +155,12 @@ async function apiRequest(path, opts = {}) {
 
   const data = await res.json();
   if (!res.ok) {
-    const err = new Error(data.message || data.error || 'Error del servidor');
+    let errMsg = data.message || data.error || 'Error del servidor';
+    // Sanitize raw database errors so users never see internals
+    if (errMsg.includes('Hrana') || errMsg.includes('stream not found') || errMsg.includes('STREAM_EXPIRED')) {
+      errMsg = 'Error temporal del servidor. Intenta de nuevo en unos segundos.';
+    }
+    const err = new Error(errMsg);
     err.status = res.status;
     err.data = data;
     throw err;

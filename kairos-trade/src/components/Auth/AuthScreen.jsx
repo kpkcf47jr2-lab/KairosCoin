@@ -125,6 +125,14 @@ export default function AuthScreen() {
   const [totpCode, setTotpCode] = useState('');
   const [tempToken, setTempToken] = useState('');
 
+  // Forgot password state
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState('');
+
   // Read referral code from URL on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -296,6 +304,50 @@ export default function AuthScreen() {
     setTotpCode('');
     setTempToken('');
     setError('');
+  };
+
+  /* ─── Forgot Password: Request code ─── */
+  const handleForgotRequest = async (e) => {
+    e.preventDefault();
+    setError(''); setForgotSuccess('');
+    if (!forgotEmail) { setError('Ingresa tu email'); return; }
+    setLoading(true);
+    try {
+      await apiFetch('/api/auth/forgot-password', { email: forgotEmail });
+      setForgotStep(2);
+      setForgotSuccess('Código generado. Contacta al admin en info@kairos-777.com para recibirlo.');
+    } catch (err) {
+      const msg = err.message || 'Error al solicitar el código';
+      if (msg.includes('Failed to fetch') || msg.includes('Load failed')) {
+        setError('Servidor conectando… intenta de nuevo en unos segundos.');
+      } else {
+        setError(msg);
+      }
+    } finally { setLoading(false); }
+  };
+
+  /* ─── Forgot Password: Verify code + set new password ─── */
+  const handleForgotReset = async (e) => {
+    e.preventDefault();
+    setError(''); setForgotSuccess('');
+    if (!resetCode || resetCode.length !== 6) { setError('Ingresa el código de 6 dígitos'); return; }
+    if (!newPassword || newPassword.length < 8) { setError('La contraseña debe tener al menos 8 caracteres'); return; }
+    setLoading(true);
+    try {
+      await apiFetch('/api/auth/reset-password', { email: forgotEmail, code: resetCode, newPassword });
+      setForgotSuccess('¡Contraseña cambiada! Ya puedes iniciar sesión.');
+      setTimeout(() => {
+        setShowForgot(false); setForgotStep(1); setForgotEmail(''); setResetCode(''); setNewPassword(''); setForgotSuccess('');
+        setForm({ ...form, email: forgotEmail, password: '' });
+      }, 2000);
+    } catch (err) {
+      setError(err.message || 'Código inválido o expirado');
+    } finally { setLoading(false); }
+  };
+
+  /* ─── Exit forgot password ─── */
+  const cancelForgot = () => {
+    setShowForgot(false); setForgotStep(1); setForgotEmail(''); setResetCode(''); setNewPassword(''); setError(''); setForgotSuccess('');
   };
 
   return (
@@ -590,6 +642,81 @@ export default function AuthScreen() {
                         Volver al login
                       </button>
                     </form>
+                  </motion.div>
+                ) : showForgot ? (
+                  /* ─────── FORGOT PASSWORD SCREEN ─────── */
+                  <motion.div key="forgot"
+                    initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
+                    transition={{ duration: 0.3 }}>
+
+                    <div className="flex flex-col items-center mb-6">
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4"
+                        style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.05))', border: '1px solid rgba(59,130,246,0.2)' }}>
+                        <Lock size={28} className="text-[#3B82F6]" />
+                      </div>
+                      <h2 className="text-2xl font-extrabold text-white tracking-tight">Recuperar Contraseña</h2>
+                      <p className="text-sm text-white/35 mt-1.5 text-center">
+                        {forgotStep === 1 ? 'Ingresa tu email para solicitar un código' : 'Ingresa el código y tu nueva contraseña'}
+                      </p>
+                    </div>
+
+                    {forgotStep === 1 ? (
+                      <form onSubmit={handleForgotRequest} className="space-y-4">
+                        <div>
+                          <label className="text-[11px] text-white/30 mb-1.5 block font-semibold uppercase tracking-wider">Email</label>
+                          <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
+                            placeholder="tu@email.com" className="w-full" autoComplete="email"
+                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', borderRadius: '0.75rem', padding: '0.65rem 0.85rem', fontSize: '0.875rem' }} />
+                        </div>
+                        <AnimatePresence>
+                          {error && (
+                            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                              className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl">{error}</motion.div>
+                          )}
+                        </AnimatePresence>
+                        <button type="submit" disabled={loading}
+                          className="w-full py-3.5 rounded-xl transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 text-sm font-bold text-white hover:scale-[1.02] active:scale-[0.98]"
+                          style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 0 30px rgba(59,130,246,0.2), 0 4px 15px rgba(59,130,246,0.2)' }}>
+                          {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (<>Solicitar Código<ArrowRight size={16} /></>)}
+                        </button>
+                        <button type="button" onClick={cancelForgot}
+                          className="w-full text-center text-[12px] text-white/30 hover:text-[#3B82F6] transition-colors py-1">Volver al login</button>
+                      </form>
+                    ) : (
+                      <form onSubmit={handleForgotReset} className="space-y-4">
+                        <AnimatePresence>
+                          {forgotSuccess && (
+                            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                              className="text-xs text-[#00DC82] bg-[#00DC82]/[0.06] border border-[#00DC82]/10 px-3.5 py-2.5 rounded-xl">{forgotSuccess}</motion.div>
+                          )}
+                        </AnimatePresence>
+                        <div>
+                          <label className="text-[11px] text-white/30 mb-1.5 block font-semibold uppercase tracking-wider">Código de 6 dígitos</label>
+                          <input type="text" inputMode="numeric" value={resetCode} onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="000000" maxLength={6} className="w-full text-center tracking-[0.3em]"
+                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', borderRadius: '0.75rem', padding: '0.65rem 0.85rem', fontSize: '1.25rem', fontWeight: '700' }} />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-white/30 mb-1.5 block font-semibold uppercase tracking-wider">Nueva Contraseña</label>
+                          <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Mínimo 8 caracteres" className="w-full" autoComplete="new-password"
+                            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', borderRadius: '0.75rem', padding: '0.65rem 0.85rem', fontSize: '0.875rem' }} />
+                        </div>
+                        <AnimatePresence>
+                          {error && (
+                            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                              className="text-xs text-[#FF4757] bg-[#FF4757]/[0.06] border border-[#FF4757]/10 px-3.5 py-2.5 rounded-xl">{error}</motion.div>
+                          )}
+                        </AnimatePresence>
+                        <button type="submit" disabled={loading}
+                          className="w-full py-3.5 rounded-xl transition-all duration-300 disabled:opacity-50 flex items-center justify-center gap-2 text-sm font-bold text-white hover:scale-[1.02] active:scale-[0.98]"
+                          style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 0 30px rgba(59,130,246,0.2), 0 4px 15px rgba(59,130,246,0.2)' }}>
+                          {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : (<>Cambiar Contraseña<ArrowRight size={16} /></>)}
+                        </button>
+                        <button type="button" onClick={() => { setForgotStep(1); setError(''); setForgotSuccess(''); }}
+                          className="w-full text-center text-[12px] text-white/30 hover:text-[#3B82F6] transition-colors py-1">Volver</button>
+                      </form>
+                    )}
                   </motion.div>
                 ) : (
                   /* ─────── NORMAL LOGIN / REGISTER ─────── */

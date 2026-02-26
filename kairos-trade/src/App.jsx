@@ -148,6 +148,9 @@ function App() {
         }
       }
       setValidatingSession(false);
+    }).catch(() => {
+      // Network error (Render cold start) — skip validation, let user use cached session
+      if (!cancelled) setValidatingSession(false);
     });
 
     return () => { cancelled = true; };
