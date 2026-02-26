@@ -147,6 +147,9 @@ export default function AuthScreen() {
 
   /* ─── Complete login (shared by login + 2FA verify) ─── */
   const completeLogin = async (data, password) => {
+    if (!data || !data.user) {
+      throw new Error('Respuesta inesperada del servidor. Intenta de nuevo.');
+    }
     const { user, accessToken, refreshToken } = data;
     // Persist wallet separately so it survives logout
     if (user.walletAddress) {

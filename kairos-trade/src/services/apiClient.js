@@ -112,7 +112,7 @@ async function apiRequest(path, opts = {}) {
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
 
-  // If 401, try refreshing token once
+  // If 401 on authenticated request, try refreshing token once
   if (res.status === 401 && !noAuth) {
     try {
       const newToken = await refreshAccessToken();
@@ -130,15 +130,15 @@ async function apiRequest(path, opts = {}) {
     }
   }
 
-  // If still 401 after refresh, force logout
-  if (res.status === 401) {
+  // If still 401 after refresh on authenticated request, force logout
+  if (res.status === 401 && !noAuth) {
     clearAuth();
     window.dispatchEvent(new Event('kairos:session-expired'));
     throw new Error('Sesión expirada. Inicia sesión de nuevo.');
   }
 
   const data = await res.json();
-  if (!res.ok && data.success === false) {
+  if (!res.ok) {
     const err = new Error(data.message || data.error || 'Error del servidor');
     err.status = res.status;
     err.data = data;

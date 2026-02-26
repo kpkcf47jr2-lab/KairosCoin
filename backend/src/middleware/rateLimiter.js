@@ -13,8 +13,9 @@ const generalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
+    success: false,
     error: "Too many requests",
-    message: "Rate limit exceeded. Try again later.",
+    message: "Demasiadas solicitudes. Intenta más tarde.",
     retryAfter: "15 minutes",
   },
 });
@@ -27,8 +28,9 @@ const mintBurnLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => req.headers["x-api-key"] || req.ip,
   message: {
+    success: false,
     error: "Too many mint/burn requests",
-    message: "Maximum 30 mint/burn operations per hour",
+    message: "Máximo 30 operaciones por hora.",
     retryAfter: "1 hour",
   },
 });
@@ -40,8 +42,9 @@ const publicLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: {
+    success: false,
     error: "Too many requests",
-    message: "Rate limit exceeded. Slow down.",
+    message: "Demasiadas solicitudes. Espera un momento.",
     retryAfter: "1 minute",
   },
 });
@@ -62,8 +65,9 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => req.ip,
   message: {
+    success: false,
     error: "Too many auth attempts",
-    message: "Account locked temporarily. Try again in 15 minutes.",
+    message: "Cuenta bloqueada temporalmente. Intenta en 15 minutos.",
     retryAfter: "15 minutes",
   },
 });
