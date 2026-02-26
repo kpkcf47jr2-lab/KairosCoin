@@ -17,10 +17,11 @@ const API_HOST = apiClient.host;
 /* ─── Kairos Logo (real PNG from wallet) ─── */
 const KAIROS_LOGO = '/kairos-logo.png';
 
-/* ─── Floating Particle Field ─── */
+/* ─── Floating Particle Field (reduced on mobile for performance) ─── */
 function ParticleField() {
+  const isMobile = typeof window !== 'undefined' && ('ontouchstart' in window || window.innerWidth < 768);
   const particles = useMemo(() =>
-    Array.from({ length: 50 }, (_, i) => ({
+    Array.from({ length: isMobile ? 12 : 50 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
@@ -289,7 +290,8 @@ export default function AuthScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-[#050507] flex flex-col items-center justify-center relative overflow-hidden">
+    <div className="bg-[#050507] flex flex-col items-center relative overflow-hidden"
+      style={{ height: '100dvh', minHeight: '-webkit-fill-available' }}>
 
       {/* ── Background layers ── */}
       <ParticleField />
@@ -310,15 +312,16 @@ export default function AuthScreen() {
       </div>
 
       {/* ── Main Content ── */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {!showForm ? (
           /* ─────── LANDING PAGE — Scroll conversion ─────── */
-          <motion.div key="splash" className="relative z-10 w-full h-full overflow-y-auto"
-            exit={{ opacity: 0, y: -40, scale: 0.95 }} transition={{ duration: 0.4 }}
-            style={{ scrollbarWidth: 'thin', scrollbarColor: '#1e293b transparent' }}>
+          <motion.div key="splash" className="relative z-10 w-full flex-1 overflow-y-auto"
+            exit={{ opacity: 0 }} transition={{ duration: 0.25 }}
+            style={{ scrollbarWidth: 'thin', scrollbarColor: '#1e293b transparent', WebkitOverflowScrolling: 'touch' }}>
 
             {/* ── Hero Section ── */}
-            <div className="min-h-screen flex flex-col items-center justify-center px-6 relative">
+            <div className="flex flex-col items-center justify-center px-6 relative"
+              style={{ minHeight: '100dvh' }}>
 
               {/* KairosCoin Logo */}
               <motion.div className="relative mb-6"
@@ -501,9 +504,9 @@ export default function AuthScreen() {
               </motion.div>
             </div>
 
-            {/* Fixed bottom bar */}
+            {/* Fixed bottom bar — fully non-interactive to avoid blocking mobile scroll */}
             <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
-              <div className="flex items-center justify-center gap-4 py-3 pointer-events-auto"
+              <div className="flex items-center justify-center gap-4 py-3"
                 style={{ background: 'linear-gradient(to top, #050507 60%, transparent)' }}>
                 <div className="flex items-center gap-1.5">
                   <div className="w-1.5 h-1.5 rounded-full bg-[#00DC82] animate-pulse" />
@@ -514,10 +517,10 @@ export default function AuthScreen() {
           </motion.div>
         ) : (
           /* ─────── LOGIN/REGISTER FORM ─────── */
-          <motion.div key="form" className="relative z-10 w-full max-w-[420px] px-6"
-            initial={{ opacity: 0, y: 40, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>
+          <motion.div key="form" className="relative z-10 w-full max-w-[420px] px-6 my-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}>
 
             {/* Back to splash + mini logo */}
             <div className="flex items-center justify-between mb-8">
