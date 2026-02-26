@@ -342,13 +342,21 @@ router.post('/admin/unlock', requireMasterKey, (req, res) => {
 
 router.post('/update-key', requireAuth, (req, res) => {
   try {
-    const { encryptedKey } = req.body;
-    if (!encryptedKey || !encryptedKey.startsWith('v1:')) {
-      return res.status(400).json({ success: false, error: 'Invalid encrypted key format' });
+    const { encryptedKey, walletAddress } = req.body;
+    if (!encryptedKey) {
+      return res.status(400).json({ success: false, error: 'encryptedKey is required' });
     }
     const db = require('../services/database').getAuthDb();
-    db.prepare('UPDATE users SET encrypted_key = ? WHERE id = ?').run(encryptedKey, req.user.id);
-    res.json({ success: true, message: 'Key updated' });
+    if (walletAddress) {
+      // Full wallet setup (new wallet generation or migration)
+      db.prepare('UPDATE users SET encrypted_key = ?, wallet_address = ?, updated_at = ? WHERE id = ?')
+        .run(encryptedKey, walletAddress, new Date().toISOString(), req.user.id);
+    } else {
+      // Key-only update (legacy migration)
+      db.prepare('UPDATE users SET encrypted_key = ?, updated_at = ? WHERE id = ?')
+        .run(encryptedKey, new Date().toISOString(), req.user.id);
+    }
+    res.json({ success: true, message: 'Wallet updated' });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

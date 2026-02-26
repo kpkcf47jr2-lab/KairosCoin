@@ -343,28 +343,19 @@ export default function KairosBroker() {
       {/* No wallet — auto-generate for legacy accounts */}
       {!isConnected && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
-          <Wallet className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-          <h2 className="text-lg font-medium text-white mb-2">Wallet no detectada</h2>
+          <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
+            <Wallet className="w-8 h-8 text-blue-400" />
+          </div>
+          <h2 className="text-lg font-bold text-white mb-2">Wallet Requerida</h2>
           <p className="text-zinc-400 text-sm mb-6 max-w-md mx-auto">
-            Tu cuenta necesita una wallet Kairos. Haz clic abajo para generar una automáticamente.
+            Necesitas tu Kairos Wallet activa para operar en el DEX con apalancamiento.
           </p>
-          <button onClick={async () => {
-            try {
-              const wallet = ethers.Wallet.createRandom();
-              // For wallet generation without password context, store encrypted with a device key
-              // Private key goes only to sessionStorage (memory)
-              const encKeyPlaceholder = btoa(wallet.privateKey); // Legacy — will migrate on next login
-              const updated = { ...user, walletAddress: wallet.address, encryptedKey: encKeyPlaceholder };
-              login(updated);
-              localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress: wallet.address, encryptedKey: encKeyPlaceholder }));
-              sessionStorage.setItem('kairos_pk', wallet.privateKey);
-              showToast('Wallet generada: ' + wallet.address.slice(0,6) + '...' + wallet.address.slice(-4), 'success');
-            } catch (err) {
-              showToast('Error generando wallet: ' + err.message, 'error');
-            }
-          }}
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-colors">
-            Generar Mi Kairos Wallet
+          <button
+            onClick={() => useStore.getState().setPage('wallet')}
+            className="px-6 py-3 rounded-xl text-sm font-bold text-black transition-all hover:brightness-110"
+            style={{ background: 'linear-gradient(135deg, #D4AF37, #B8972E)' }}
+          >
+            <span className="flex items-center gap-2 justify-center"><Wallet size={16} /> Ir a Mi Wallet</span>
           </button>
         </div>
       )}

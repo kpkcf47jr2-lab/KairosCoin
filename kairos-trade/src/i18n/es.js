@@ -16,7 +16,7 @@ const es = {
     'kairos-vault-desc': 'Provee liquidez y gana yield',
     'kairos-treasury': 'Treasury',
     'kairos-treasury-desc': 'Ingresos por comisiones',
-    'buy-kairos': 'Comprar KAIROS',
+    'buy-kairos': 'Get KairosCoin',
     'buy-kairos-desc': 'Con tarjeta de crédito',
     dashboard: 'Dashboard',
     'dashboard-desc': 'Panel de control',

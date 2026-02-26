@@ -508,8 +508,18 @@ function getAuthLog(userId, limit = 20) {
 
 function sanitizeUser(user) {
   if (!user) return null;
-  const { password_hash, totp_secret, encrypted_key, ...safe } = user;
-  return { ...safe, has2FA: !!user.totp_enabled };
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role || 'user',
+    plan: user.plan || 'free',
+    walletAddress: user.wallet_address || '',
+    encryptedKey: user.encrypted_key || '',
+    has2FA: !!user.totp_enabled,
+    createdAt: user.created_at || '',
+    lastLogin: user.last_login || '',
+  };
 }
 
 function logAuth(userId, email, action, ip, userAgent, success, details = '') {

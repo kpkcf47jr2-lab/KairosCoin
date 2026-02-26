@@ -431,13 +431,22 @@ export default function KairosVault() {
           </div>
         </div>
       ) : (
-        /* Not connected */
+        /* Not connected — guide to Wallet page */
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-12 text-center">
-          <Wallet className="w-12 h-12 text-emerald-400 mx-auto mb-4" />
-          <h2 className="text-lg font-medium text-white mb-2">Conecta tu Wallet</h2>
-          <p className="text-zinc-400 text-sm max-w-md mx-auto">
-            Necesitas una Kairos Wallet para depositar en el Vault y ganar yield.
+          <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
+            <Wallet className="w-8 h-8 text-emerald-400" />
+          </div>
+          <h2 className="text-lg font-bold text-white mb-2">Wallet Requerida</h2>
+          <p className="text-zinc-400 text-sm max-w-md mx-auto mb-5">
+            Necesitas tu Kairos Wallet activa para depositar en el Vault y ganar yield de trading fees.
           </p>
+          <button
+            onClick={() => useStore.getState().setPage('wallet')}
+            className="px-6 py-3 rounded-xl text-sm font-bold text-black transition-all hover:brightness-110"
+            style={{ background: 'linear-gradient(135deg, #D4AF37, #B8972E)' }}
+          >
+            <span className="flex items-center gap-2"><Wallet size={16} /> Ir a Mi Wallet</span>
+          </button>
         </div>
       )}
     </div>

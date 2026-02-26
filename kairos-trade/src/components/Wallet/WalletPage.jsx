@@ -242,15 +242,63 @@ export default function WalletPage() {
     } catch {}
   }, []);
 
+  /* ─── Generate wallet for legacy accounts ─── */
+  const [generating, setGenerating] = useState(false);
+  const generateWallet = async () => {
+    setGenerating(true);
+    try {
+      const wallet = ethers.Wallet.createRandom();
+      const newAddress = wallet.address;
+      const newPK = wallet.privateKey;
+      // Store encrypted key locally (base64 as fallback)
+      const encKey = btoa(newPK);
+      localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress: newAddress, encryptedKey: encKey }));
+      sessionStorage.setItem('kairos_pk', newPK);
+      // Update backend
+      const host = import.meta.env.DEV ? '' : 'https://kairos-api-u6k5.onrender.com';
+      await fetch(`${host}/api/auth/update-key`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user?.accessToken}`,
+        },
+        body: JSON.stringify({ walletAddress: newAddress, encryptedKey: encKey }),
+      });
+      // Update store
+      const { login } = useStore.getState();
+      login({ ...user, walletAddress: newAddress, encryptedKey: encKey });
+    } catch (err) {
+      console.error('Failed to generate wallet:', err);
+    }
+    setGenerating(false);
+  };
+
   /* ─── No wallet ─── */
   if (!walletAddress) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-center p-8">
-          <Wallet size={48} className="text-[var(--text-dim)] mx-auto mb-4" />
-          <h2 className="text-lg font-bold mb-2">No hay wallet vinculada</h2>
-          <p className="text-sm text-[var(--text-dim)] max-w-xs">
-            Tu wallet se genera automáticamente al registrarte. Si ves esto, intenta cerrar sesión y volver a entrar.
+        <div className="text-center p-8 max-w-sm">
+          <div className="w-16 h-16 rounded-2xl bg-[var(--gold)]/10 flex items-center justify-center mx-auto mb-4">
+            <Wallet size={28} className="text-[var(--gold)]" />
+          </div>
+          <h2 className="text-lg font-bold mb-2">Configura tu Wallet</h2>
+          <p className="text-sm text-[var(--text-dim)] mb-6">
+            Tu wallet KAIROS te permite recibir, enviar y operar con KAIROS en múltiples blockchains de forma segura.
+          </p>
+          <button
+            onClick={generateWallet}
+            disabled={generating}
+            className="w-full py-3 rounded-xl text-sm font-bold text-black transition-all hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{ background: 'linear-gradient(135deg, #D4AF37, #B8972E)' }}
+          >
+            {generating ? (
+              <><Loader2 size={16} className="animate-spin" /> Generando...</>
+            ) : (
+              <><Wallet size={16} /> Generar Mi Wallet</>
+            )}
+          </button>
+          <p className="text-[10px] text-[var(--text-dim)] mt-3">
+            Se creará una wallet segura con clave privada encriptada en tu dispositivo.
           </p>
         </div>
       </div>

@@ -86,10 +86,10 @@ export default function BuyKairos() {
             <div className="absolute inset-0 rounded-2xl" style={{ boxShadow: '0 0 40px rgba(59,130,246,0.3)' }} />
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">
-            Comprar KairosCoin
+            Get KairosCoin
           </h1>
           <p className="text-sm text-[var(--text-dim)] max-w-md mx-auto">
-            Compra KAIROS directamente con tu tarjeta de crédito o débito. 1 KAIROS = 1 USD — Stablecoin respaldada.
+            Get KAIROS directly with your credit or debit card. 1 KAIROS = 1 USD — Backed stablecoin.
           </p>
         </motion.div>
 
@@ -274,7 +274,7 @@ export default function BuyKairos() {
               ) : (
                 <>
                   <CreditCard size={18} />
-                  Comprar {numAmount > 0 ? `${numAmount.toLocaleString()} KAIROS` : 'KAIROS'}
+                  Get {numAmount > 0 ? `${numAmount.toLocaleString()} KAIROS` : 'KairosCoin'}
                   <ArrowRight size={16} />
                 </>
               )}

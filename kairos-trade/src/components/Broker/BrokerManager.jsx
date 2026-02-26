@@ -127,19 +127,6 @@ const BROKER_CATALOG = [
       { title: 'Copia tus claves', desc: 'Copia API Key y Secret Key.' },
     ],
   },
-  {
-    id: 'wallet', name: 'Kairos Wallet', logo: '👛',
-    color: '#D4AF37', desc: 'Trading DEX on-chain con tu wallet',
-    features: ['DEX', 'PancakeSwap', 'Multi-Chain'], users: 'DeFi',
-    isDex: true,
-    apiUrl: 'https://kairos-wallet.netlify.app',
-    steps: [
-      { title: 'Obtén tu dirección', desc: 'Abre Kairos Wallet y copia tu dirección de wallet.' },
-      { title: 'Exporta tu clave privada', desc: 'En Settings → Export Private Key. Guárdala de forma segura.' },
-      { title: 'Selecciona la cadena', desc: 'Elige la red: BSC (default), Ethereum, Polygon, Arbitrum, etc.' },
-      { title: 'Pega tus datos', desc: 'Wallet Address como API Key, Private Key como Secret.' },
-    ],
-  },
 ];
 
 // ─── Flow steps ───
@@ -152,7 +139,8 @@ const FLOW = {
 };
 
 export default function BrokerManager() {
-  const { brokers, addBroker, removeBroker, updateBrokerStatus, setActiveBroker } = useStore();
+  const { user, brokers, addBroker, removeBroker, updateBrokerStatus, setActiveBroker } = useStore();
+  const walletAddress = user?.walletAddress || '';
 
   const [modalOpen, setModalOpen] = useState(false);
   const [step, setStep] = useState(FLOW.SELECT);
@@ -280,6 +268,36 @@ export default function BrokerManager() {
           Conecta tu cuenta en 3 simples pasos.
         </p>
       </div>
+
+      {/* ─── Kairos Wallet (always connected) ─── */}
+      {walletAddress && (
+        <div className="rounded-xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.08), rgba(212,175,55,0.02))', border: '1px solid rgba(212,175,55,0.2)' }}>
+          <div className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                style={{ background: 'rgba(212,175,55,0.15)', border: '1px solid rgba(212,175,55,0.3)' }}>
+                👛
+              </div>
+              <div>
+                <p className="text-sm font-bold">Kairos Wallet</p>
+                <p className="text-xs text-[var(--text-dim)] font-mono">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1 text-xs text-[var(--green)] px-2 py-1 rounded-lg" style={{ background: 'rgba(0,220,130,0.1)' }}>
+                <CheckCircle size={12} /> Vinculada
+              </span>
+              <span className="text-[9px] px-2 py-1 rounded-full bg-[var(--gold)]/10 text-[var(--gold)] font-bold">NATIVA</span>
+            </div>
+          </div>
+          <div className="px-4 pb-3 flex items-center gap-2" style={{ borderTop: '1px solid rgba(212,175,55,0.1)' }}>
+            <Shield size={12} className="text-[var(--gold)]" />
+            <p className="text-[10px] text-[var(--text-dim)]">
+              Tu wallet se generó automáticamente al registrarte. Soporta DEX trading en BSC, Ethereum, Polygon, Arbitrum y Base.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ─── Security badge ─── */}
       <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.1)' }}>
