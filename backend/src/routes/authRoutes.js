@@ -30,7 +30,7 @@ const logger = require('../utils/logger');
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,                    // 10 attempts per 15 min
+  max: 25,                    // 25 attempts per 15 min
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -316,6 +316,20 @@ router.post('/admin/reset-password', requireMasterKey, async (req, res) => {
   try {
     const { email, newPassword } = req.body;
     const result = await authService.forceResetPassword(email, newPassword);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, error: err.message });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  POST /admin/unlock — Unlock a locked account (master key, NO rate limiter)
+// ═════════════════════════════════════════════════════════════════════════════
+
+router.post('/admin/unlock', requireMasterKey, (req, res) => {
+  try {
+    const { email } = req.body;
+    const result = authService.unlockAccount(email);
     res.json({ success: true, data: result });
   } catch (err) {
     res.status(err.statusCode || 500).json({ success: false, error: err.message });

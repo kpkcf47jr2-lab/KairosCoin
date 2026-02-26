@@ -530,6 +530,17 @@ class AuthError extends Error {
   }
 }
 
+function unlockAccount(email) {
+  if (!email) throw new AuthError('Email is required', 400);
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase());
+  if (!user) throw new AuthError('User not found', 404);
+  db.prepare('UPDATE users SET failed_attempts = 0, locked_until = NULL, updated_at = ? WHERE id = ?')
+    .run(new Date().toISOString(), user.id);
+  logAuth(user.id, user.email, 'admin_unlock', null, null, true, 'Account unlocked by admin');
+  logger.info(`🔓 Admin unlocked account: ${email}`);
+  return { unlocked: true, email: user.email };
+}
+
 module.exports = {
   initialize,
   register,
@@ -542,6 +553,7 @@ module.exports = {
   disable2FA,
   changePassword,
   forceResetPassword,
+  unlockAccount,
   getUser,
   getUserSessions,
   getAuthLog,
