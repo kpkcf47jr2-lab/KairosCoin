@@ -2,6 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { initNative } from './native';
+
+// Initialize native plugins (Capacitor — no-op on web)
+initNative();
 
 // Error Boundary to catch React crashes
 class ErrorBoundary extends React.Component {
