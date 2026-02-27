@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 27, 2026 (Session 19 — Production Safeguards & Error Recovery)
+#  Last Updated: February 26, 2026 (Session 20 — Capacitor Native Apps + WalletConnect Integration)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -1349,7 +1349,52 @@ Full Chrome-compatible browser extension (also works on Brave, Edge, Opera):
 
 ### Next Priorities
 1. **Chrome Web Store submission** — Publish extension for public install
-2. **Native apps** — React Native for Wallet + Trade (iOS/Android)
+2. ~~**Native apps** — React Native for Wallet + Trade (iOS/Android)~~ → Capacitor setup DONE (need Xcode/Android Studio to test)
+3. ~~**Wallet integration with Trade**~~ → WalletConnect v2 integration DONE
+4. **Add PancakeSwap liquidity** — Need $5K+ per side for CoinGecko listing
+5. **CoinGecko/CoinMarketCap listing** — Submit once liquidity is sufficient
+6. **Ethereum mainnet deploy** — Need ETH for gas
+7. **Multi-broker live test** — Connect exchange API keys
+
+### Session 20 — Capacitor Native Apps + WalletConnect Integration (Feb 26, 2026)
+
+**Capacitor Native App Setup (Trade + Wallet):**
+- Installed Capacitor 8.x with 6 plugins: status-bar, splash-screen, haptics, keyboard, app, browser
+- Created `capacitor.config.ts` for both apps (com.kairos777.trade, com.kairos777.wallet)
+- Added iOS + Android platforms to both apps (ios/, android/ directories)
+- Created `native.js` initialization (StatusBar, SplashScreen, Keyboard, Back button, Haptics)
+- Generated custom app icons from existing logos (iOS 1024x1024, Android mdpi→xxxhdpi)
+- Generated splash screens for all Android density/orientation combos
+- Note: Xcode/Android Studio not installed — apps ready to test when IDEs are available
+
+**WalletConnect v2 Integration (Trade ↔ Wallet):**
+- Trade acts as a dApp, Wallet acts as the signing wallet
+- Private keys NEVER leave the wallet — Trade only sends signing requests
+
+**Files Created:**
+- `kairos-trade/src/services/walletConnectDApp.js` — WC SignClient service (connect, disconnect, sendTransaction, signMessage, signTypedData, session persistence)
+- `kairos-trade/src/components/Wallet/ConnectExternalWallet.jsx` — Connection modal (Kairos Wallet featured + generic WC, pairing URI display, connection status, disconnect)
+- `scripts/generate-app-icons.py` — Python/Pillow script for iOS + Android icon generation
+
+**Files Modified:**
+- `kairos-trade/src/components/Wallet/WalletPage.jsx` — Added WC status banner, connect/disconnect UI, auto-reconnect on reload
+- `kairos-trade/src/services/walletBroker.js` — Added `sendViaWalletConnect()`, `isWCAvailable()`, `getWCAccount()` methods
+- `kairos-wallet/src/App.jsx` — Added `?wc=URI` auto-pair support for WalletConnect
+- `kairos-wallet/src/components/DAppBrowser/DAppBrowserScreen.jsx` — Added Kairos Trade as featured dApp
+
+**WalletConnect Flow:**
+1. User clicks "Conectar Wallet Externa" in Trade's wallet page
+2. Trade generates WC pairing URI
+3. User copies URI or clicks "Abrir Kairos Wallet" (opens with `?wc=URI`)
+4. Kairos Wallet auto-pairs and shows session approval
+5. Once approved, Trade can request signatures for on-chain transactions
+6. Session persists across page reloads
+
+**Commits:** `d33ec0b`
+
+### Next Priorities
+1. **Chrome Web Store submission** — Publish extension for public install
+2. **Install Xcode** — Test native apps on iOS Simulator
 3. **Add PancakeSwap liquidity** — Need $5K+ per side for CoinGecko listing
 4. **CoinGecko/CoinMarketCap listing** — Submit once liquidity is sufficient
 5. **Ethereum mainnet deploy** — Need ETH for gas
