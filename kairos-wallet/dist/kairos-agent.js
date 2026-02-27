@@ -1,744 +1,685 @@
 /* ═══════════════════════════════════════════════════════════════
-   KAIROS 777 — AI Agent Widget (Wallet Edition)
-   Smart conversational agent for Kairos Wallet
+   KAIROS 777 — AI Agent Widget v2.0 (Wallet Edition)
+   Smart conversational agent with fuzzy matching, context
+   memory, response variations, and natural conversation flow.
    "In God We Trust"
    ═══════════════════════════════════════════════════════════════ */
 
 (function() {
   'use strict';
 
-  // ── Knowledge Base ──
+  const CTX = { lastTopic: null, history: [], turnCount: 0 };
+
+  function norm(s) {
+    return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[¿¡?!.,;:'"()\-]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  function levenshtein(a, b) {
+    if (a.length === 0) return b.length; if (b.length === 0) return a.length;
+    const m = []; for (let i = 0; i <= b.length; i++) m[i] = [i]; for (let j = 0; j <= a.length; j++) m[0][j] = j;
+    for (let i = 1; i <= b.length; i++) for (let j = 1; j <= a.length; j++) m[i][j] = b[i-1]===a[j-1]?m[i-1][j-1]:Math.min(m[i-1][j-1]+1,m[i][j-1]+1,m[i-1][j]+1);
+    return m[b.length][a.length];
+  }
+  function wordSimilar(a, b) {
+    if (a===b) return 1; if (a.length<3||b.length<3) return a===b?1:0;
+    if (a.includes(b)||b.includes(a)) return 0.9;
+    const d=levenshtein(a,b), mx=Math.max(a.length,b.length);
+    if (d<=1&&mx>=4) return 0.85; if (d<=2&&mx>=6) return 0.7; return 0;
+  }
+  function pickRandom(arr) { return arr[Math.floor(Math.random()*arr.length)]; }
+
   const KB = {
-    greeting: "👋 ¡Hola! Soy el asistente de **Kairos Wallet**. ¿Tienes dudas sobre cómo enviar, recibir, o gestionar tus KAIROS? ¡Pregúntame lo que necesites!",
+    greetings: [
+      "¡Hola! 😊 Soy tu asistente de **Kairos Wallet**. ¿En qué te puedo ayudar?",
+      "¡Hey! 👋 Bienvenido a **Kairos Wallet**. Pregúntame sobre envíos, recibos, redes, o lo que necesites.",
+      "¡Hola! Soy el agente de **Kairos Wallet** 📱 ¿Tienes alguna duda sobre cómo enviar, recibir, o gestionar tus KAIROS?"
+    ],
 
     topics: {
       what_is: {
-        keywords: ['qué es kairos','que es kairos','what is kairos','about kairos','qué es esto','explain','explicar','acerca','cuéntame','tell me'],
-        answer: `**Kairos 777** es un ecosistema financiero completo creado por **Kaizen LLC**, empresa registrada en Florida, EE.UU. 🏛️
+        keywords: ['que es kairos','kairos','about','explicar','acerca','cuentame','que es esto','que hacen','que ofrece','informacion','conocer'],
+        patterns: [/qu[eé]\s+(es|son|hace|ofrece)\s+kairos/i, /tell\s+me\s+about/i, /what\s+is/i, /para\s+qu[eé]\s+sirve/i],
+        answers: [
+          `**Kairos 777** es un ecosistema financiero completo 🏛️
 
-Nuestro ecosistema incluye:
-
-🔸 **KairosCoin (KAIROS)** — Stablecoin 1:1 con USD, disponible en BSC, Base, Arbitrum y Polygon
+🔸 **KairosCoin (KAIROS)** — Stablecoin 1:1 con USD, en 4 blockchains
 🔸 **Kairos Wallet** — Donde estás ahora 📱 Tu billetera multi-chain segura
-🔸 **Kairos 777** — Plataforma de trading algorítmico con 33+ pares y hasta 150x
-🔸 **Reservas Transparentes** — Verificación en tiempo real del respaldo
+🔸 **Kairos 777** — Plataforma de trading con 33+ pares y hasta 150x
+🔸 **Reservas Transparentes** — Verificación en tiempo real
 
-🔹 **Seguro** — Smart contracts auditados con OpenZeppelin v5.4
-🔹 **Transparente** — Reservas verificables por cualquiera
-🔹 **Innovador** — Trading con bots de inteligencia artificial
+Creado por **Kaizen LLC**, empresa registrada en Florida, EE.UU.
 
-¿Te gustaría saber más sobre cómo usar tu wallet?`
+¿Sobre qué te gustaría saber más?`,
+          `**Kairos Wallet** es tu billetera digital multi-chain 📱
+
+Con ella puedes:
+✅ Enviar y recibir KAIROS y otros tokens
+✅ Ver tu balance en tiempo real
+✅ Operar en BSC, Base, Arbitrum y Polygon
+✅ Conectar con dApps usando WalletConnect
+
+Todo de forma segura y non-custodial — tus llaves, tus fondos.
+
+¿Te ayudo a empezar?`
+        ],
+        related: ['how_to_use', 'ecosystem', 'security']
       },
 
       how_to_use: {
-        keywords: ['cómo uso','como uso','how to use','empezar','start','comenzar','begin','primeros pasos','getting started','tutorial','guía','guide','configurar','setup'],
-        answer: `**¡Empieza a usar Kairos Wallet!** 🚀
+        keywords: ['como uso','como empiezo','empezar','comenzar','primeros pasos','tutorial','guia','configurar','setup','como funciona','como hago','inicio','principiante','nuevo'],
+        patterns: [/c[oó]mo\s+(uso|empiezo|empezar|comienzo|configuro|funciona)/i, /quiero\s+(empezar|comenzar|usar)/i, /how\s+to\s+(use|start|setup)/i, /primeros?\s+pasos?/i, /soy\s+nuevo/i],
+        answers: [
+          `¡Empezar es súper fácil! 🚀
 
-**Paso 1:** Conecta tu wallet existente (MetaMask, Trust Wallet, etc.)
-  → O crea una nueva wallet directamente aquí
+**3 pasos:**
 
-**Paso 2:** Añade la red BSC si no la tienes
-  → Chain ID: 56 · RPC: https://bsc-dataseed.binance.org
+**1.** Conecta tu wallet existente (MetaMask, Trust Wallet) o crea una nueva
+**2.** Asegúrate de estar en la red BSC (Chain ID: 56)
+**3.** ¡Listo! Ya puedes enviar, recibir y gestionar KAIROS
 
-**Paso 3:** ¡Listo! Ya puedes:
-  → Enviar y recibir KAIROS
-  → Ver tu balance en tiempo real
-  → Gestionar tokens en múltiples chains
+💡 **Tips para nuevos:**
+→ Necesitas un poco de BNB para gas (~$0.10 por transacción)
+→ Tu dirección de wallet es la misma en todas las redes EVM
+→ Guarda tu frase semilla en un lugar seguro (offline)
 
-💡 **Tip:** Necesitas un poco de BNB para pagar gas en transacciones BSC.
+¿Necesitas ayuda con algún paso específico?`,
+          `**¡Bienvenido a Kairos Wallet!** 📱
 
-¿Necesitas ayuda con algo específico?`
+1️⃣ **Conecta o crea** tu wallet
+2️⃣ **Añade BNB** para gas (con $5 tienes para 50+ transacciones)
+3️⃣ **Compra o recibe KAIROS** y empieza a usarlo
+
+Es así de simple. Tu wallet funciona en BSC, Base, Arbitrum y Polygon.
+
+¿Qué te gustaría hacer primero?`
+        ],
+        related: ['send', 'receive', 'how_to_buy']
       },
 
       send: {
-        keywords: ['enviar','send','transferir','transfer','mandar','envío'],
-        answer: `**Enviar KAIROS** 📤
+        keywords: ['enviar','send','transferir','transfer','mandar','envio','como envio','enviar kairos','mover','pasar'],
+        patterns: [/c[oó]mo\s+(env[ií]o|enviar|transfiero|transferir|mando|paso|muevo)/i, /quiero\s+(enviar|transferir|mandar|pasar)/i, /how\s+to\s+send/i, /send\s+kairos/i],
+        answers: [
+          `**Enviar KAIROS** 📤
 
-1. Haz clic en **"Enviar"** en la pantalla principal
-2. Ingresa la **dirección del destinatario** (0x...)
-3. Ingresa la **cantidad** de KAIROS a enviar
-4. Revisa los detalles y confirma la transacción
-5. Aprueba en tu wallet (MetaMask/Trust Wallet)
+1️⃣ Haz clic en **"Enviar"** en la pantalla principal
+2️⃣ Pega la **dirección del destinatario** (0x...)
+3️⃣ Ingresa la **cantidad** de KAIROS
+4️⃣ Revisa los detalles y confirma
+5️⃣ Aprueba en tu wallet
 
 ⚡ **Importante:**
-→ Verifica siempre la dirección del destinatario
-→ Necesitas BNB para gas (~$0.10 por transacción)
-→ Las transacciones son irreversibles
+→ Verifica SIEMPRE la dirección — las transacciones son irreversibles
+→ Necesitas BNB para gas (~$0.10 por tx en BSC)
+→ Asegúrate que el destinatario esté en la misma red
 
-¿Tienes alguna duda sobre el envío?`
+¿Tienes alguna duda sobre el envío?`,
+          `Enviar es fácil:
+
+1. Clic en **Enviar**
+2. Pega la dirección (0x...)
+3. Pon el monto
+4. Confirma
+
+💡 Cost: ~$0.10 de gas en BSC. Asegúrate de tener un poco de BNB.
+
+⚠️ Triple-check la dirección antes de confirmar. No se puede revertir.
+
+¿Algo más?`
+        ],
+        related: ['receive', 'gas', 'networks']
       },
 
       receive: {
-        keywords: ['recibir','receive','depositar','deposit','mi dirección','my address','qr','código'],
-        answer: `**Recibir KAIROS** 📥
+        keywords: ['recibir','receive','depositar','deposit','mi direccion','my address','qr','codigo','como recibo','que me envien'],
+        patterns: [/c[oó]mo\s+(recibo|deposito|me\s+env[ií]an)/i, /quiero\s+recibir/i, /mi\s+direcci[oó]n/i, /how\s+to\s+receive/i, /d[oó]nde\s+(veo|est[aá])\s+mi\s+direcci[oó]n/i],
+        answers: [
+          `**Recibir KAIROS** 📥
 
-1. Haz clic en **"Recibir"** en la pantalla principal
-2. Copia tu **dirección de wallet** o comparte el código QR
-3. Envía la dirección a quien te va a transferir KAIROS
+1️⃣ Haz clic en **"Recibir"** en la pantalla principal
+2️⃣ Copia tu **dirección** o comparte el **código QR**
+3️⃣ Envía la dirección a quien te va a transferir
 
-📋 **Tu dirección** empieza con 0x... — es la misma para todas las chains EVM (BSC, Base, Arbitrum, Polygon).
+📋 Tu dirección empieza con **0x...** y es la misma para BSC, Base, Arbitrum y Polygon.
 
-💡 **Tip:** Verifica que el remitente envíe en la **misma red** (BSC es la principal).
+💡 **Tips:**
+→ Verifica que el remitente envíe en la **misma red** que tú
+→ BSC es la red principal para KAIROS
+→ El balance se actualiza en segundos
 
-¿Necesitas algo más?`
+¿Necesitas algo más?`,
+          `Para recibir KAIROS:
+
+1. Clic en **Recibir**
+2. Copia tu dirección o comparte el QR
+3. El remitente te envía — llega en segundos
+
+Tu dirección 0x... es la misma en todas las redes EVM. Solo asegúrate de que ambos estén en la misma red (BSC recomendada).
+
+¿Te ayudo con algo más?`
+        ],
+        related: ['send', 'balance', 'networks']
       },
 
       balance: {
-        keywords: ['balance','saldo','cuánto tengo','how much','fondos','funds','ver','check','consultar'],
-        answer: `**Ver tu Balance** 💰
+        keywords: ['balance','saldo','cuanto tengo','how much','fondos','funds','ver','check','consultar','mi dinero','mis tokens','portfolio'],
+        patterns: [/cu[aá]nto\s+tengo/i, /(ver|consultar|check)\s+(mi\s+)?(balance|saldo|fondos)/i, /mis?\s+(tokens?|fondos|dinero)/i, /how\s+much\s+do\s+i\s+have/i],
+        answers: [
+          `**Tu Balance** 💰
 
-Tu balance se muestra en la pantalla principal de Kairos Wallet:
+Tu balance se muestra en la pantalla principal:
 → **KAIROS** — Tu stablecoin (1 KAIROS = 1 USD)
-→ **BNB** — Para pagar gas de transacciones
+→ **BNB** — Para pagar gas
 → **Otros tokens** — Si los has añadido
 
-📊 El balance se actualiza en tiempo real desde la blockchain.
+📊 Se actualiza en **tiempo real** desde la blockchain.
 
-**Multi-chain:**
-→ Puedes ver tu balance en BSC, Base, Arbitrum y Polygon
-→ Cambia de red en las configuraciones
+**Multi-chain:** Puedes ver tu balance en BSC, Base, Arbitrum y Polygon cambiando de red en configuración.
 
 ¿Necesitas ayuda con algo más?`
+        ],
+        related: ['send', 'receive', 'networks']
       },
 
       networks: {
-        keywords: ['redes','networks','chain','cadena','bsc','base','arbitrum','polygon','cambiar red','switch network','multi-chain','multichain'],
-        answer: `**Redes soportadas** 🌐
+        keywords: ['redes','networks','chain','cadena','bsc','base','arbitrum','polygon','cambiar red','switch network','multi chain','bnb chain','que red','cual red','layer 2'],
+        patterns: [/qu[eé]\s+(redes?|chains?|cadenas?)/i, /en\s+qu[eé]\s+(red|chain)/i, /(cambiar|switch)\s+(de\s+)?(red|chain)/i, /cu[aá]l\s+red/i, /mejor\s+red/i],
+        answers: [
+          `**4 redes soportadas** 🌐
 
-Kairos Wallet soporta múltiples blockchains:
+🔸 **BSC** — La principal, la más usada
+   Gas: ~$0.10 · Necesitas BNB
 
-🔸 **BSC (BNB Smart Chain)** — Red principal
-   → Chain ID: 56 · Gas: ~$0.10
-   → Contrato: \`0x14D41707269c7D8b8DFa5095b38824a46dA05da3\`
+🔸 **Base** — L2 de Ethereum, baratísima
+   Gas: ~$0.01 · Necesitas ETH
 
-🔸 **Base** — Layer 2 de Ethereum  
-   → Chain ID: 8453 · Gas: ~$0.01
+🔸 **Arbitrum** — L2, rápida y segura
+   Gas: ~$0.02 · Necesitas ETH
 
-🔸 **Arbitrum** — Layer 2 de Ethereum
-   → Chain ID: 42161 · Gas: ~$0.02
+🔸 **Polygon** — Sidechain
+   Gas: ~$0.01 · Necesitas POL
 
-🔸 **Polygon** — Sidechain de Ethereum
-   → Chain ID: 137 · Gas: ~$0.01
-   → Contrato: \`0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9\`
+💡 **Recomendación:** Usa **BSC** si eres nuevo. Es la red con más liquidez para KAIROS.
 
-¿En qué red necesitas ayuda?`
+Para cambiar de red, ve a **Configuración → Red**.
+
+¿Necesitas ayuda para añadir una red?`
+        ],
+        related: ['gas', 'contract', 'wallet_connect']
       },
 
       gas: {
-        keywords: ['gas','comisión','fee','fees','costo','cost','bnb','pagar','cuánto cuesta','how much cost','transacción'],
-        answer: `**Gas y comisiones** ⛽
+        keywords: ['gas','comision','fee','fees','costo','cost','bnb','pagar','cuanto cuesta','cuanto sale','transaccion','caro','barato','eth para gas','pol para gas'],
+        patterns: [/cu[aá]nto\s+(cuesta|sale|cuesta|pago|cobra)/i, /comisi[oó]n(es)?/i, /(necesito|cuanto)\s+(bnb|eth|gas)/i, /gas\s+(fee|cost)/i, /es\s+(caro|barato)/i],
+        answers: [
+          `**Gas y comisiones** ⛽
 
-Para enviar KAIROS necesitas pagar **gas** en la moneda nativa de la red:
+Para enviar KAIROS necesitas gas en la moneda nativa:
 
-🔸 **BSC** → Necesitas **BNB** (~$0.05-0.15 por tx)
-🔸 **Base** → Necesitas **ETH** (~$0.01 por tx)
-🔸 **Arbitrum** → Necesitas **ETH** (~$0.02 por tx)
-🔸 **Polygon** → Necesitas **POL** (~$0.01 por tx)
+🔸 **BSC** → **BNB** (~$0.05-0.15 por tx)
+🔸 **Base** → **ETH** (~$0.01 por tx)
+🔸 **Arbitrum** → **ETH** (~$0.02 por tx)
+🔸 **Polygon** → **POL** (~$0.01 por tx)
 
-💡 **Tip:** Mantén siempre un poco de BNB en tu wallet para gas. Con $5 de BNB tienes para ~50+ transacciones.
+💡 **Con $5 de BNB tienes para 50+ transacciones en BSC.**
 
-→ Compra BNB en cualquier exchange (Binance, KuCoin, etc.)
+Compra BNB en cualquier exchange (Binance, KuCoin, etc.) y envíalo a tu dirección de wallet.
 
-¿Necesitas más información?`
+¿Necesitas más información?`,
+          `Las fees son muy bajas:
+
+→ BSC: ~$0.10 (necesitas BNB)
+→ Base: ~$0.01 (necesitas ETH)
+→ Arbitrum: ~$0.02 (necesitas ETH)
+→ Polygon: ~$0.01 (necesitas POL)
+
+💡 Mantén siempre un poquito de BNB en tu wallet. Con $5 te alcanza para mucho.
+
+¿Algo más?`
+        ],
+        related: ['networks', 'how_to_buy', 'send']
       },
 
       how_to_buy: {
-        keywords: ['comprar','buy','adquirir','purchase','cómo compro','how to buy','donde compro','where buy','obtener','get kairos','quiero comprar','want to buy'],
-        answer: `**¿Cómo obtener KAIROS?** 💰
+        keywords: ['comprar','buy','adquirir','purchase','como compro','donde compro','obtener','get kairos','quiero comprar','depositar','tarjeta','card','visa','mastercard','fiat','meter dinero','cargar','recargar'],
+        patterns: [/c[oó]mo\s+(compro|comprar|adquiero|obtengo|deposito|cargo)/i, /d[oó]nde\s+(compro|comprar)/i, /quiero\s+(comprar|depositar|meter|agregar)/i, /(puedo|acepta)\s+(tarjeta|visa|mastercard)/i],
+        answers: [
+          `**¿Cómo obtener KAIROS?** 💰
 
-**Opción 1: Compra directa con tarjeta**
+**1. Con tarjeta** (lo más fácil) 💳
 → Ve a [kairos-777.com/buy](https://kairos-777.com/buy.html)
 → Paga con Visa, Mastercard o Apple Pay
-→ Recibe KAIROS directo en tu wallet
+→ KAIROS llega a tu wallet automáticamente
 
-**Opción 2: Transferencia de stablecoins**
-→ Envía USDT, USDC o BUSD
-→ Recibe KAIROS equivalente
+**2. Desde otro wallet**
+→ Pide que te envíen KAIROS a tu dirección 0x...
+→ O intercambia USDT/USDC por KAIROS
 
-**Opción 3: Swap en DEX**
-→ Usa PancakeSwap en BSC
+**3. Swap en DEX**
+→ PancakeSwap en BSC
 → Contrato: \`0x14D41707269c7D8b8DFa5095b38824a46dA05da3\`
 
-Una vez comprado, aparecerá automáticamente en tu Kairos Wallet.
+¿Necesitas ayuda paso a paso?`,
+          `Lo más rápido para comprar KAIROS:
 
-¿Necesitas ayuda paso a paso?`
-      },
+1️⃣ Ve a [kairos-777.com/buy](https://kairos-777.com/buy.html)
+2️⃣ Conecta tu wallet
+3️⃣ Paga con tarjeta — Visa, Mastercard, Apple Pay
+4️⃣ KAIROS aparece en tu wallet en segundos
 
-      ecosystem: {
-        keywords: ['ecosistema','ecosystem','productos','products','servicios','services','que ofrecen','what you offer','plataforma','platform','todo lo que tienen'],
-        answer: `**Kairos 777** — Ecosistema financiero completo 🏛️
+También puedes recibir de alguien que ya tenga, o hacer swap en PancakeSwap.
 
-🔸 **KairosCoin (KAIROS)** — Stablecoin USD-pegged
-   → [kairos-777.com](https://kairos-777.com)
-
-🔸 **Kairos Wallet** — Donde estás ahora 📱
-   → Envía, recibe y gestiona KAIROS
-
-🔸 **Kairos 777** — Trading algorítmico
-   → 33+ pares · Hasta 150x · Bots AI
-   → [kairos-trade.netlify.app](https://kairos-trade.netlify.app)
-
-🔸 **Reservas Transparentes** — Verificación en tiempo real
-   → [kairos-777.com/reserves](https://kairos-777.com/reserves.html)
-
-¿Qué producto te interesa más?`
+¿Te ayudo con algo más?`
+        ],
+        related: ['price', 'receive', 'how_to_use']
       },
 
       price: {
-        keywords: ['precio','price','valor','value','cuánto vale','how much','cotización','rate','costo kairos'],
-        answer: `**1 KAIROS = 1 USD** siempre 💵
+        keywords: ['precio','price','valor','value','cuanto vale','cotizacion','rate','cuanto es','cuanto esta','a cuanto'],
+        patterns: [/cu[aá]nto\s+(vale|cuesta|es|est[aá])/i, /(precio|valor)\s+(de\s+)?kairos/i, /a\s+cu[aá]nto/i],
+        answers: [
+          `**1 KAIROS = 1 USD** — Siempre 💵
 
-KAIROS es una **stablecoin** — su precio está fijado al dólar estadounidense. No sube ni baja como Bitcoin.
+KAIROS es una **stablecoin** — su precio está fijado al dólar. No sube ni baja.
 
-Es perfecto para:
+Perfecto para:
 ✅ Ahorrar en dólares digitales
-✅ Enviar remesas sin volatilidad
+✅ Enviar remesas sin perder valor
 ✅ Base estable para trading
 ✅ Pagos internacionales
 
 ¿Quieres saber cómo comprar?`
+        ],
+        related: ['how_to_buy', 'stablecoin', 'reserves']
       },
 
       security: {
-        keywords: ['seguro','safe','seguridad','security','confiable','trust','audited','auditado','scam','estafa','legítimo','legitimate','hack','proteger','protect','llaves','keys','private key'],
-        answer: `**Seguridad en Kairos Wallet** 🛡️
+        keywords: ['seguro','safe','seguridad','security','confiable','trust','auditado','scam','estafa','legitimo','hack','proteger','proteccion','llaves','keys','private key','seed','frase','semilla','robo','fraude'],
+        patterns: [/es\s+(seguro|confiable|leg[ií]timo)/i, /(puedo\s+)?confiar/i, /mis?\s+fondos\s+(est[aá]n\s+)?seguros?/i, /me\s+pueden\s+robar/i, /frase\s+semilla/i, /private\s+key/i, /seed\s+phrase/i],
+        answers: [
+          `**Seguridad en Kairos Wallet** 🛡️
 
-**Tus llaves, tus fondos**
+**Tus llaves, tus fondos:**
 → Kairos Wallet es **non-custodial**
-→ Nosotros NUNCA tenemos acceso a tus fondos
-→ Tu clave privada permanece solo en tu dispositivo
+→ NUNCA tenemos acceso a tus fondos
+→ Tu clave privada vive solo en tu dispositivo
 
-**Empresa Registrada**
-→ Kairos 777 Inc — Florida, EE.UU.
-→ Fundada por: Kaizen LLC
+**Smart contracts seguros:**
+→ OpenZeppelin v5.4 (estándar de la industria)
+→ Verificados en BSCScan
 
 **Consejos de seguridad:**
-✅ Nunca compartas tu frase semilla (seed phrase)
-✅ Usa contraseña fuerte en MetaMask
-✅ Verifica siempre las direcciones antes de enviar
+✅ NUNCA compartas tu frase semilla con nadie
+✅ Guarda tu seed phrase OFFLINE (papel, caja fuerte)
+✅ Verifica direcciones antes de enviar
 ✅ No hagas clic en links sospechosos
-✅ Guarda tu seed phrase offline
+✅ Usa contraseña fuerte en tu wallet
 
-¿Tienes alguna pregunta sobre seguridad?`
+¿Tienes alguna pregunta sobre seguridad?`,
+          `Entiendo la preocupación. Kairos Wallet es **non-custodial** — nosotros NUNCA tenemos acceso a tus fondos.
+
+Lo que eso significa:
+→ Tu frase semilla está SOLO en tu dispositivo
+→ Nadie puede mover tus fondos sin tu aprobación
+→ Ni siquiera nosotros podemos tocar tu wallet
+
+**Lo más importante:** Guarda tu frase semilla en un lugar seguro, offline. Si la pierdes, nadie puede recuperar tus fondos.
+
+¿Algo más sobre seguridad?`
+        ],
+        related: ['contract', 'reserves', 'founder']
       },
 
       trade: {
-        keywords: ['trade','trading','operar','bots','bot','invertir','invest','exchange','intercambiar','swap'],
-        answer: `**¿Quieres operar con KAIROS?** 📊
-
-Visita **Kairos 777** — nuestra plataforma de trading:
+        keywords: ['trade','trading','operar','bots','bot','invertir','invest','exchange','intercambiar','swap','apalancamiento','leverage'],
+        patterns: [/quiero\s+(operar|invertir|hacer\s+trading)/i, /c[oó]mo\s+opero/i, /d[oó]nde\s+opero/i, /kairos\s+777/i],
+        answers: [
+          `**¿Quieres operar?** 📊 Visita **Kairos 777**:
 
 🔸 **33+ pares** de criptomonedas
 🔸 **Hasta 150x** de apalancamiento
-🔸 **Bots algorítmicos** con inteligencia artificial
+🔸 **Bots algorítmicos** con AI
 🔸 **Gráficos** en tiempo real
 
-📊 Accede desde: [kairos-trade.netlify.app](https://kairos-trade.netlify.app)
+📊 [kairos-trade.netlify.app](https://kairos-trade.netlify.app)
 
 Usa KAIROS como colateral estable para tus operaciones.
 
 ⚠️ El trading con apalancamiento conlleva riesgo.
 
 ¿Necesitas más información?`
+        ],
+        related: ['how_to_buy', 'ecosystem']
       },
 
       contract: {
-        keywords: ['contrato','contract','address','dirección','bscscan','token address','smart contract','verificar','verify','añadir token','add token','importar','import'],
-        answer: `**Añadir KAIROS a tu Wallet** 📋
+        keywords: ['contrato','contract','address','direccion','bscscan','token address','smart contract','verificar','verify','anadir token','add token','importar','import','0x14'],
+        patterns: [/direcci[oó]n\s+(del\s+)?(contrato|token)/i, /contract\s+address/i, /a[nñ]adir\s+(el\s+)?token/i, /importar\s+(el\s+)?token/i, /no\s+(me\s+)?aparece/i],
+        answers: [
+          `**Añadir KAIROS a tu Wallet** 📋
 
-Si KAIROS no aparece automáticamente, añádelo manualmente:
+Si KAIROS no aparece automáticamente, añádelo:
 
-**En BSC/Base/Arbitrum:**
+**BSC / Base / Arbitrum:**
 → Contrato: \`0x14D41707269c7D8b8DFa5095b38824a46dA05da3\`
-→ Símbolo: KAIROS
-→ Decimales: 18
+→ Símbolo: KAIROS · Decimales: 18
 
-**En Polygon:**
+**Polygon:**
 → Contrato: \`0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9\`
-→ Símbolo: KAIROS
-→ Decimales: 18
+→ Símbolo: KAIROS · Decimales: 18
 
-Verificar en BSCScan:
-→ [Ver en BSCScan](https://bscscan.com/token/0x14D41707269c7D8b8DFa5095b38824a46dA05da3)
+[Verificar en BSCScan](https://bscscan.com/token/0x14D41707269c7D8b8DFa5095b38824a46dA05da3)
 
-¿Necesitas ayuda para importar el token?`
+¿Necesitas ayuda para importarlo?`
+        ],
+        related: ['networks', 'security']
+      },
+
+      wallet_connect: {
+        keywords: ['walletconnect','wallet connect','dapp','dapps','conectar dapp','scan','escanear','qr code'],
+        patterns: [/wallet\s*connect/i, /conectar\s+(a\s+)?(una?\s+)?dapp/i, /escanear\s+(c[oó]digo\s+)?qr/i],
+        answers: [
+          `**WalletConnect** — Conecta con dApps 🔗
+
+Kairos Wallet soporta WalletConnect v2:
+
+1️⃣ Abre la **dApp** que quieres usar (ej: PancakeSwap, Uniswap)
+2️⃣ Haz clic en "Connect Wallet" → WalletConnect
+3️⃣ Escanea el **código QR** con Kairos Wallet
+4️⃣ Aprueba la conexión
+
+Compatible con 200+ dApps del ecosistema Web3.
+
+¿Necesitas ayuda para conectar alguna dApp?`
+        ],
+        related: ['networks', 'how_to_use']
+      },
+
+      ecosystem: {
+        keywords: ['ecosistema','productos','servicios','que ofrecen','todo lo que tienen','apps','aplicaciones'],
+        patterns: [/qu[eé]\s+(productos|servicios|ofrece)/i, /todo\s+lo\s+que/i, /ecosystem/i],
+        answers: [
+          `**Ecosistema Kairos 777** 🏛️
+
+🔸 **KairosCoin** — Stablecoin 1:1 USD
+   → [kairos-777.com](https://kairos-777.com)
+
+📱 **Kairos Wallet** — Estás aquí
+   → Envía, recibe, gestiona KAIROS
+
+📊 **Kairos 777** — Trading algorítmico
+   → 33+ pares · Hasta 150x · Bots AI
+   → [kairos-trade.netlify.app](https://kairos-trade.netlify.app)
+
+🏦 **Reservas** — Verificación en tiempo real
+   → [kairos-777.com/reserves](https://kairos-777.com/reserves.html)
+
+¿Qué producto te interesa?`
+        ],
+        related: ['what_is', 'trade']
       },
 
       founder: {
-        keywords: ['fundador','founder','quién creó','who created','team','equipo','creador','creator','dueño','owner','ceo','kaizen'],
-        answer: `**Kairos 777 Inc** fue fundada por **Kaizen LLC** 🏛️
+        keywords: ['fundador','founder','mario','isaac','quien creo','team','equipo','creador','dueno','owner','kaizen','empresa'],
+        patterns: [/qui[eé]n(es)?\s+(cre[oó]|fund[oó]|est[aá]|son)/i, /de\s+qui[eé]n\s+es/i],
+        answers: [
+          `**Kairos 777 Inc** — Fundada por **Kaizen LLC** 🏛️
 
-→ Empresa registrada en **Florida, Estados Unidos**
-→ Visión: Democratizar el acceso a finanzas estables y trading algorítmico
+→ Empresa registrada en **Florida, EE.UU.**
+→ Fundada por **Mario Isaac**
 → Filosofía: *"In God We Trust"*
 
-Kaizen LLC creó Kairos 777 con la misión de ofrecer herramientas financieras seguras, transparentes y accesibles para todos.
+Misión: Ofrecer herramientas financieras seguras, transparentes y accesibles para todos.
 
-¿Te gustaría conocer más sobre nuestra misión?`
+¿Te gustaría conocer más sobre nuestros productos?`
+        ],
+        related: ['what_is', 'security']
       },
 
-      help: {
-        keywords: ['ayuda','help','soporte','support','contacto','contact','problema','problem','error','issue','no funciona','not working'],
-        answer: `**¿Necesitas ayuda?** 🤝
+      reserves: {
+        keywords: ['reservas','reserves','respaldo','backing','auditoria','audit','proof','prueba','colateral','collateral'],
+        patterns: [/est[aá]\s+respaldado/i, /tienen?\s+reservas?/i, /proof\s+of\s+reserves?/i],
+        answers: [
+          `**Reservas 100% verificables** 🏦
 
-Puedo asistirte con:
-1️⃣ **Cómo empezar** — Configura tu wallet
-2️⃣ **Enviar KAIROS** — Paso a paso
-3️⃣ **Recibir KAIROS** — Tu dirección y QR
-4️⃣ **Redes** — BSC, Base, Arbitrum, Polygon
-5️⃣ **Gas** — Comisiones de transacción
-6️⃣ **Seguridad** — Protege tus fondos
+Cada KAIROS respaldado 1:1 por:
+→ **USDT** + **USDC** + **BUSD**
 
-Escribe tu pregunta y te ayudaré 😊
+📊 Verifica en tiempo real: [kairos-777.com/reserves](https://kairos-777.com/reserves.html)
 
-Para soporte directo: info@kairos-777.com`
+Completamente transparente — cualquiera puede verificar.
+
+¿Preguntas sobre el respaldo?`
+        ],
+        related: ['price', 'security', 'stablecoin']
       },
 
       stablecoin: {
-        keywords: ['stablecoin','estable','stable','dólar','dollar','usd','moneda estable','peg','paridad','parity'],
-        answer: `**¿Qué es una stablecoin?** 💡
+        keywords: ['stablecoin','estable','stable','dolar','dollar','usd','moneda estable','peg','paridad','usdt','usdc'],
+        patterns: [/qu[eé]\s+es\s+(una?\s+)?stablecoin/i, /diferencia.*usdt/i, /vs\s+(usdt|usdc)/i],
+        answers: [
+          `**KAIROS = $1 USD siempre** 💡
 
-Una stablecoin es una criptomoneda diseñada para mantener un precio estable, generalmente $1 USD.
+Es una stablecoin: no sube ni baja como Bitcoin.
 
-**KAIROS** es una stablecoin porque:
-✅ Cada token está respaldado 1:1 con USD
-✅ Puedes comprar y vender siempre a ~$1
-✅ No tiene la volatilidad de BTC o ETH
-✅ Ideal para ahorro, pagos y remesas
+Perfecto para:
+✅ Ahorrar en dólares digitales
+✅ Enviar remesas sin volatilidad
+✅ Base estable para trading
+✅ Pagos internacionales
 
-En Kairos Wallet puedes gestionar tus KAIROS de forma segura y sencilla.
+A diferencia de USDT/USDC, KAIROS está integrado nativamente en nuestro ecosistema.
 
-¿Quieres saber más?`
+¿Quieres comprarlo?`
+        ],
+        related: ['price', 'how_to_buy']
       },
 
       whitepaper: {
-        keywords: ['whitepaper','white paper','documento','paper','technical','técnico','documentación','documentation'],
-        answer: `**Whitepaper de KairosCoin** 📄
+        keywords: ['whitepaper','white paper','documento','paper','tecnico','roadmap','hoja de ruta'],
+        patterns: [/white\s*paper/i, /hoja\s+de\s+ruta/i],
+        answers: [
+          `**Whitepaper de KairosCoin** 📄
 
-Nuestro whitepaper detalla:
-→ Arquitectura técnica del token
-→ Mecanismo de respaldo y estabilidad
+→ Arquitectura técnica
+→ Mecanismo de respaldo
 → Gobernanza y transparencia
-→ Hoja de ruta del ecosistema
+→ Hoja de ruta
 
-📖 Lee el whitepaper completo:
-→ [kairos-777.com/whitepaper](https://kairos-777.com/whitepaper.html)
+📖 [kairos-777.com/whitepaper](https://kairos-777.com/whitepaper.html)
 
-¿Tienes preguntas específicas?`
+¿Preguntas específicas?`
+        ],
+        related: ['what_is', 'security']
+      },
+
+      help: {
+        keywords: ['ayuda','help','soporte','support','contacto','contact','problema','problem','error','issue','no funciona','not working','bug','roto','fallo','necesito ayuda'],
+        patterns: [/necesito\s+ayuda/i, /tengo\s+(un\s+)?(problema|error)/i, /no\s+(me\s+)?(funciona|carga|abre|conecta|deja)/i, /c[oó]mo\s+contacto/i],
+        answers: [
+          `**¡Aquí estoy para ayudarte!** 🤝
+
+Soy bueno en:
+📤 Enviar KAIROS
+📥 Recibir KAIROS
+💰 Comprar KAIROS
+🌐 Redes soportadas
+⛽ Gas y comisiones
+🛡️ Seguridad
+🔗 WalletConnect
+
+Escribe tu duda y te ayudo.
+
+Soporte humano: 📧 **info@kairos-777.com**`,
+          `¡Claro! Dime qué necesitas 😊
+
+Puedo ayudarte con envíos, recibos, compra, redes, gas, seguridad, y más.
+
+Escribe tu pregunta con tus propias palabras — no necesitas ser técnico.
+
+Para soporte directo: **info@kairos-777.com**`
+        ],
+        related: ['how_to_use', 'send', 'receive']
       }
     },
 
-    fallback: `No estoy seguro de entender tu pregunta 🤔
+    followUp: {
+      yes: ["¡Perfecto! Aquí va:", "¡Genial! Te cuento:", "¡Claro que sí!"],
+      no: ["No hay problema 😊 ¿Algo más?", "Entendido. ¿Otra pregunta?", "Ok. ¿Algo más?"],
+      more: ["¡Claro! Te amplío:", "¡Con gusto! Más detalle:", "¡Por supuesto!"]
+    },
 
-Puedo ayudarte con:
-• **¿Cómo empezar?** — Configura tu wallet
-• **Enviar KAIROS** — Transferir fondos
-• **Recibir KAIROS** — Tu dirección
-• **Redes** — Multi-chain soportado
-• **Gas/Comisiones** — Costos de transacción
-• **Seguridad** — Protege tus fondos
-
-Escribe tu pregunta o elige un tema 😊`,
+    fallbacks: [
+      `Hmm, no encontré una respuesta exacta 🤔\n\nPuedo ayudarte con:\n→ **Enviar/Recibir** KAIROS\n→ **Comprar** KAIROS\n→ **Redes** soportadas\n→ **Gas** y comisiones\n→ **Seguridad** de tu wallet\n\n¿Puedes reformular?`,
+      `No estoy seguro de entender, pero soy bueno en:\n\n📤 Enviar KAIROS\n📥 Recibir KAIROS\n💰 Comprar KAIROS\n🌐 Redes y gas\n🔐 Seguridad\n\nEscríbelo de otra forma 😊`,
+      `Esa me la puso difícil 😅 Intenta preguntar sobre:\n\n→ Cómo enviar o recibir KAIROS\n→ Comprar KAIROS\n→ Redes soportadas\n→ Seguridad\n\nO contacta: **info@kairos-777.com**`
+    ],
 
     quickReplies: [
       { label: '¿Cómo empiezo?', topic: 'how_to_use' },
       { label: 'Enviar KAIROS', topic: 'send' },
       { label: 'Recibir KAIROS', topic: 'receive' },
-      { label: 'Seguridad', topic: 'security' },
+      { label: '¿Es seguro?', topic: 'security' },
     ]
   };
 
-  // ── Smart Matching ──
-  function findBestMatch(input) {
-    const normalized = input.toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[¿¡?!.,;:'"]/g, '');
+  // ── Intent Engine ──
+  function scoreTopic(inputNorm, inputWords, topic) {
+    let score = 0;
+    for (const kw of topic.keywords) { const kwNorm = norm(kw); if (inputNorm.includes(kwNorm)) score += 8 + kwNorm.split(' ').length * 3; }
+    const kwWords = new Set();
+    for (const kw of topic.keywords) for (const w of norm(kw).split(' ')) if (w.length >= 3) kwWords.add(w);
+    for (const iw of inputWords) { if (iw.length < 3) continue; for (const kw of kwWords) { const sim = wordSimilar(iw, kw); if (sim >= 0.85) score += 4; else if (sim >= 0.7) score += 2; } }
+    if (topic.patterns) for (const pat of topic.patterns) if (pat.test(inputNorm)) score += 15;
+    return score;
+  }
 
-    let bestMatch = null;
-    let bestScore = 0;
-
-    for (const [topicKey, topic] of Object.entries(KB.topics)) {
-      for (const keyword of topic.keywords) {
-        const normalizedKw = keyword.toLowerCase()
-          .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        
-        if (normalized.includes(normalizedKw)) {
-          const score = normalizedKw.length;
-          if (score > bestScore) {
-            bestScore = score;
-            bestMatch = topicKey;
-          }
-        }
-      }
+  function classifyIntent(input) {
+    const inputNorm = norm(input), inputWords = inputNorm.split(' ').filter(w => w.length >= 2);
+    const aff = ['si','sii','yes','claro','dale','ok','okey','okay','va','vale','venga','por favor','porfa','please','aja','simon','correcto','exacto','eso'];
+    const neg = ['no','nah','nel','nop','nope','paso','tampoco','nada'];
+    const more = ['mas','more','cuentame','dime','explica','explicame','detalle','detalles','profundiza','amplia','sigue','continua'];
+    if (CTX.lastTopic && inputWords.length <= 4) {
+      if (aff.some(a => inputNorm === a || inputNorm === a + ' por favor')) return { type: 'followup_yes' };
+      if (neg.some(n => inputNorm === n || inputNorm.startsWith(n + ' '))) return { type: 'followup_no' };
+      if (more.some(m => inputNorm.includes(m))) return { type: 'followup_more' };
     }
-
-    return bestMatch;
+    let best = null, bestScore = 0;
+    for (const [key, topic] of Object.entries(KB.topics)) { const s = scoreTopic(inputNorm, inputWords, topic); if (s > bestScore) { bestScore = s; best = key; } }
+    if (bestScore >= 6) return { type: 'topic', topic: best, score: bestScore };
+    return { type: 'unknown' };
   }
 
   function getResponse(input) {
-    const greetings = ['hola','hello','hi','hey','buenas','saludos','good morning','good afternoon','qué tal','que tal','buenos días','buenas tardes','sup','yo'];
-    const normalizedInput = input.toLowerCase().trim();
-    
-    if (greetings.some(g => normalizedInput === g || normalizedInput.startsWith(g + ' ') || normalizedInput.startsWith(g + ','))) {
-      return { text: `¡Hola! 😊 Bienvenido a **Kairos Wallet**. ¿En qué te puedo ayudar?\n\nPuedes preguntarme sobre cómo enviar o recibir KAIROS, redes soportadas, comisiones, seguridad, o cualquier duda.`, showQuickReplies: true };
+    const inputNorm = norm(input);
+    const greetings = ['hola','hello','hi','hey','buenas','saludos','que tal','buenos dias','buenas tardes','buenas noches','sup','yo','ey','epa','ola','wena'];
+    if (greetings.some(g => inputNorm === g || inputNorm.startsWith(g + ' '))) {
+      CTX.turnCount++;
+      return { text: CTX.turnCount > 1 ? "¡Hola de nuevo! 😊 ¿En qué más te ayudo?" : pickRandom(KB.greetings), showQuickReplies: true };
     }
+    const thanks = ['gracias','thanks','thank you','thx','ty','muchas gracias','mil gracias'];
+    if (thanks.some(t => inputNorm.includes(norm(t)))) return { text: `¡Con mucho gusto! 😊 Si te surge otra duda, aquí estaré 24/7.\n\n📱 **Kairos Wallet** — *In God We Trust*`, showQuickReplies: false };
+    const byes = ['adios','bye','chao','hasta luego','see you','nos vemos','me voy'];
+    if (byes.some(b => inputNorm.includes(norm(b)))) return { text: `¡Hasta pronto! 👋 Tus KAIROS están seguros.\n\n📱 [kairos-wallet.netlify.app](https://kairos-wallet.netlify.app)`, showQuickReplies: false };
 
-    const thanks = ['gracias','thanks','thank you','thx','ty','valeu','merci'];
-    if (thanks.some(t => normalizedInput.includes(t))) {
-      return { text: `¡Con mucho gusto! 😊 Si necesitas algo más, estoy aquí 24/7.\n\n📱 **Kairos Wallet** — *In God We Trust*`, showQuickReplies: false };
+    const intent = classifyIntent(input);
+    if (intent.type === 'followup_yes' && CTX.lastTopic) {
+      const topic = KB.topics[CTX.lastTopic];
+      if (topic?.related?.length) { const next = KB.topics[topic.related[0]]; if (next) { CTX.lastTopic = topic.related[0]; return { text: pickRandom(KB.followUp.yes) + '\n\n' + pickRandom(next.answers), showQuickReplies: false, related: next.related }; } }
+      return { text: pickRandom(KB.followUp.yes) + "\n\n¿Sobre qué quieres saber más?", showQuickReplies: true };
     }
-
-    const byes = ['adiós','adios','bye','chao','hasta luego','see you','nos vemos'];
-    if (byes.some(b => normalizedInput.includes(b))) {
-      return { text: `¡Hasta pronto! 👋 Tus KAIROS están seguros con nosotros.\n\n📱 [kairos-wallet.netlify.app](https://kairos-wallet.netlify.app)`, showQuickReplies: false };
+    if (intent.type === 'followup_no') { CTX.lastTopic = null; return { text: pickRandom(KB.followUp.no), showQuickReplies: true }; }
+    if (intent.type === 'followup_more' && CTX.lastTopic) {
+      const topic = KB.topics[CTX.lastTopic];
+      if (topic) { const alt = topic.answers[topic.answers.length > 1 ? topic.answers.length - 1 : 0]; return { text: pickRandom(KB.followUp.more) + '\n\n' + alt, showQuickReplies: false, related: topic.related }; }
     }
-
-    const match = findBestMatch(input);
-    if (match) {
-      return { text: KB.topics[match].answer, showQuickReplies: false };
+    if (intent.type === 'topic') {
+      CTX.lastTopic = intent.topic; CTX.turnCount++;
+      return { text: pickRandom(KB.topics[intent.topic].answers), showQuickReplies: false, related: KB.topics[intent.topic].related };
     }
-
-    return { text: KB.fallback, showQuickReplies: true };
+    CTX.lastTopic = null;
+    return { text: pickRandom(KB.fallbacks), showQuickReplies: true };
   }
 
-  // ── Simple Markdown to HTML ──
   function md(text) {
-    return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`([^`]+)`/g, '<code style="background:rgba(139,92,246,0.15);padding:2px 6px;border-radius:4px;font-size:0.85em;word-break:break-all;">$1</code>')
+    return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code style="background:rgba(167,139,250,.15);padding:2px 6px;border-radius:4px;font-size:.85em;word-break:break-all;">$1</code>')
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#A78BFA;text-decoration:underline;">$1</a>')
-      .replace(/→/g, '<span style="color:#A78BFA;">→</span>')
-      .replace(/\n/g, '<br>');
+      .replace(/→/g, '<span style="color:#A78BFA;">→</span>').replace(/\n/g, '<br>');
   }
 
-  // ── Create Widget ──
   function createWidget() {
     const style = document.createElement('style');
     style.textContent = `
-      #kairos-agent-btn {
-        position: fixed; bottom: 24px; right: 24px; z-index: 10000;
-        width: 60px; height: 60px; border-radius: 50%;
-        background: linear-gradient(135deg, #A78BFA 0%, #7C3AED 100%);
-        border: none; cursor: pointer;
-        box-shadow: 0 4px 20px rgba(167,139,250,0.4), 0 0 40px rgba(167,139,250,0.1);
-        display: flex; align-items: center; justify-content: center;
-        transition: all 0.3s ease;
-        animation: kairos-pulse 2s ease-in-out infinite;
-      }
-      #kairos-agent-btn:hover {
-        transform: scale(1.1);
-        box-shadow: 0 6px 30px rgba(167,139,250,0.6);
-      }
-      #kairos-agent-btn svg { width: 28px; height: 28px; fill: #fff; }
-      #kairos-agent-btn.open svg.chat-icon { display: none; }
-      #kairos-agent-btn.open svg.close-icon { display: block; }
-      #kairos-agent-btn:not(.open) svg.chat-icon { display: block; }
-      #kairos-agent-btn:not(.open) svg.close-icon { display: none; }
-
-      @keyframes kairos-pulse {
-        0%, 100% { box-shadow: 0 4px 20px rgba(167,139,250,0.4), 0 0 40px rgba(167,139,250,0.1); }
-        50% { box-shadow: 0 4px 30px rgba(167,139,250,0.6), 0 0 60px rgba(167,139,250,0.2); }
-      }
-
-      #kairos-agent-badge {
-        position: absolute; top: -2px; right: -2px;
-        width: 18px; height: 18px; border-radius: 50%;
-        background: #EF4444; border: 2px solid #0a0a0f;
-        font-size: 10px; color: #fff; font-weight: 700;
-        display: flex; align-items: center; justify-content: center;
-        transition: all 0.3s;
-      }
-      #kairos-agent-badge.hidden { transform: scale(0); }
-
-      #kairos-agent-panel {
-        position: fixed; bottom: 96px; right: 24px; z-index: 10000;
-        width: 380px; max-width: calc(100vw - 32px);
-        height: 520px; max-height: calc(100vh - 140px);
-        border-radius: 16px; overflow: hidden;
-        background: #0a0a0f;
-        border: 1px solid rgba(167,139,250,0.2);
-        box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(167,139,250,0.05);
-        display: flex; flex-direction: column;
-        transform: scale(0.8) translateY(20px); opacity: 0;
-        pointer-events: none;
-        transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        transform-origin: bottom right;
-      }
-      #kairos-agent-panel.open {
-        transform: scale(1) translateY(0); opacity: 1;
-        pointer-events: auto;
-      }
-
-      .ka-header {
-        padding: 16px 20px;
-        background: linear-gradient(135deg, rgba(167,139,250,0.12) 0%, rgba(10,10,15,0.95) 100%);
-        border-bottom: 1px solid rgba(167,139,250,0.15);
-        display: flex; align-items: center; gap: 12px;
-      }
-      .ka-header-avatar {
-        width: 40px; height: 40px; border-radius: 50%;
-        background: linear-gradient(135deg, #A78BFA, #7C3AED);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 20px; flex-shrink: 0;
-      }
-      .ka-header-info h3 {
-        font-family: 'Inter', sans-serif;
-        font-size: 15px; font-weight: 700; color: #fff; margin: 0;
-      }
-      .ka-header-info p {
-        font-size: 12px; color: #A78BFA; margin: 0;
-        display: flex; align-items: center; gap: 4px;
-      }
-      .ka-header-info p::before {
-        content: ''; width: 6px; height: 6px; border-radius: 50%;
-        background: #10B981; display: inline-block;
-      }
-
-      .ka-messages {
-        flex: 1; overflow-y: auto; padding: 16px;
-        display: flex; flex-direction: column; gap: 12px;
-        scrollbar-width: thin;
-        scrollbar-color: rgba(167,139,250,0.3) transparent;
-      }
-      .ka-messages::-webkit-scrollbar { width: 4px; }
-      .ka-messages::-webkit-scrollbar-thumb { background: rgba(167,139,250,0.3); border-radius: 2px; }
-
-      .ka-msg {
-        max-width: 85%; padding: 12px 16px;
-        border-radius: 16px; font-size: 13.5px; line-height: 1.6;
-        animation: ka-fadeIn 0.3s ease;
-      }
-      .ka-msg.bot {
-        align-self: flex-start;
-        background: rgba(255,255,255,0.06);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-bottom-left-radius: 4px;
-        color: #E5E7EB;
-      }
-      .ka-msg.user {
-        align-self: flex-end;
-        background: linear-gradient(135deg, rgba(167,139,250,0.2), rgba(124,58,237,0.15));
-        border: 1px solid rgba(167,139,250,0.3);
-        border-bottom-right-radius: 4px;
-        color: #fff;
-      }
-      .ka-msg strong { color: #A78BFA; }
-      .ka-msg code { font-size: 0.82em; }
-
-      @keyframes ka-fadeIn {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-
-      .ka-quick-replies {
-        display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
-      }
-      .ka-quick-btn {
-        padding: 6px 14px; border-radius: 20px; font-size: 12px;
-        background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.3);
-        color: #A78BFA; cursor: pointer; transition: all 0.2s;
-        font-family: 'Inter', sans-serif; white-space: nowrap;
-      }
-      .ka-quick-btn:hover {
-        background: rgba(167,139,250,0.25); transform: translateY(-1px);
-      }
-
-      .ka-input-area {
-        padding: 12px 16px;
-        border-top: 1px solid rgba(255,255,255,0.06);
-        display: flex; gap: 8px; align-items: center;
-        background: rgba(0,0,0,0.3);
-      }
-      .ka-input {
-        flex: 1; padding: 10px 14px; border-radius: 24px;
-        background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
-        color: #fff; font-size: 13.5px; outline: none;
-        font-family: 'Inter', sans-serif;
-        transition: border-color 0.3s;
-      }
-      .ka-input::placeholder { color: #6B7280; }
-      .ka-input:focus { border-color: rgba(167,139,250,0.4); }
-      .ka-send {
-        width: 38px; height: 38px; border-radius: 50%;
-        background: linear-gradient(135deg, #A78BFA, #7C3AED);
-        border: none; cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
-        transition: all 0.2s; flex-shrink: 0;
-      }
-      .ka-send:hover { transform: scale(1.08); }
-      .ka-send:disabled { opacity: 0.4; cursor: default; transform: none; }
-      .ka-send svg { width: 16px; height: 16px; fill: #fff; }
-
-      .ka-typing {
-        display: flex; align-items: center; gap: 4px; padding: 12px 16px;
-        align-self: flex-start;
-      }
-      .ka-typing span {
-        width: 6px; height: 6px; border-radius: 50%; background: #A78BFA;
-        animation: ka-bounce 1.4s ease-in-out infinite;
-      }
-      .ka-typing span:nth-child(2) { animation-delay: 0.2s; }
-      .ka-typing span:nth-child(3) { animation-delay: 0.4s; }
-      @keyframes ka-bounce {
-        0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-        30% { transform: translateY(-6px); opacity: 1; }
-      }
-
-      .ka-powered {
-        text-align: center; padding: 4px; font-size: 10px; color: #4B5563;
-        background: rgba(0,0,0,0.4);
-      }
-
-      @media (max-width: 480px) {
-        #kairos-agent-panel {
-          right: 8px; bottom: 88px;
-          width: calc(100vw - 16px);
-          height: calc(100vh - 110px);
-          max-height: calc(100vh - 110px);
-          border-radius: 12px;
-        }
-        #kairos-agent-btn { bottom: 16px; right: 16px; }
-      }
+      #kairos-agent-btn{position:fixed;bottom:24px;right:24px;z-index:10000;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#A78BFA 0%,#7C3AED 100%);border:none;cursor:pointer;box-shadow:0 4px 20px rgba(167,139,250,.4),0 0 40px rgba(167,139,250,.1);display:flex;align-items:center;justify-content:center;transition:all .3s ease;animation:kairos-pulse 2s ease-in-out infinite}
+      #kairos-agent-btn:hover{transform:scale(1.1);box-shadow:0 6px 30px rgba(167,139,250,.6)}
+      #kairos-agent-btn svg{width:28px;height:28px;fill:#fff}
+      #kairos-agent-btn.open svg.chat-icon{display:none}#kairos-agent-btn.open svg.close-icon{display:block}
+      #kairos-agent-btn:not(.open) svg.chat-icon{display:block}#kairos-agent-btn:not(.open) svg.close-icon{display:none}
+      @keyframes kairos-pulse{0%,100%{box-shadow:0 4px 20px rgba(167,139,250,.4),0 0 40px rgba(167,139,250,.1)}50%{box-shadow:0 4px 30px rgba(167,139,250,.6),0 0 60px rgba(167,139,250,.2)}}
+      #kairos-agent-badge{position:absolute;top:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:#EF4444;border:2px solid #0a0a0f;font-size:10px;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;transition:all .3s}
+      #kairos-agent-badge.hidden{transform:scale(0)}
+      #kairos-agent-panel{position:fixed;bottom:96px;right:24px;z-index:10000;width:380px;max-width:calc(100vw - 32px);height:520px;max-height:calc(100vh - 140px);border-radius:16px;overflow:hidden;background:#0a0a0f;border:1px solid rgba(167,139,250,.2);box-shadow:0 20px 60px rgba(0,0,0,.5),0 0 40px rgba(167,139,250,.05);display:flex;flex-direction:column;transform:scale(.8) translateY(20px);opacity:0;pointer-events:none;transition:all .3s cubic-bezier(.34,1.56,.64,1);transform-origin:bottom right}
+      #kairos-agent-panel.open{transform:scale(1) translateY(0);opacity:1;pointer-events:auto}
+      .ka-header{padding:16px 20px;background:linear-gradient(135deg,rgba(167,139,250,.12) 0%,rgba(10,10,15,.95) 100%);border-bottom:1px solid rgba(167,139,250,.15);display:flex;align-items:center;gap:12px}
+      .ka-header-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#A78BFA,#7C3AED);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+      .ka-header-info h3{font-family:'Inter',sans-serif;font-size:15px;font-weight:700;color:#fff;margin:0}
+      .ka-header-info p{font-size:12px;color:#A78BFA;margin:0;display:flex;align-items:center;gap:4px}
+      .ka-header-info p::before{content:'';width:6px;height:6px;border-radius:50%;background:#10B981;display:inline-block}
+      .ka-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;scrollbar-width:thin;scrollbar-color:rgba(167,139,250,.3) transparent}
+      .ka-messages::-webkit-scrollbar{width:4px}.ka-messages::-webkit-scrollbar-thumb{background:rgba(167,139,250,.3);border-radius:2px}
+      .ka-msg{max-width:85%;padding:12px 16px;border-radius:16px;font-size:13.5px;line-height:1.6;animation:ka-fadeIn .3s ease}
+      .ka-msg.bot{align-self:flex-start;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-bottom-left-radius:4px;color:#E5E7EB}
+      .ka-msg.user{align-self:flex-end;background:linear-gradient(135deg,rgba(167,139,250,.2),rgba(124,58,237,.15));border:1px solid rgba(167,139,250,.3);border-bottom-right-radius:4px;color:#fff}
+      .ka-msg strong{color:#A78BFA}.ka-msg code{font-size:.82em}
+      @keyframes ka-fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+      .ka-quick-replies{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+      .ka-quick-btn{padding:6px 14px;border-radius:20px;font-size:12px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.3);color:#A78BFA;cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif;white-space:nowrap}
+      .ka-quick-btn:hover{background:rgba(167,139,250,.25);transform:translateY(-1px)}
+      .ka-input-area{padding:12px 16px;border-top:1px solid rgba(255,255,255,.06);display:flex;gap:8px;align-items:center;background:rgba(0,0,0,.3)}
+      .ka-input{flex:1;padding:10px 14px;border-radius:24px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:13.5px;outline:none;font-family:'Inter',sans-serif;transition:border-color .3s}
+      .ka-input::placeholder{color:#6B7280}.ka-input:focus{border-color:rgba(167,139,250,.4)}
+      .ka-send{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#A78BFA,#7C3AED);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+      .ka-send:hover{transform:scale(1.08)}.ka-send:disabled{opacity:.4;cursor:default;transform:none}.ka-send svg{width:16px;height:16px;fill:#fff}
+      .ka-typing{display:flex;align-items:center;gap:4px;padding:12px 16px;align-self:flex-start}
+      .ka-typing span{width:6px;height:6px;border-radius:50%;background:#A78BFA;animation:ka-bounce 1.4s ease-in-out infinite}
+      .ka-typing span:nth-child(2){animation-delay:.2s}.ka-typing span:nth-child(3){animation-delay:.4s}
+      @keyframes ka-bounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-6px);opacity:1}}
+      .ka-powered{text-align:center;padding:4px;font-size:10px;color:#4B5563;background:rgba(0,0,0,.4)}
+      @media(max-width:480px){#kairos-agent-panel{right:8px;bottom:88px;width:calc(100vw - 16px);height:calc(100vh - 110px);max-height:calc(100vh - 110px);border-radius:12px}#kairos-agent-btn{bottom:16px;right:16px}}
     `;
     document.head.appendChild(style);
 
-    const btn = document.createElement('button');
-    btn.id = 'kairos-agent-btn';
+    const btn = document.createElement('button'); btn.id = 'kairos-agent-btn';
     btn.setAttribute('aria-label', 'Abrir chat de Kairos Wallet');
-    btn.innerHTML = `
-      <svg class="chat-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/><path d="M7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
-      <svg class="close-icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-      <div id="kairos-agent-badge">1</div>
-    `;
+    btn.innerHTML = `<svg class="chat-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/><path d="M7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg><svg class="close-icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg><div id="kairos-agent-badge">1</div>`;
     document.body.appendChild(btn);
 
-    const panel = document.createElement('div');
-    panel.id = 'kairos-agent-panel';
-    panel.innerHTML = `
-      <div class="ka-header">
-        <div class="ka-header-avatar">📱</div>
-        <div class="ka-header-info">
-          <h3>Kairos Wallet Agent</h3>
-          <p>Online — Tu asistente de wallet</p>
-        </div>
-      </div>
-      <div class="ka-messages" id="ka-messages"></div>
-      <div class="ka-input-area">
-        <input class="ka-input" id="ka-input" type="text" placeholder="Pregunta sobre tu wallet..." autocomplete="off" />
-        <button class="ka-send" id="ka-send" aria-label="Enviar">
-          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-        </button>
-      </div>
-      <div class="ka-powered">Powered by Kairos 777 AI ✦</div>
-    `;
+    const panel = document.createElement('div'); panel.id = 'kairos-agent-panel';
+    panel.innerHTML = `<div class="ka-header"><div class="ka-header-avatar">📱</div><div class="ka-header-info"><h3>Kairos Wallet Agent</h3><p>Online — Tu asistente de wallet</p></div></div><div class="ka-messages" id="ka-messages"></div><div class="ka-input-area"><input class="ka-input" id="ka-input" type="text" placeholder="Pregúntame lo que quieras..." autocomplete="off"/><button class="ka-send" id="ka-send" aria-label="Enviar"><svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button></div><div class="ka-powered">Powered by Kairos 777 AI ✦</div>`;
     document.body.appendChild(panel);
 
-    let isOpen = false;
-    let hasOpened = false;
-    const messagesEl = document.getElementById('ka-messages');
-    const inputEl = document.getElementById('ka-input');
-    const sendBtn = document.getElementById('ka-send');
-    const badge = document.getElementById('kairos-agent-badge');
+    let isOpen = false, hasOpened = false;
+    const messagesEl = document.getElementById('ka-messages'), inputEl = document.getElementById('ka-input'), sendBtn = document.getElementById('ka-send'), badge = document.getElementById('kairos-agent-badge');
+    const topicLabels = { what_is:'¿Qué es Kairos?', how_to_use:'¿Cómo empiezo?', send:'Enviar', receive:'Recibir', balance:'Mi balance', networks:'Redes', gas:'Gas/Comisiones', how_to_buy:'Comprar KAIROS', price:'Precio', security:'Seguridad', trade:'Trading', contract:'Contrato', wallet_connect:'WalletConnect', ecosystem:'Ecosistema', founder:'Equipo', reserves:'Reservas', stablecoin:'Stablecoin', whitepaper:'Whitepaper', help:'Ayuda' };
 
-    function addMessage(text, type, showQuickReplies) {
-      const div = document.createElement('div');
-      div.className = `ka-msg ${type}`;
-      div.innerHTML = md(text);
-      messagesEl.appendChild(div);
-
-      if (showQuickReplies) {
-        const qr = document.createElement('div');
-        qr.className = 'ka-quick-replies';
-        KB.quickReplies.forEach(r => {
-          const b = document.createElement('button');
-          b.className = 'ka-quick-btn';
-          b.textContent = r.label;
-          b.onclick = () => {
-            qr.remove();
-            handleUserInput(r.label);
-          };
-          qr.appendChild(b);
-        });
-        messagesEl.appendChild(qr);
-      }
-
+    function addMessage(text, type, showQR, related) {
+      const div = document.createElement('div'); div.className = `ka-msg ${type}`; div.innerHTML = md(text); messagesEl.appendChild(div);
+      if (showQR) { const qr = document.createElement('div'); qr.className = 'ka-quick-replies'; KB.quickReplies.forEach(r => { const b = document.createElement('button'); b.className = 'ka-quick-btn'; b.textContent = r.label; b.onclick = () => { qr.remove(); handleUserInput(r.label); }; qr.appendChild(b); }); messagesEl.appendChild(qr); }
+      else if (related?.length) { const qr = document.createElement('div'); qr.className = 'ka-quick-replies'; related.slice(0,3).forEach(tk => { if (!KB.topics[tk]) return; const b = document.createElement('button'); b.className = 'ka-quick-btn'; b.textContent = topicLabels[tk]||tk; b.onclick = () => { qr.remove(); handleUserInput(topicLabels[tk]||tk); }; qr.appendChild(b); }); messagesEl.appendChild(qr); }
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
-
-    function showTyping() {
-      const div = document.createElement('div');
-      div.className = 'ka-typing';
-      div.id = 'ka-typing';
-      div.innerHTML = '<span></span><span></span><span></span>';
-      messagesEl.appendChild(div);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
-
-    function hideTyping() {
-      const el = document.getElementById('ka-typing');
-      if (el) el.remove();
-    }
-
+    function showTyping() { const d = document.createElement('div'); d.className = 'ka-typing'; d.id = 'ka-typing'; d.innerHTML = '<span></span><span></span><span></span>'; messagesEl.appendChild(d); messagesEl.scrollTop = messagesEl.scrollHeight; }
+    function hideTyping() { const e = document.getElementById('ka-typing'); if (e) e.remove(); }
     function handleUserInput(text) {
-      if (!text.trim()) return;
-      addMessage(text, 'user', false);
-      inputEl.value = '';
-      sendBtn.disabled = true;
-      showTyping();
-      const delay = 300 + Math.random() * 500;
-      setTimeout(() => {
-        hideTyping();
-        const response = getResponse(text);
-        addMessage(response.text, 'bot', response.showQuickReplies);
-        sendBtn.disabled = false;
-        inputEl.focus();
-      }, delay);
+      if (!text.trim()) return; addMessage(text, 'user', false); inputEl.value = ''; sendBtn.disabled = true; showTyping();
+      setTimeout(() => { hideTyping(); const r = getResponse(text); addMessage(r.text, 'bot', r.showQuickReplies, r.related); sendBtn.disabled = false; inputEl.focus(); }, 400 + Math.random() * 600);
     }
-
-    btn.addEventListener('click', () => {
-      isOpen = !isOpen;
-      panel.classList.toggle('open', isOpen);
-      btn.classList.toggle('open', isOpen);
-
-      if (isOpen && !hasOpened) {
-        hasOpened = true;
-        badge.classList.add('hidden');
-        setTimeout(() => {
-          addMessage(KB.greeting, 'bot', true);
-        }, 400);
-      }
-
-      if (isOpen) {
-        setTimeout(() => inputEl.focus(), 400);
-      }
-    });
-
+    btn.addEventListener('click', () => { isOpen = !isOpen; panel.classList.toggle('open', isOpen); btn.classList.toggle('open', isOpen); if (isOpen && !hasOpened) { hasOpened = true; badge.classList.add('hidden'); setTimeout(() => addMessage(pickRandom(KB.greetings), 'bot', true), 400); } if (isOpen) setTimeout(() => inputEl.focus(), 400); });
     sendBtn.addEventListener('click', () => handleUserInput(inputEl.value));
-    inputEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleUserInput(inputEl.value);
-      }
-    });
-
-    if (!sessionStorage.getItem('kairos-wallet-agent-seen')) {
-      setTimeout(() => {
-        if (!isOpen) {
-          btn.style.animation = 'none';
-          btn.offsetHeight;
-          btn.style.animation = 'kairos-pulse 0.5s ease-in-out 3';
-          setTimeout(() => { btn.style.animation = 'kairos-pulse 2s ease-in-out infinite'; }, 1500);
-        }
-      }, 8000);
-      sessionStorage.setItem('kairos-wallet-agent-seen', '1');
-    }
+    inputEl.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleUserInput(inputEl.value); } });
+    if (!sessionStorage.getItem('kairos-wallet-agent-seen')) { setTimeout(() => { if (!isOpen) { btn.style.animation = 'none'; btn.offsetHeight; btn.style.animation = 'kairos-pulse 0.5s ease-in-out 3'; setTimeout(() => btn.style.animation = 'kairos-pulse 2s ease-in-out infinite', 1500); } }, 8000); sessionStorage.setItem('kairos-wallet-agent-seen', '1'); }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', createWidget);
-  } else {
-    createWidget();
-  }
-
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', createWidget);
+  else createWidget();
 })();
