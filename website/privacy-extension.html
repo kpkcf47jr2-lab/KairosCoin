@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kairos Wallet Extension — Privacy Policy</title>
+  <style>
+    :root { --gold: #D4AF37; --dark: #0D0D0D; --dark2: #1A1A1A; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--dark); color: #E0E0E0; line-height: 1.8; }
+    .container { max-width: 800px; margin: 0 auto; padding: 60px 24px; }
+    h1 { color: var(--gold); font-size: 2rem; margin-bottom: 8px; font-family: 'Playfair Display', Georgia, serif; }
+    h2 { color: var(--gold); font-size: 1.3rem; margin-top: 40px; margin-bottom: 12px; }
+    p, li { margin-bottom: 12px; color: #CCC; }
+    ul { padding-left: 24px; }
+    .date { color: #888; font-size: 0.9rem; margin-bottom: 40px; }
+    a { color: var(--gold); }
+    .header-line { width: 60px; height: 3px; background: var(--gold); margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header-line"></div>
+    <h1>Kairos Wallet Extension — Privacy Policy</h1>
+    <p class="date">Last updated: February 26, 2026</p>
+
+    <h2>1. Overview</h2>
+    <p>Kairos Wallet ("the Extension") is a browser extension developed by Kairos 777 Inc. This policy describes how the Extension handles your data.</p>
+
+    <h2>2. Data We Collect</h2>
+    <p><strong>We do not collect any personal data.</strong> The Extension operates entirely on your local device.</p>
+    <ul>
+      <li><strong>Private Keys & Seed Phrases:</strong> Encrypted with AES-256-GCM and stored locally in Chrome's <code>chrome.storage.local</code>. They never leave your device.</li>
+      <li><strong>Wallet Addresses:</strong> Stored locally. Not transmitted to any server.</li>
+      <li><strong>Connected Sites:</strong> A list of dApp origins you've approved is stored locally.</li>
+      <li><strong>Settings & Preferences:</strong> Stored locally in browser storage.</li>
+    </ul>
+
+    <h2>3. Data We Do NOT Collect</h2>
+    <ul>
+      <li>No names, emails, or personally identifiable information</li>
+      <li>No browsing history or activity tracking</li>
+      <li>No analytics, telemetry, or usage data</li>
+      <li>No cookies or tracking pixels</li>
+      <li>No data transmitted to our servers</li>
+    </ul>
+
+    <h2>4. Network Requests</h2>
+    <p>The Extension makes direct RPC calls to public blockchain nodes (e.g., <code>bsc-dataseed1.binance.org</code>, <code>cloudflare-eth.com</code>) to fetch balances and broadcast transactions. These calls contain only blockchain-related data (addresses, transaction data) and are sent directly to the blockchain without passing through any Kairos servers.</p>
+
+    <h2>5. Third-Party Services</h2>
+    <p>The Extension loads the Inter font from Google Fonts during popup rendering. This is subject to <a href="https://policies.google.com/privacy" target="_blank">Google's Privacy Policy</a>. No other third-party services are used.</p>
+
+    <h2>6. Permissions Explained</h2>
+    <ul>
+      <li><strong>storage:</strong> To save your encrypted vault and settings locally.</li>
+      <li><strong>activeTab:</strong> To detect the current tab's origin for dApp connection requests.</li>
+      <li><strong>scripting:</strong> To inject the EIP-1193 provider (window.kairos) for dApp compatibility.</li>
+      <li><strong>host_permissions (https://*/*):</strong> Required for the content script to inject the Web3 provider on all websites, enabling dApp connectivity.</li>
+    </ul>
+
+    <h2>7. Data Security</h2>
+    <p>All sensitive data (private keys, seed phrases) is encrypted using AES-256-GCM with a key derived from your password before storage. The Extension auto-locks after 15 minutes of inactivity, clearing decrypted keys from memory.</p>
+
+    <h2>8. Data Deletion</h2>
+    <p>Uninstalling the Extension removes all locally stored data. You can also manually clear vault data from the Extension's settings.</p>
+
+    <h2>9. Children's Privacy</h2>
+    <p>The Extension is not intended for use by anyone under the age of 18.</p>
+
+    <h2>10. Changes to This Policy</h2>
+    <p>We may update this policy from time to time. Changes will be posted on this page with an updated date.</p>
+
+    <h2>11. Contact</h2>
+    <p>If you have questions about this privacy policy, contact us at:</p>
+    <p><strong>Kairos 777 Inc</strong><br>
+    Website: <a href="https://kairos-777.com">kairos-777.com</a></p>
+  </div>
+</body>
+</html>
