@@ -410,6 +410,8 @@ async function start() {
     process.on("SIGINT", () => shutdown("SIGINT"));
     process.on("uncaughtException", (error) => {
       logger.error("Uncaught exception", { error: error.message, stack: error.stack });
+      // Node.js docs recommend exiting after uncaught exception
+      setTimeout(() => process.exit(1), 1000);
     });
     process.on("unhandledRejection", (reason) => {
       logger.error("Unhandled rejection", { reason: String(reason) });

@@ -19,10 +19,28 @@
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://kairos-777.com/coin.html</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://kairos-777.com/whitepaper.html</loc>
     <lastmod>2026-02-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://kairos-777.com/privacy.html</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://kairos-777.com/terms.html</loc>
+    <lastmod>2026-02-27</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
   </url>
   <url>
     <loc>https://kairos-777.com/tokenlist.json</loc>
