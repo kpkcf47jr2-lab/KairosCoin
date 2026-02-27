@@ -36,22 +36,6 @@ router.get("/config", (req, res) => {
   res.json({ configured: true, publishableKey: config.stripePublishableKey });
 });
 
-// Temporary diagnostic — shows key prefixes only (no secrets exposed)
-router.get("/diag", (req, res) => {
-  const sk = config.stripeSecretKey || "";
-  const pk = config.stripePublishableKey || "";
-  const wh = config.stripeWebhookSecret || "";
-  res.json({
-    secretKeyPrefix: sk.substring(0, 12) + "...",
-    publishableKeyPrefix: pk.substring(0, 12) + "...",
-    webhookSecretPrefix: wh ? wh.substring(0, 8) + "..." : "NOT SET",
-    secretKeyIsLive: sk.startsWith("sk_live_"),
-    secretKeyIsTest: sk.startsWith("sk_test_"),
-    publishableKeyIsLive: pk.startsWith("pk_live_"),
-    allLive: sk.startsWith("sk_live_") && pk.startsWith("pk_live_"),
-  });
-});
-
 // ═══════════════════════════════════════════════════════════════════════════════
 //  POST /api/stripe/create-checkout — Create Checkout Session for KAIROS purchase
 // ═══════════════════════════════════════════════════════════════════════════════
