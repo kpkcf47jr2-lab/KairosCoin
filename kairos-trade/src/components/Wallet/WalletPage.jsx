@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wallet, Send, Download, Copy, Check, ExternalLink, RefreshCw,
   ChevronRight, ChevronDown, Shield, Globe, ArrowUpRight,
-  ArrowDownRight, AlertTriangle, Eye, EyeOff, QrCode, X, Loader2, Link2
+  ArrowDownRight, AlertTriangle, Eye, EyeOff, QrCode, X, Loader2, Link2, Unlink
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import useStore from '../../store/useStore';
@@ -12,6 +12,8 @@ import apiClient from '../../services/apiClient';
 import { encrypt as vaultEncrypt } from '../../utils/keyVault';
 import { getSessionKey, setSessionKey } from '../../utils/sessionVault';
 import { KAIROS_COIN } from '../../constants';
+import ConnectExternalWallet from './ConnectExternalWallet';
+import { getConnectedAccount, isConnected as isWCConnected, disconnect as wcDisconnect, initWCClient } from '../../services/walletConnectDApp';
 
 /* ─── Chain Configurations ─── */
 const CHAINS = [
@@ -179,6 +181,16 @@ export default function WalletPage() {
   const [importPKValue, setImportPKValue] = useState('');
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
+  const [showWCConnect, setShowWCConnect] = useState(false);
+  const [wcAccount, setWcAccount] = useState(null);
+
+  // Check for existing WC session on mount
+  useEffect(() => {
+    initWCClient().then(() => {
+      const acct = getConnectedAccount();
+      if (acct) setWcAccount(acct);
+    }).catch(() => {});
+  }, []);
 
   // Get private key from session memory (decrypted at login)
   const privateKey = useMemo(() => {
@@ -445,6 +457,69 @@ export default function WalletPage() {
           </button>
         </div>
       </motion.div>
+
+      {/* ─── WalletConnect Status Banner ─── */}
+      {wcAccount && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl p-3.5 flex items-center justify-between"
+          style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(59,130,246,0.04))', border: '1px solid rgba(168,85,247,0.15)' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white text-[10px] font-bold">
+              WC
+            </div>
+            <div>
+              <p className="text-xs font-bold text-purple-300 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                {wcAccount.peerName || 'Wallet Externa'}
+              </p>
+              <p className="text-[10px] font-mono text-gray-500">
+                {wcAccount.address?.slice(0, 6)}...{wcAccount.address?.slice(-4)}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setShowWCConnect(true)}
+              className="px-2.5 py-1 rounded-lg text-[10px] font-semibold text-purple-300 hover:bg-purple-500/10 transition-colors">
+              Detalles
+            </button>
+            <button onClick={async () => { await wcDisconnect(); setWcAccount(null); }}
+              className="p-1.5 rounded-lg hover:bg-red-500/10 transition-colors" title="Desconectar">
+              <Unlink size={12} className="text-red-400" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ─── Connect External Wallet Button (when no WC) ─── */}
+      {!wcAccount && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl overflow-hidden cursor-pointer group"
+          style={{ border: '1px solid rgba(168,85,247,0.1)' }}
+          onClick={() => setShowWCConnect(true)}>
+          <div className="flex items-center gap-3 p-3.5 bg-white/[0.015] hover:bg-purple-500/5 transition-colors">
+            <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center">
+              <Link2 size={14} className="text-purple-400" />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-gray-300 group-hover:text-purple-300 transition-colors">
+                Conectar Wallet Externa
+              </p>
+              <p className="text-[10px] text-gray-600">Kairos Wallet, MetaMask, Trust Wallet via WalletConnect</p>
+            </div>
+            <ChevronRight size={14} className="text-gray-600 group-hover:text-purple-400 transition-colors" />
+          </div>
+        </motion.div>
+      )}
+
+      {/* ─── WalletConnect Modal ─── */}
+      <ConnectExternalWallet
+        isOpen={showWCConnect}
+        onClose={() => setShowWCConnect(false)}
+        onConnected={(account) => {
+          setWcAccount(account);
+          if (account) setShowWCConnect(false);
+        }}
+      />
 
       {/* ─── Total Balance Card ─── */}
       <motion.div

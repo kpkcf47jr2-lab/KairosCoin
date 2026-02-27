@@ -478,6 +478,44 @@ class WalletBrokerService {
   async cancelOrder() {
     return { success: false, message: 'DEX swaps are instant and cannot be cancelled' };
   }
+
+  // ─── WALLETCONNECT: Send transaction via external wallet ───
+  async sendViaWalletConnect(chainId, txParams) {
+    try {
+      const { sendTransaction } = await import('./walletConnectDApp');
+      const txHash = await sendTransaction(chainId, txParams);
+      const config = CHAIN_CONFIG[chainId];
+      return {
+        success: true,
+        txHash,
+        explorer: config ? `${config.explorer}/tx/${txHash}` : null,
+        chain: config?.name || `Chain ${chainId}`,
+        method: 'WalletConnect',
+      };
+    } catch (err) {
+      return { success: false, message: `WalletConnect: ${err.message}` };
+    }
+  }
+
+  // ─── WALLETCONNECT: Check if WC is available for signing ───
+  async isWCAvailable() {
+    try {
+      const { isConnected } = await import('./walletConnectDApp');
+      return isConnected();
+    } catch {
+      return false;
+    }
+  }
+
+  // ─── WALLETCONNECT: Get connected account ───
+  async getWCAccount() {
+    try {
+      const { getConnectedAccount } = await import('./walletConnectDApp');
+      return getConnectedAccount();
+    } catch {
+      return null;
+    }
+  }
 }
 
 export const walletBroker = new WalletBrokerService();

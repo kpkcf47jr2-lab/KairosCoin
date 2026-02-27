@@ -22,6 +22,8 @@
     "@capacitor/keyboard": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.1",
+    "@walletconnect/sign-client": "^2.23.6",
+    "@walletconnect/utils": "^2.23.6",
     "ethers": "^6.16.0",
     "framer-motion": "^11.0.0",
     "lightweight-charts": "^4.1.0",

@@ -72,9 +72,30 @@ export default function App() {
     // Handle cross-app token from Kairos Trade (?cat=...)
     const params = new URLSearchParams(window.location.search);
     const crossAppToken = params.get('cat');
-    if (crossAppToken) {
-      // Clean URL without reload
+    const wcUri = params.get('wc');
+
+    // Clean URL without reload (remove both params)
+    if (crossAppToken || wcUri) {
       window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    // WalletConnect auto-pair: Trade opened Wallet with ?wc=URI
+    if (wcUri) {
+      import('./services/walletconnect').then(async ({ pair }) => {
+        try {
+          await pair(decodeURIComponent(wcUri));
+          setTimeout(() => {
+            showToast('🔗 Kairos Trade conectado via WalletConnect', 'success');
+            // Navigate to WC screen to approve
+            if (hasWallet()) navigate('walletconnect');
+          }, 1000);
+        } catch (err) {
+          console.warn('WC auto-pair failed:', err);
+        }
+      }).catch(() => {});
+    }
+
+    if (crossAppToken) {
       // Exchange token for Trade account info
       fetch('https://kairos-api-u6k5.onrender.com/api/auth/exchange-token', {
         method: 'POST',

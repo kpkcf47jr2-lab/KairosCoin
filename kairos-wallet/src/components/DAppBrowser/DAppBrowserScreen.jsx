@@ -24,6 +24,9 @@ const DAPP_CATEGORIES = [
 ];
 
 const DAPPS = [
+  // ── Kairos Ecosystem (Featured) ──
+  { name: 'Kairos Trade', url: 'https://kairos-trade.netlify.app', icon: '📈', category: 'defi', chains: [56, 1, 137, 42161, 43114, 8453], description: 'Trading con IA, bots y ejecución on-chain. ¡Conecta tu wallet!', featured: true },
+
   // DEX
   { name: 'PancakeSwap', url: 'https://pancakeswap.finance', icon: '🥞', category: 'dex', chains: [56, 1, 42161, 8453], description: 'DEX líder en BSC. Swap, staking y farming.' },
   { name: 'Uniswap', url: 'https://app.uniswap.org', icon: '🦄', category: 'dex', chains: [1, 137, 42161, 8453], description: 'El DEX más popular en Ethereum.' },
