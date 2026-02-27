@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
-   KAIROS 777 — AI Agent Widget
-   Smart conversational agent for kairos-777.com
+   KAIROS 777 — AI Agent Widget (Trade Edition)
+   Smart conversational agent for Kairos Trade
    "In God We Trust"
    ═══════════════════════════════════════════════════════════════ */
 
@@ -9,8 +9,7 @@
 
   // ── Knowledge Base ──
   const KB = {
-    greeting: "👋 ¡Hola! Soy el asistente virtual de **Kairos 777**. ¿En qué te puedo ayudar hoy?",
-    greetingEN: "👋 Hi! I'm the **Kairos 777** virtual assistant. How can I help you today?",
+    greeting: "👋 ¡Hola! Soy el asistente de **Kairos Trade**. ¿Tienes dudas sobre trading, pares, apalancamiento, o cómo funciona la plataforma? ¡Pregúntame lo que necesites!",
 
     topics: {
       what_is: {
@@ -20,7 +19,7 @@
 Nuestro ecosistema incluye:
 
 🔸 **KairosCoin (KAIROS)** — Stablecoin 1:1 con USD, disponible en BSC, Base, Arbitrum y Polygon
-🔸 **Kairos Trade** — Plataforma de trading algorítmico con 33+ pares y hasta 150x de apalancamiento
+🔸 **Kairos Trade** — Donde estás ahora 📊 Trading algorítmico con 33+ pares y hasta 150x
 🔸 **Kairos Wallet** — Billetera multi-chain para gestionar tus activos
 🔸 **Reservas Transparentes** — Verificación en tiempo real del respaldo
 
@@ -28,121 +27,198 @@ Nuestro ecosistema incluye:
 🔹 **Transparente** — Reservas verificables por cualquiera
 🔹 **Innovador** — Trading con bots de inteligencia artificial
 
-¿Te gustaría saber más sobre algún producto en particular?`
+¿Te gustaría saber más sobre cómo operar aquí?`
+      },
+
+      how_to_trade: {
+        keywords: ['cómo operar','como operar','how to trade','empezar','start','comenzar','begin','primeros pasos','getting started','tutorial','guía','guide'],
+        answer: `**¡Empieza a operar en Kairos Trade!** 🚀
+
+**Paso 1:** Conecta tu wallet (MetaMask, Trust Wallet, etc.)
+**Paso 2:** Elige un par de trading (ej: BTC/USD, ETH/USD)
+**Paso 3:** Selecciona el apalancamiento (1x hasta 150x)
+**Paso 4:** Abre tu posición (Long o Short)
+**Paso 5:** Monitorea y cierra cuando quieras
+
+💡 **Consejos para principiantes:**
+→ Empieza con apalancamiento bajo (2x-5x)
+→ Usa stop-loss para proteger tu capital
+→ No inviertas más de lo que puedes perder
+
+⚠️ El trading con apalancamiento conlleva riesgo significativo.
+
+¿Necesitas ayuda con algo específico?`
+      },
+
+      pairs: {
+        keywords: ['pares','pairs','par','pair','mercados','markets','qué puedo operar','what can i trade','lista','list','activos','assets','crypto'],
+        answer: `**33+ pares disponibles en Kairos Trade** 📊
+
+**Crypto Majors:**
+→ BTC/USD · ETH/USD · BNB/USD · SOL/USD
+
+**Altcoins populares:**
+→ DOGE/USD · AVAX/USD · MATIC/USD · LINK/USD
+→ UNI/USD · AAVE/USD · ARB/USD · OP/USD
+
+**Pares con KAIROS:**
+→ KAIROS/USDT · KAIROS/BNB
+
+Todos con datos en tiempo real de TradingView.
+
+¿Te interesa algún par en particular?`
+      },
+
+      leverage: {
+        keywords: ['apalancamiento','leverage','x','multiplicador','multiplier','margen','margin','150x','100x','50x'],
+        answer: `**Apalancamiento en Kairos Trade** ⚡
+
+Ofrecemos apalancamiento flexible:
+→ **1x** — Sin apalancamiento (spot)
+→ **2x-10x** — Conservador (recomendado para principiantes)
+→ **10x-50x** — Moderado
+→ **50x-150x** — Agresivo (traders experimentados)
+
+📐 **Ejemplo:** Con $100 y apalancamiento 10x:
+→ Tu posición vale $1,000
+→ Si sube 5%, ganas $50 (50% de tu capital)
+→ Si baja 10%, pierdes tu inversión
+
+⚠️ **A mayor apalancamiento, mayor riesgo.** Usa stop-loss siempre.
+
+¿Quieres aprender a configurar stop-loss?`
+      },
+
+      bots: {
+        keywords: ['bot','bots','automatizado','automated','algoritmo','algorithm','ai','inteligencia artificial','estrategia','strategy','auto'],
+        answer: `**Bots de Trading con AI** 🤖
+
+Kairos Trade incluye bots algorítmicos inteligentes:
+
+🔸 **Grid Bot** — Compra y vende automáticamente en rangos
+🔸 **DCA Bot** — Dollar Cost Averaging automatizado
+🔸 **Trend Bot** — Sigue tendencias con AI
+🔸 **Scalping Bot** — Operaciones rápidas de pequeñas ganancias
+
+**Ventajas:**
+✅ Opera 24/7 sin emociones
+✅ Configuración personalizable
+✅ Backtesting con datos históricos
+✅ Alertas en tiempo real
+
+¿Te gustaría saber cuál bot es mejor para tu estilo?`
+      },
+
+      fees: {
+        keywords: ['comisiones','fees','costo','cost','cuánto cobra','how much cost','tarifas','rates','spread','spreads'],
+        answer: `**Comisiones transparentes** 💰
+
+🔸 **Trading Spot:** 0.1% por operación
+🔸 **Futuros/Perps:** 0.05% maker · 0.07% taker
+🔸 **Sin spreads ocultos** — Precios directos del mercado
+🔸 **Sin comisiones de depósito** en crypto
+🔸 **Sin cuota mensual** — Paga solo cuando operas
+
+💡 **Tip:** Usa KAIROS como colateral para obtener descuentos en comisiones.
+
+¿Necesitas más información?`
       },
 
       how_to_buy: {
-        keywords: ['comprar','buy','adquirir','purchase','cómo compro','how to buy','donde compro','where buy','obtener','get kairos','quiero comprar','want to buy'],
-        answer: `¡Comprar KAIROS es muy sencillo! 💰
+        keywords: ['comprar','buy','adquirir','purchase','cómo compro','how to buy','donde compro','where buy','obtener','get kairos','quiero comprar','want to buy','depositar','deposit'],
+        answer: `**¿Cómo obtener KAIROS para operar?** 💰
 
-**Opción 1: Con tarjeta de crédito/débito**
-→ Ve a [kairos-777.com/buy.html](https://kairos-777.com/buy.html)
-→ Ingresa la cantidad en USD
-→ Paga con Visa, Mastercard, o Apple Pay
-→ Recibe KAIROS automáticamente en tu wallet
+**Opción 1: Compra directa con tarjeta**
+→ Ve a [kairos-777.com/buy](https://kairos-777.com/buy.html)
+→ Paga con Visa, Mastercard o Apple Pay
+→ Recibe KAIROS en tu wallet
 
 **Opción 2: Transferencia de stablecoins**
-→ Envía USDT, USDC o BUSD a nuestra dirección de depósito
-→ Recibe KAIROS equivalente en tu wallet
+→ Envía USDT, USDC o BUSD
+→ Recibe KAIROS equivalente
 
 **Opción 3: Swap en DEX**
 → Usa PancakeSwap en BSC
 → Contrato: \`0x14D41707269c7D8b8DFa5095b38824a46dA05da3\`
 
-¿Necesitas ayuda con algún paso específico?`
+Una vez tengas KAIROS, conéctalo como colateral en Kairos Trade.
+
+¿Necesitas ayuda paso a paso?`
       },
 
       ecosystem: {
         keywords: ['ecosistema','ecosystem','productos','products','servicios','services','que ofrecen','what you offer','plataforma','platform','todo lo que tienen'],
-        answer: `**Kairos 777** es un ecosistema financiero completo 🏛️
+        answer: `**Kairos 777** — Ecosistema financiero completo 🏛️
 
 🔸 **KairosCoin (KAIROS)** — Stablecoin USD-pegged
-   → [kairos-777.com/coin.html](https://kairos-777.com/coin.html)
+   → [kairos-777.com](https://kairos-777.com)
 
-🔸 **Kairos Trade** — Plataforma de trading algorítmico
-   → 33+ pares crypto · Apalancamiento hasta 150x
-   → Bots de trading con AI
-   → [kairos-trade.netlify.app](https://kairos-trade.netlify.app)
+🔸 **Kairos Trade** — Donde estás ahora 📊
+   → 33+ pares · Hasta 150x apalancamiento · Bots AI
 
-🔸 **Kairos Wallet** — Wallet multi-chain
-   → Envía, recibe y gestiona KAIROS
+🔸 **Kairos Wallet** — Billetera multi-chain
    → [kairos-wallet.netlify.app](https://kairos-wallet.netlify.app)
 
 🔸 **Reservas Transparentes** — Verificación en tiempo real
-   → [kairos-777.com/reserves.html](https://kairos-777.com/reserves.html)
+   → [kairos-777.com/reserves](https://kairos-777.com/reserves.html)
 
 ¿Qué producto te interesa más?`
       },
 
       price: {
-        keywords: ['precio','price','valor','value','cuánto vale','how much','cotización','rate','cost','costo'],
+        keywords: ['precio','price','valor','value','cuánto vale','how much','cotización','rate','cost','costo kairos'],
         answer: `**1 KAIROS = 1 USD** siempre 💵
 
-KAIROS es una **stablecoin** — su precio está fijado al dólar estadounidense. No sube ni baja como Bitcoin o Ethereum.
+KAIROS es una **stablecoin** — su precio está fijado al dólar estadounidense. No sube ni baja como Bitcoin.
 
-Esto lo hace perfecto para:
-✅ Ahorrar en dólares digitales
-✅ Enviar remesas sin volatilidad
-✅ Trading con base estable
-✅ Pagos internacionales
+Es perfecto como **colateral de trading**:
+✅ Sin riesgo de depreciación del colateral
+✅ Cálculos de ganancia/pérdida claros
+✅ Margen estable para tus posiciones
 
 ¿Quieres saber cómo comprar?`
       },
 
       security: {
-        keywords: ['seguro','safe','seguridad','security','confiable','trust','audited','auditado','scam','estafa','legítimo','legitimate','hack'],
-        answer: `La seguridad es nuestra prioridad #1 🛡️
+        keywords: ['seguro','safe','seguridad','security','confiable','trust','audited','auditado','scam','estafa','legítimo','legitimate','hack','fondos'],
+        answer: `**Seguridad en Kairos Trade** 🛡️
 
 **Empresa Registrada**
 → Kairos 777 Inc — Florida, EE.UU.
 → Fundada por: Kaizen LLC
 
-**Smart Contract Seguro**
-→ Basado en OpenZeppelin v5.4 (estándar de la industria)
-→ Función de pausa de emergencia
-→ Verificado en BSCScan
+**Fondos Protegidos**
+→ Smart contracts basados en OpenZeppelin v5.4
+→ Tus fondos permanecen en tu wallet
+→ Non-custodial — Tus llaves, tus fondos
 
-**Reservas Transparentes**
-→ 100% respaldado por USD y stablecoins
-→ Auditoría verificable en [reserves](https://kairos-777.com/reserves.html)
-
-**Infraestructura Protegida**
-→ HTTPS en todas las plataformas
-→ Verificación de firmas en webhooks
-→ Autenticación por wallet (EIP-191)
+**Infraestructura**
+→ HTTPS en todas las conexiones
+→ Verificación de firmas
+→ Precios verificados vía oráculos
 
 ¿Tienes alguna pregunta específica sobre seguridad?`
       },
 
       wallet: {
-        keywords: ['wallet','billetera','monedero','app','aplicación','guardar','almacenar','store','enviar','send','recibir','receive'],
-        answer: `**Kairos Wallet** es nuestra billetera digital 📱
+        keywords: ['wallet','billetera','monedero','conectar','connect','metamask','trust wallet','guardar','almacenar'],
+        answer: `**Conectar tu Wallet** 🔗
 
-🔹 **Multi-chain** — BSC, Base, Arbitrum, Polygon
-🔹 **Envío y recepción** de KAIROS y otros tokens
-🔹 **Interfaz simple** — Diseñada para todos
-🔹 **Segura** — Tus llaves, tus fondos
+Kairos Trade soporta múltiples wallets:
+→ **MetaMask** — La más popular
+→ **Trust Wallet** — Ideal para móvil
+→ **WalletConnect** — Compatible con 200+ wallets
 
-📲 Accede desde: [kairos-wallet.netlify.app](https://kairos-wallet.netlify.app)
+**Para conectar:**
+1. Haz clic en "Connect Wallet" arriba
+2. Elige tu wallet
+3. Aprueba la conexión
+4. ¡Listo para operar!
 
-¿Necesitas ayuda para configurar tu wallet?`
-      },
+También puedes usar **Kairos Wallet**:
+→ [kairos-wallet.netlify.app](https://kairos-wallet.netlify.app)
 
-      trade: {
-        keywords: ['trade','trading','operar','bots','bot','algoritmo','algorithmic','apalancamiento','leverage','pares','pairs','invertir','invest'],
-        answer: `**Kairos Trade** — Trading de nivel institucional 📊
-
-🔸 **33+ pares** de criptomonedas
-🔸 **Hasta 150x** de apalancamiento
-🔸 **Bots algorítmicos** con inteligencia artificial
-🔸 **Gráficos** en tiempo real con TradingView
-🔸 **Sin spreads ocultos** — Precios transparentes
-
-📊 Accede desde: [kairos-trade.netlify.app](https://kairos-trade.netlify.app)
-
-⚠️ Operar con apalancamiento conlleva riesgo. Opera responsablemente.
-
-¿Te gustaría saber cómo empezar a operar?`
+¿Necesitas ayuda para conectar?`
       },
 
       contract: {
@@ -173,21 +249,21 @@ Kaizen LLC creó Kairos 777 con la misión de ofrecer herramientas financieras s
 ¿Te gustaría conocer más sobre nuestra misión?`
       },
 
-      reserves: {
-        keywords: ['reservas','reserves','respaldo','backing','auditoría','audit','proof','prueba','colateral','collateral','backed'],
-        answer: `**Reservas de KAIROS** — 100% transparente 🏦
+      risk: {
+        keywords: ['riesgo','risk','liquidación','liquidation','perder','lose','pérdida','loss','stop loss','stop-loss','peligro','danger'],
+        answer: `**Gestión de Riesgo** ⚠️
 
-Cada KAIROS está respaldado 1:1 por activos reales:
-→ **USDT** (Tether)
-→ **USDC** (Circle)
-→ **BUSD** (Binance USD)
+El trading con apalancamiento es de alto riesgo. Recomendaciones:
 
-📊 Verifica las reservas en tiempo real:
-→ [kairos-777.com/reserves.html](https://kairos-777.com/reserves.html)
+🔸 **Stop-Loss** — Configura siempre un stop-loss
+🔸 **Position Size** — No arriesgues más del 2% por operación
+🔸 **Apalancamiento** — Empieza con 2x-5x máximo
+🔸 **Diversificación** — No pongas todo en un solo par
+🔸 **Emociones** — No operes por impulso o venganza
 
-La transparencia es uno de nuestros valores fundamentales. Cualquiera puede verificar el respaldo en cualquier momento.
+📊 **Regla de oro:** Solo opera con dinero que puedes permitirte perder.
 
-¿Tienes preguntas sobre las reservas?`
+¿Quieres aprender más sobre gestión de riesgo?`
       },
 
       help: {
@@ -195,15 +271,16 @@ La transparencia es uno de nuestros valores fundamentales. Cualquiera puede veri
         answer: `**¿Necesitas ayuda?** 🤝
 
 Puedo asistirte con:
-1️⃣ **Comprar KAIROS** — Proceso paso a paso
-2️⃣ **Wallet** — Configuración y uso
-3️⃣ **Trading** — Cómo empezar a operar
-4️⃣ **Seguridad** — Verificación y confianza
-5️⃣ **Información técnica** — Contratos, chains
+1️⃣ **Cómo empezar** — Tutorial paso a paso
+2️⃣ **Pares de trading** — Qué mercados operar
+3️⃣ **Apalancamiento** — Cómo funciona
+4️⃣ **Bots de AI** — Trading automatizado
+5️⃣ **Comisiones** — Precios transparentes
+6️⃣ **Seguridad** — Protección de fondos
 
 Escribe tu pregunta y te ayudaré 😊
 
-Para soporte directo, contacta: info@kairos-777.com`
+Para soporte directo: info@kairos-777.com`
       },
 
       stablecoin: {
@@ -215,12 +292,12 @@ Una stablecoin es una criptomoneda diseñada para mantener un precio estable, ge
 **KAIROS** es una stablecoin porque:
 ✅ Cada token está respaldado 1:1 con USD
 ✅ Puedes comprar y vender siempre a ~$1
-✅ No tiene la volatilidad de Bitcoin o Ethereum
-✅ Ideal para pagos, ahorros y trading
+✅ No tiene la volatilidad de BTC o ETH
+✅ Ideal como colateral estable para trading
 
-A diferencia de USDT o USDC, KAIROS está diseñado específicamente para el ecosistema Kairos 777, con integración nativa en nuestra plataforma de trading y wallet.
+En Kairos Trade, puedes usar KAIROS como base para todas tus operaciones.
 
-¿Quieres saber más sobre cómo funciona?`
+¿Quieres saber más?`
       },
 
       whitepaper: {
@@ -234,36 +311,36 @@ Nuestro whitepaper detalla:
 → Hoja de ruta del ecosistema
 
 📖 Lee el whitepaper completo:
-→ [kairos-777.com/whitepaper.html](https://kairos-777.com/whitepaper.html)
+→ [kairos-777.com/whitepaper](https://kairos-777.com/whitepaper.html)
 
-¿Tienes preguntas específicas sobre el whitepaper?`
+¿Tienes preguntas específicas?`
       }
     },
 
     fallback: `No estoy seguro de entender tu pregunta 🤔
 
 Puedo ayudarte con:
-• **¿Qué es KAIROS?** — Info sobre el token
-• **¿Cómo comprar?** — Paso a paso
-• **Ecosistema** — Todos nuestros productos
-• **Seguridad** — Cómo protegemos tus fondos
-• **Trading** — Plataforma de trading
-• **Wallet** — Billetera digital
+• **¿Cómo empezar a operar?** — Tutorial
+• **Pares de trading** — 33+ mercados
+• **Apalancamiento** — De 1x a 150x
+• **Bots AI** — Trading automatizado
+• **Comisiones** — Precios claros
+• **Seguridad** — Protección de fondos
 
 Escribe tu pregunta o elige un tema 😊`,
 
     quickReplies: [
-      { label: '¿Qué es KAIROS?', topic: 'what_is' },
-      { label: '¿Cómo comprar?', topic: 'how_to_buy' },
-      { label: 'Ecosistema', topic: 'ecosystem' },
-      { label: 'Seguridad', topic: 'security' },
+      { label: '¿Cómo empiezo?', topic: 'how_to_trade' },
+      { label: 'Pares disponibles', topic: 'pairs' },
+      { label: 'Apalancamiento', topic: 'leverage' },
+      { label: 'Bots AI', topic: 'bots' },
     ]
   };
 
   // ── Smart Matching ──
   function findBestMatch(input) {
     const normalized = input.toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remove accents
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       .replace(/[¿¡?!.,;:'"]/g, '');
 
     let bestMatch = null;
@@ -288,33 +365,28 @@ Escribe tu pregunta o elige un tema 😊`,
   }
 
   function getResponse(input) {
-    // Check for greeting
     const greetings = ['hola','hello','hi','hey','buenas','saludos','good morning','good afternoon','qué tal','que tal','buenos días','buenas tardes','sup','yo'];
     const normalizedInput = input.toLowerCase().trim();
     
     if (greetings.some(g => normalizedInput === g || normalizedInput.startsWith(g + ' ') || normalizedInput.startsWith(g + ','))) {
-      return { text: `¡Hola! 😊 Bienvenido a **Kairos 777**. ¿En qué te puedo ayudar?\n\nPuedes preguntarme sobre nuestro token KAIROS, cómo comprarlo, nuestra plataforma de trading, o cualquier otra cosa.`, showQuickReplies: true };
+      return { text: `¡Hola! 😊 Bienvenido a **Kairos Trade**. ¿En qué te puedo ayudar?\n\nPuedes preguntarme sobre pares de trading, apalancamiento, bots AI, comisiones, o cualquier duda sobre la plataforma.`, showQuickReplies: true };
     }
 
-    // Check for thanks
     const thanks = ['gracias','thanks','thank you','thx','ty','valeu','merci'];
     if (thanks.some(t => normalizedInput.includes(t))) {
-      return { text: `¡Con mucho gusto! 😊 Si necesitas algo más, no dudes en preguntar. Estamos aquí para ayudarte.\n\n🌟 **Kairos 777** — *In God We Trust*`, showQuickReplies: false };
+      return { text: `¡Con mucho gusto! 😊 Si necesitas algo más, estoy aquí 24/7.\n\n📊 **Kairos Trade** — *In God We Trust*`, showQuickReplies: false };
     }
 
-    // Check for goodbye
     const byes = ['adiós','adios','bye','chao','hasta luego','see you','nos vemos'];
     if (byes.some(b => normalizedInput.includes(b))) {
-      return { text: `¡Hasta pronto! 👋 Recuerda que estoy disponible 24/7 si tienes alguna pregunta.\n\n🔗 [kairos-777.com](https://kairos-777.com)`, showQuickReplies: false };
+      return { text: `¡Hasta pronto! 👋 ¡Que tus trades sean exitosos!\n\n📊 [kairos-trade.netlify.app](https://kairos-trade.netlify.app)`, showQuickReplies: false };
     }
 
-    // Topic matching
     const match = findBestMatch(input);
     if (match) {
       return { text: KB.topics[match].answer, showQuickReplies: false };
     }
 
-    // Fallback
     return { text: KB.fallback, showQuickReplies: true };
   }
 
@@ -323,46 +395,45 @@ Escribe tu pregunta o elige un tema 😊`,
     return text
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`([^`]+)`/g, '<code style="background:rgba(212,175,55,0.15);padding:2px 6px;border-radius:4px;font-size:0.85em;word-break:break-all;">$1</code>')
+      .replace(/`([^`]+)`/g, '<code style="background:rgba(96,165,250,0.15);padding:2px 6px;border-radius:4px;font-size:0.85em;word-break:break-all;">$1</code>')
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:#60A5FA;text-decoration:underline;">$1</a>')
-      .replace(/→/g, '<span style="color:#D4AF37;">→</span>')
+      .replace(/→/g, '<span style="color:#60A5FA;">→</span>')
       .replace(/\n/g, '<br>');
   }
 
   // ── Create Widget ──
   function createWidget() {
-    // Inject CSS
     const style = document.createElement('style');
     style.textContent = `
       #kairos-agent-btn {
         position: fixed; bottom: 24px; right: 24px; z-index: 10000;
         width: 60px; height: 60px; border-radius: 50%;
-        background: linear-gradient(135deg, #D4AF37 0%, #B8860B 100%);
+        background: linear-gradient(135deg, #60A5FA 0%, #2563EB 100%);
         border: none; cursor: pointer;
-        box-shadow: 0 4px 20px rgba(212,175,55,0.4), 0 0 40px rgba(212,175,55,0.1);
+        box-shadow: 0 4px 20px rgba(96,165,250,0.4), 0 0 40px rgba(96,165,250,0.1);
         display: flex; align-items: center; justify-content: center;
         transition: all 0.3s ease;
         animation: kairos-pulse 2s ease-in-out infinite;
       }
       #kairos-agent-btn:hover {
         transform: scale(1.1);
-        box-shadow: 0 6px 30px rgba(212,175,55,0.6);
+        box-shadow: 0 6px 30px rgba(96,165,250,0.6);
       }
-      #kairos-agent-btn svg { width: 28px; height: 28px; fill: #0D0D0D; }
+      #kairos-agent-btn svg { width: 28px; height: 28px; fill: #fff; }
       #kairos-agent-btn.open svg.chat-icon { display: none; }
       #kairos-agent-btn.open svg.close-icon { display: block; }
       #kairos-agent-btn:not(.open) svg.chat-icon { display: block; }
       #kairos-agent-btn:not(.open) svg.close-icon { display: none; }
 
       @keyframes kairos-pulse {
-        0%, 100% { box-shadow: 0 4px 20px rgba(212,175,55,0.4), 0 0 40px rgba(212,175,55,0.1); }
-        50% { box-shadow: 0 4px 30px rgba(212,175,55,0.6), 0 0 60px rgba(212,175,55,0.2); }
+        0%, 100% { box-shadow: 0 4px 20px rgba(96,165,250,0.4), 0 0 40px rgba(96,165,250,0.1); }
+        50% { box-shadow: 0 4px 30px rgba(96,165,250,0.6), 0 0 60px rgba(96,165,250,0.2); }
       }
 
       #kairos-agent-badge {
         position: absolute; top: -2px; right: -2px;
         width: 18px; height: 18px; border-radius: 50%;
-        background: #EF4444; border: 2px solid #0D0D0D;
+        background: #EF4444; border: 2px solid #0B0E11;
         font-size: 10px; color: #fff; font-weight: 700;
         display: flex; align-items: center; justify-content: center;
         transition: all 0.3s;
@@ -374,9 +445,9 @@ Escribe tu pregunta o elige un tema 😊`,
         width: 380px; max-width: calc(100vw - 32px);
         height: 520px; max-height: calc(100vh - 140px);
         border-radius: 16px; overflow: hidden;
-        background: #0A0A0F;
-        border: 1px solid rgba(212,175,55,0.2);
-        box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(212,175,55,0.05);
+        background: #0B0E11;
+        border: 1px solid rgba(96,165,250,0.2);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(96,165,250,0.05);
         display: flex; flex-direction: column;
         transform: scale(0.8) translateY(20px); opacity: 0;
         pointer-events: none;
@@ -390,22 +461,22 @@ Escribe tu pregunta o elige un tema 😊`,
 
       .ka-header {
         padding: 16px 20px;
-        background: linear-gradient(135deg, rgba(212,175,55,0.12) 0%, rgba(13,13,13,0.95) 100%);
-        border-bottom: 1px solid rgba(212,175,55,0.15);
+        background: linear-gradient(135deg, rgba(96,165,250,0.12) 0%, rgba(11,14,17,0.95) 100%);
+        border-bottom: 1px solid rgba(96,165,250,0.15);
         display: flex; align-items: center; gap: 12px;
       }
       .ka-header-avatar {
         width: 40px; height: 40px; border-radius: 50%;
-        background: linear-gradient(135deg, #D4AF37, #B8860B);
+        background: linear-gradient(135deg, #60A5FA, #2563EB);
         display: flex; align-items: center; justify-content: center;
         font-size: 20px; flex-shrink: 0;
       }
       .ka-header-info h3 {
-        font-family: 'Playfair Display', Georgia, serif;
+        font-family: 'Inter', sans-serif;
         font-size: 15px; font-weight: 700; color: #fff; margin: 0;
       }
       .ka-header-info p {
-        font-size: 12px; color: #D4AF37; margin: 0;
+        font-size: 12px; color: #60A5FA; margin: 0;
         display: flex; align-items: center; gap: 4px;
       }
       .ka-header-info p::before {
@@ -417,10 +488,10 @@ Escribe tu pregunta o elige un tema 😊`,
         flex: 1; overflow-y: auto; padding: 16px;
         display: flex; flex-direction: column; gap: 12px;
         scrollbar-width: thin;
-        scrollbar-color: rgba(212,175,55,0.3) transparent;
+        scrollbar-color: rgba(96,165,250,0.3) transparent;
       }
       .ka-messages::-webkit-scrollbar { width: 4px; }
-      .ka-messages::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.3); border-radius: 2px; }
+      .ka-messages::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.3); border-radius: 2px; }
 
       .ka-msg {
         max-width: 85%; padding: 12px 16px;
@@ -436,12 +507,12 @@ Escribe tu pregunta o elige un tema 😊`,
       }
       .ka-msg.user {
         align-self: flex-end;
-        background: linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.1));
-        border: 1px solid rgba(212,175,55,0.3);
+        background: linear-gradient(135deg, rgba(96,165,250,0.2), rgba(37,99,235,0.15));
+        border: 1px solid rgba(96,165,250,0.3);
         border-bottom-right-radius: 4px;
         color: #fff;
       }
-      .ka-msg strong { color: #D4AF37; }
+      .ka-msg strong { color: #60A5FA; }
       .ka-msg code { font-size: 0.82em; }
 
       @keyframes ka-fadeIn {
@@ -454,12 +525,12 @@ Escribe tu pregunta o elige un tema 😊`,
       }
       .ka-quick-btn {
         padding: 6px 14px; border-radius: 20px; font-size: 12px;
-        background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3);
-        color: #D4AF37; cursor: pointer; transition: all 0.2s;
+        background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.3);
+        color: #60A5FA; cursor: pointer; transition: all 0.2s;
         font-family: 'Inter', sans-serif; white-space: nowrap;
       }
       .ka-quick-btn:hover {
-        background: rgba(212,175,55,0.25); transform: translateY(-1px);
+        background: rgba(96,165,250,0.25); transform: translateY(-1px);
       }
 
       .ka-input-area {
@@ -476,24 +547,24 @@ Escribe tu pregunta o elige un tema 😊`,
         transition: border-color 0.3s;
       }
       .ka-input::placeholder { color: #6B7280; }
-      .ka-input:focus { border-color: rgba(212,175,55,0.4); }
+      .ka-input:focus { border-color: rgba(96,165,250,0.4); }
       .ka-send {
         width: 38px; height: 38px; border-radius: 50%;
-        background: linear-gradient(135deg, #D4AF37, #B8860B);
+        background: linear-gradient(135deg, #60A5FA, #2563EB);
         border: none; cursor: pointer;
         display: flex; align-items: center; justify-content: center;
         transition: all 0.2s; flex-shrink: 0;
       }
       .ka-send:hover { transform: scale(1.08); }
       .ka-send:disabled { opacity: 0.4; cursor: default; transform: none; }
-      .ka-send svg { width: 16px; height: 16px; fill: #0D0D0D; }
+      .ka-send svg { width: 16px; height: 16px; fill: #fff; }
 
       .ka-typing {
         display: flex; align-items: center; gap: 4px; padding: 12px 16px;
         align-self: flex-start;
       }
       .ka-typing span {
-        width: 6px; height: 6px; border-radius: 50%; background: #D4AF37;
+        width: 6px; height: 6px; border-radius: 50%; background: #60A5FA;
         animation: ka-bounce 1.4s ease-in-out infinite;
       }
       .ka-typing span:nth-child(2) { animation-delay: 0.2s; }
@@ -503,13 +574,11 @@ Escribe tu pregunta o elige un tema 😊`,
         30% { transform: translateY(-6px); opacity: 1; }
       }
 
-      /* Powered by */
       .ka-powered {
         text-align: center; padding: 4px; font-size: 10px; color: #4B5563;
         background: rgba(0,0,0,0.4);
       }
 
-      /* Mobile */
       @media (max-width: 480px) {
         #kairos-agent-panel {
           right: 8px; bottom: 88px;
@@ -523,10 +592,9 @@ Escribe tu pregunta o elige un tema 😊`,
     `;
     document.head.appendChild(style);
 
-    // Create button
     const btn = document.createElement('button');
     btn.id = 'kairos-agent-btn';
-    btn.setAttribute('aria-label', 'Abrir chat de Kairos 777');
+    btn.setAttribute('aria-label', 'Abrir chat de Kairos Trade');
     btn.innerHTML = `
       <svg class="chat-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/><path d="M7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
       <svg class="close-icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
@@ -534,20 +602,19 @@ Escribe tu pregunta o elige un tema 😊`,
     `;
     document.body.appendChild(btn);
 
-    // Create panel
     const panel = document.createElement('div');
     panel.id = 'kairos-agent-panel';
     panel.innerHTML = `
       <div class="ka-header">
-        <div class="ka-header-avatar">🪙</div>
+        <div class="ka-header-avatar">📊</div>
         <div class="ka-header-info">
-          <h3>Kairos Agent</h3>
-          <p>Online — Listo para ayudarte</p>
+          <h3>Kairos Trade Agent</h3>
+          <p>Online — Tu asistente de trading</p>
         </div>
       </div>
       <div class="ka-messages" id="ka-messages"></div>
       <div class="ka-input-area">
-        <input class="ka-input" id="ka-input" type="text" placeholder="Escribe tu pregunta..." autocomplete="off" />
+        <input class="ka-input" id="ka-input" type="text" placeholder="Pregunta sobre trading..." autocomplete="off" />
         <button class="ka-send" id="ka-send" aria-label="Enviar">
           <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
@@ -556,7 +623,6 @@ Escribe tu pregunta o elige un tema 😊`,
     `;
     document.body.appendChild(panel);
 
-    // ── State ──
     let isOpen = false;
     let hasOpened = false;
     const messagesEl = document.getElementById('ka-messages');
@@ -605,14 +671,10 @@ Escribe tu pregunta o elige un tema 😊`,
 
     function handleUserInput(text) {
       if (!text.trim()) return;
-
       addMessage(text, 'user', false);
       inputEl.value = '';
       sendBtn.disabled = true;
-
       showTyping();
-
-      // Simulate thinking delay (300-800ms)
       const delay = 300 + Math.random() * 500;
       setTimeout(() => {
         hideTyping();
@@ -623,7 +685,6 @@ Escribe tu pregunta o elige un tema 😊`,
       }, delay);
     }
 
-    // ── Events ──
     btn.addEventListener('click', () => {
       isOpen = !isOpen;
       panel.classList.toggle('open', isOpen);
@@ -632,7 +693,6 @@ Escribe tu pregunta o elige un tema 😊`,
       if (isOpen && !hasOpened) {
         hasOpened = true;
         badge.classList.add('hidden');
-        // Welcome message
         setTimeout(() => {
           addMessage(KB.greeting, 'bot', true);
         }, 400);
@@ -651,22 +711,19 @@ Escribe tu pregunta o elige un tema 😊`,
       }
     });
 
-    // ── Auto-open after 8 seconds on first visit ──
-    if (!sessionStorage.getItem('kairos-agent-seen')) {
+    if (!sessionStorage.getItem('kairos-trade-agent-seen')) {
       setTimeout(() => {
         if (!isOpen) {
-          // Subtle attention animation
           btn.style.animation = 'none';
-          btn.offsetHeight; // reflow
+          btn.offsetHeight;
           btn.style.animation = 'kairos-pulse 0.5s ease-in-out 3';
           setTimeout(() => { btn.style.animation = 'kairos-pulse 2s ease-in-out infinite'; }, 1500);
         }
       }, 8000);
-      sessionStorage.setItem('kairos-agent-seen', '1');
+      sessionStorage.setItem('kairos-trade-agent-seen', '1');
     }
   }
 
-  // ── Init ──
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', createWidget);
   } else {
