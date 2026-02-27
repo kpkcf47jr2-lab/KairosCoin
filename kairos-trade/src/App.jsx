@@ -32,6 +32,7 @@ const PortfolioAnalytics = lazy(() => import('./components/Portfolio/PortfolioAn
 const MultiChart = lazy(() => import('./components/Chart/MultiChart'));
 const TradeJournal = lazy(() => import('./components/Journal/TradeJournal'));
 const RiskDashboard = lazy(() => import('./components/Risk/RiskDashboard'));
+const MobileTradeView = lazy(() => import('./components/Trading/MobileTradeView'));
 const KairosBroker = lazy(() => import('./components/Kairos/KairosBroker'));
 const BuyKairos = lazy(() => import('./components/Kairos/BuyKairos'));
 const KairosVault = lazy(() => import('./components/Kairos/KairosVault'));
@@ -73,7 +74,26 @@ function PageLoader() {
 function TradingView() {
   const [chartTab, setChartTab] = useState('chart');
   const [showPanel, setShowPanel] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const { selectedPair } = useStore();
+
+  // Listen for resize to toggle mobile/desktop view
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Mobile: use the pro mobile trading view
+  if (isMobile) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <MobileTradeView />
+      </Suspense>
+    );
+  }
+
+  // Desktop: original layout
   return (
     <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
       <div className="flex-1 overflow-hidden flex flex-col min-w-0">
