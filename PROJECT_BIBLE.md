@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 26, 2026 (Session 20 — Capacitor Native Apps + WalletConnect Integration)
+#  Last Updated: February 27, 2026 (Session 21 — Chrome Web Store + iOS Native Build)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -1393,12 +1393,47 @@ Full Chrome-compatible browser extension (also works on Brave, Edge, Opera):
 **Commits:** `d33ec0b`
 
 ### Next Priorities
-1. **Chrome Web Store submission** — Publish extension for public install
-2. **Install Xcode** — Test native apps on iOS Simulator
+1. **Chrome Web Store submission** — ZIP ready, need $5 developer account
+2. **App Store submission** — Both apps compile on iOS, need Apple Developer account ($99/yr)
 3. **Add PancakeSwap liquidity** — Need $5K+ per side for CoinGecko listing
 4. **CoinGecko/CoinMarketCap listing** — Submit once liquidity is sufficient
 5. **Ethereum mainnet deploy** — Need ETH for gas
 6. **Multi-broker live test** — Connect exchange API keys
+
+### Session 21 — Chrome Web Store Package + iOS Native Build (Feb 27, 2026)
+
+**Chrome Web Store — Extension Ready for Publishing:**
+- Built extension (224KB ZIP): `kairos-extension/kairos-wallet-extension-v1.0.0.zip`
+- Generated 3 CWS screenshots (1280x800): main, multi-chain, security
+- Generated 3 promo tiles: small (440x280), large (920x680), marquee (1400x560)
+- Created `kairos-extension/CWS_LISTING.md` with full store description
+- Created and deployed privacy policy: https://kairos-777.com/privacy-extension.html
+- Extension manifest: MV3, permissions (storage, activeTab, scripting), service worker, EIP-1193 content script
+
+**iOS Native Apps — BUILD SUCCEEDED:**
+- Installed Xcode 26.3 via Mac App Store
+- Accepted Xcode license, set developer directory
+- Downloaded iOS 26.2 Simulator runtime (arm64)
+- Built Kairos Trade (com.kairos777.trade) — BUILD SUCCEEDED
+- Built Kairos Wallet (com.kairos777.wallet) — BUILD SUCCEEDED
+- Both apps installed and launched on iPhone 17 Pro simulator
+- Capacitor 8.x + 6 plugins all resolved correctly
+- Simulator screenshot captured at 1206x2622 (iPhone 17 Pro resolution)
+
+**Files Created:**
+- `kairos-extension/CWS_LISTING.md` — Chrome Web Store listing description
+- `kairos-extension/cws-assets/` — 6 promotional images for CWS
+- `kairos-extension/kairos-wallet-extension-v1.0.0.zip` — Ready-to-upload ZIP
+- `website/privacy-extension.html` — Privacy policy for extension (live on Netlify)
+- `scripts/generate-cws-assets.py` — Python/Pillow CWS asset generator
+
+**Infrastructure Status:**
+- Xcode 26.3 installed at /Applications/Xcode.app
+- iOS 26.2 Simulator runtime installed
+- iPhone 17 Pro, 17 Pro Max, iPhone Air, iPhone 17, iPhone 16e simulators available
+- `mas` (Mac App Store CLI) installed via Homebrew
+
+**Commits:** `7d83155`
 
 ---
 
