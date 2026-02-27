@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 27, 2026 (Session 21 — Chrome Web Store + iOS Native Build)
+#  Last Updated: February 27, 2026 (Session 21 — App Store Submission)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -102,7 +102,7 @@
 ### GitHub Repository
 - **Repo:** `kpkcf47jr2-lab/KairosCoin`
 - **Branch:** main
-- **Latest Commit:** `726307f` (Feb 27, 2026)
+- **Latest Commit:** `c2ab5e8` (Feb 27, 2026)
 - **Backup Locations:** iCloud Drive + Desktop
 
 ### PancakeSwap Liquidity
@@ -1434,6 +1434,35 @@ Full Chrome-compatible browser extension (also works on Brave, Edge, Opera):
 - `mas` (Mac App Store CLI) installed via Homebrew
 
 **Commits:** `7d83155`
+
+### Session 21b — iOS App Store Submission (Feb 27, 2026)
+
+**Wallet Scroll Fix:**
+- Fixed Dashboard.jsx not scrolling — `overflow: hidden` on html/body/#root was blocking
+- Created `.screen-container-scroll` class with `overflow-y: auto` and `-webkit-overflow-scrolling: touch`
+- Applied to Dashboard.jsx, confirmed working on iOS Simulator
+
+**App Store Archive & Signing (SOLVED):**
+- Previous 4 archive failures due to automatic Development signing requiring registered device
+- Solution: Archive WITHOUT code signing (`CODE_SIGNING_REQUIRED=NO`), then export with automatic distribution signing
+- Xcode auto-created "Cloud Managed Apple Distribution" certificate (expires 2/27/27)
+- Trade IPA: 2.9MB, Wallet IPA: 9.2MB
+
+**App Store Connect — Both Apps Submitted:**
+- **Kairos 777 (Trade):** Bundle ID `com.kairos777.trade`, uploaded & submitted for review
+- **Kairos Wallet:** Bundle ID `com.kairos777.wallet`, uploaded & submitted for review
+- Both version 1.0 (1), pending Apple review (24-48 hours)
+- Apple Developer Team ID: `J68D875PSU`
+- Privacy: "No data collected", URL: https://kairos-777.com/privacy-extension.html
+- Category: Finance, Age Rating: 4+
+- iPhone screenshots: 1284x2778 (3 per app)
+- iPad screenshots: 2048x2732 (Trade), various sizes (Wallet)
+
+**Netlify Deployments:**
+- Trade: https://kairos-trade.netlify.app (rebuilt & deployed)
+- Wallet: https://kairos-wallet.netlify.app (rebuilt & deployed)
+
+**Commits:** `c2ab5e8`
 
 ---
 
