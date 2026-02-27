@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-B3zs21wG.js"></script>
+    <script type="module" crossorigin src="/assets/index-D1oitnvn.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/ui-8HTTZoBK.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-C1W0orB6.js">
     <link rel="stylesheet" crossorigin href="/assets/index-DBOPDyEw.css">
@@ -23,20 +23,35 @@
   <body>
     <div id="root"></div>
     <script>
-      // Global JS error catcher — shows errors visually if React fails to mount
-      window.onerror = function(msg, src, line, col, err) {
-        var el = document.getElementById('js-error-overlay');
-        if (!el) {
-          el = document.createElement('div');
-          el.id = 'js-error-overlay';
-          el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#1A1D26;color:#FF6B7A;padding:12px 16px;font:12px/1.4 monospace;border-bottom:2px solid #FF4757;max-height:40vh;overflow:auto;';
-          document.body.prepend(el);
-        }
-        el.innerHTML += '<b>ERROR:</b> ' + msg + '<br><small>' + (src||'') + ':' + line + '</small><br>';
-      };
-      window.addEventListener('unhandledrejection', function(e) {
-        window.onerror('Promise: ' + (e.reason?.message || e.reason || 'unknown'), '', 0, 0, e.reason);
-      });
+      // Global JS error catcher — only shows critical errors before React mounts
+      (function() {
+        var reactMounted = false;
+        var el = null;
+        // React will set this flag once mounted
+        window.__kairosReady = function() { reactMounted = true; if (el) el.remove(); el = null; };
+        window.onerror = function(msg, src, line, col, err) {
+          // Once React is mounted, let React error boundaries handle it
+          if (reactMounted) return;
+          // Ignore chart/WS disposal errors (non-critical)
+          if (typeof msg === 'string' && (msg.includes('Value is null') || msg.includes('disposed') || msg.includes('WebSocket'))) return;
+          if (typeof src === 'string' && (src.includes('charts-') || src.includes('lightweight-charts'))) return;
+          if (!el) {
+            el = document.createElement('div');
+            el.id = 'js-error-overlay';
+            el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#1A1D26;color:#FF6B7A;padding:12px 16px;font:12px/1.4 monospace;border-bottom:2px solid #FF4757;max-height:40vh;overflow:auto;';
+            document.body.prepend(el);
+          }
+          el.innerHTML += '<b>ERROR:</b> ' + msg + '<br><small>' + (src||'') + ':' + line + '</small><br>';
+        };
+        window.addEventListener('unhandledrejection', function(e) {
+          if (reactMounted) return;
+          var msg = e.reason?.message || String(e.reason || 'unknown');
+          if (msg.includes('Value is null') || msg.includes('disposed') || msg.includes('chart')) return;
+          window.onerror('Promise: ' + msg, '', 0, 0, e.reason);
+        });
+        // Auto-clear after 8s (React should be mounted by then)
+        setTimeout(function() { reactMounted = true; if (el) el.remove(); }, 8000);
+      })();
     </script>
     <script>
       if ('serviceWorker' in navigator) {

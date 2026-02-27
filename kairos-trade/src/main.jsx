@@ -110,3 +110,6 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </GlobalErrorBoundary>
   </React.StrictMode>
 );
+
+// Signal to global error handler that React mounted successfully
+if (typeof window.__kairosReady === 'function') window.__kairosReady();

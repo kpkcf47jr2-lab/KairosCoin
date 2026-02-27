@@ -29,6 +29,10 @@ export default function TradingChart() {
     const container = chartContainerRef.current;
     if (!container) return;
 
+    let disposed = false;
+    const timers = [];
+    let rafId = null;
+
     // Ensure container has dimensions before creating chart
     const rect = container.getBoundingClientRect();
     const initWidth = rect.width || container.clientWidth || 800;
@@ -92,28 +96,34 @@ export default function TradingChart() {
 
     // Force resize after layout settles (handles AnimatePresence transitions)
     const resizeAfterLayout = () => {
-      const r = container.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) {
-        chart.applyOptions({ width: r.width, height: r.height });
-      }
+      if (disposed) return;
+      try {
+        const r = container.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          chart.applyOptions({ width: r.width, height: r.height });
+        }
+      } catch { /* chart may be disposed */ }
     };
-    requestAnimationFrame(resizeAfterLayout);
-    setTimeout(resizeAfterLayout, 100);
-    setTimeout(resizeAfterLayout, 300);
+    rafId = requestAnimationFrame(resizeAfterLayout);
+    timers.push(setTimeout(resizeAfterLayout, 100));
+    timers.push(setTimeout(resizeAfterLayout, 300));
 
     // Responsive resize
     const ro = new ResizeObserver(entries => {
-      if (!entries || !entries[0]) return;
+      if (disposed || !entries || !entries[0]) return;
       const { width, height } = entries[0].contentRect;
       if (width > 0 && height > 0) {
-        try { chart.applyOptions({ width, height }); } catch (e) { /* chart may be disposed */ }
+        try { chart.applyOptions({ width, height }); } catch { /* chart may be disposed */ }
       }
     });
     ro.observe(container);
 
     return () => {
+      disposed = true;
+      timers.forEach(clearTimeout);
+      if (rafId) cancelAnimationFrame(rafId);
       ro.disconnect();
-      chart.remove();
+      try { chart.remove(); } catch { /* already disposed */ }
       chartRef.current = null;
       candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
@@ -143,18 +153,31 @@ export default function TradingChart() {
           return;
         }
 
+        // Filter out any candles with null/NaN values
+        const validCandles = candles.filter(c => 
+          c && c.time && isFinite(c.open) && isFinite(c.high) && isFinite(c.low) && isFinite(c.close)
+        );
+
+        if (validCandles.length === 0) {
+          setError('Sin datos válidos');
+          setLoading(false);
+          return;
+        }
+
         // Set candle data
         if (candleSeriesRef.current) {
-          candleSeriesRef.current.setData(candles);
+          try { candleSeriesRef.current.setData(validCandles); } catch { /* disposed */ }
         }
 
         // Set volume data
         if (volumeSeriesRef.current) {
-          volumeSeriesRef.current.setData(candles.map(c => ({
+          try {
+          volumeSeriesRef.current.setData(validCandles.map(c => ({
             time: c.time,
             value: c.volume || 0,
             color: c.close >= c.open ? 'rgba(14,203,129,0.2)' : 'rgba(246,70,93,0.2)',
           })));
+          } catch { /* disposed */ }
         }
 
         // Update store
@@ -163,14 +186,14 @@ export default function TradingChart() {
 
         // Apply indicators (safely)
         try {
-          applyIndicators(candles);
+          applyIndicators(validCandles);
         } catch (indErr) {
           console.warn('Indicator error (non-fatal):', indErr);
         }
 
         // Fit content
         if (chartRef.current) {
-          chartRef.current.timeScale().fitContent();
+          try { chartRef.current.timeScale().fitContent(); } catch { /* disposed */ }
         }
       } catch (err) {
         console.error('Chart data load error:', err);
