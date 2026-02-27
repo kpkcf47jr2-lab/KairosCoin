@@ -43,26 +43,28 @@ let contract = null;
 let readOnlyContract = null;
 let isInitialized = false;
 
-// ── Nonce Manager ────────────────────────────────────────────────────────────
-// Prevents nonce collisions when multiple tx fire in rapid succession
+// ── Nonce Manager (Mutex-based) ──────────────────────────────────────────────
+// Prevents nonce collisions when multiple tx fire in rapid succession.
+// Uses a promise-based mutex instead of a boolean spin-lock for safety.
 let pendingNonce = null;
-let nonceLock = false;
+let _mutexQueue = Promise.resolve();
 
 async function getNextNonce() {
-  while (nonceLock) {
-    await new Promise((r) => setTimeout(r, 50));
-  }
-  nonceLock = true;
-  try {
-    if (pendingNonce === null) {
-      pendingNonce = await wallet.getNonce("pending");
-    } else {
-      pendingNonce++;
-    }
-    return pendingNonce;
-  } finally {
-    nonceLock = false;
-  }
+  return new Promise((resolve, reject) => {
+    _mutexQueue = _mutexQueue.then(async () => {
+      try {
+        if (pendingNonce === null) {
+          pendingNonce = await wallet.getNonce("pending");
+        } else {
+          pendingNonce++;
+        }
+        resolve(pendingNonce);
+      } catch (err) {
+        pendingNonce = null; // Reset on error so next caller fetches fresh
+        reject(err);
+      }
+    });
+  });
 }
 
 function resetNonce() {
@@ -505,6 +507,8 @@ module.exports = {
   initialize,
   mint,
   burn,
+  getNextNonce,
+  resetNonce,
   getSupplyInfo,
   getFeeInfo,
   getHolderBalance,

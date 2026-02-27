@@ -192,6 +192,22 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_redemption_wallet ON redemptions(wallet_address);
     CREATE INDEX IF NOT EXISTS idx_redemption_status ON redemptions(status);
     CREATE INDEX IF NOT EXISTS idx_redemption_created ON redemptions(created_at);
+
+    -- ═══════════════════════════════════════════════════════════════════════
+    --  MONITOR STATE — Persist deposit/redemption monitor state across restarts
+    -- ═══════════════════════════════════════════════════════════════════════
+    CREATE TABLE IF NOT EXISTS monitor_state (
+      monitor_name TEXT PRIMARY KEY,
+      last_processed_block INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS processed_tx_hashes (
+      tx_hash TEXT PRIMARY KEY,
+      monitor_name TEXT NOT NULL,
+      processed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_ptx_monitor ON processed_tx_hashes(monitor_name);
   `);
 }
 
@@ -714,6 +730,45 @@ function getRedemptionStats() {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+//                      MONITOR STATE PERSISTENCE
+// ═════════════════════════════════════════════════════════════════════════════
+
+function getMonitorBlock(monitorName) {
+  ensureInitialized();
+  const row = db.prepare(
+    'SELECT last_processed_block FROM monitor_state WHERE monitor_name = ?'
+  ).get(monitorName);
+  return row ? Number(row.last_processed_block) : null;
+}
+
+function setMonitorBlock(monitorName, blockNumber) {
+  ensureInitialized();
+  db.prepare(`
+    INSERT INTO monitor_state (monitor_name, last_processed_block, updated_at)
+    VALUES (?, ?, datetime('now'))
+    ON CONFLICT(monitor_name) DO UPDATE SET
+      last_processed_block = excluded.last_processed_block,
+      updated_at = excluded.updated_at
+  `).run(monitorName, blockNumber);
+}
+
+function isTxProcessed(txHash) {
+  ensureInitialized();
+  const row = db.prepare(
+    'SELECT 1 FROM processed_tx_hashes WHERE tx_hash = ?'
+  ).get(txHash.toLowerCase());
+  return !!row;
+}
+
+function markTxProcessed(txHash, monitorName) {
+  ensureInitialized();
+  db.prepare(`
+    INSERT OR IGNORE INTO processed_tx_hashes (tx_hash, monitor_name, processed_at)
+    VALUES (?, ?, datetime('now'))
+  `).run(txHash.toLowerCase(), monitorName);
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 //                           EXPORTS
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -752,6 +807,11 @@ module.exports = {
   getRedemptionStats,
   // API Log
   logApiCall,
+  // Monitor state persistence
+  getMonitorBlock,
+  setMonitorBlock,
+  isTxProcessed,
+  markTxProcessed,
   // Direct DB access (for advanced queries)
   getDb: () => db,
 };

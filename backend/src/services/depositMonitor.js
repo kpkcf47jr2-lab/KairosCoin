@@ -40,8 +40,7 @@ const ERC20_ABI = [
 let isRunning = false;
 let pollInterval = null;
 let lastProcessedBlock = 0;
-const processedTxHashes = new Set(); // Prevent duplicate processing
-const MAX_PROCESSED_CACHE = 10000;
+const MONITOR_NAME = 'deposit';
 
 // ── Configuration ────────────────────────────────────────────────────────────
 const DEPOSIT_ADDRESS = config.depositAddress; // Address that receives stablecoin deposits
@@ -73,10 +72,16 @@ async function start() {
 
   isRunning = true;
 
-  // Get current block as starting point
+  // Restore last processed block from DB, or start from current - 5
   try {
-    lastProcessedBlock = await provider.getBlockNumber();
-    lastProcessedBlock -= 5; // Start from 5 blocks back to catch any missed
+    const savedBlock = db.getMonitorBlock(MONITOR_NAME);
+    if (savedBlock) {
+      lastProcessedBlock = savedBlock;
+      logger.info(`Deposit monitor restored from DB — block ${savedBlock}`);
+    } else {
+      lastProcessedBlock = (await provider.getBlockNumber()) - 5;
+      logger.info(`Deposit monitor starting fresh — block ${lastProcessedBlock}`);
+    }
     logger.info(`Deposit monitor STARTED — watching ${DEPOSIT_ADDRESS}`, {
       startBlock: lastProcessedBlock,
       stablecoins: Object.keys(STABLECOINS).map(
@@ -129,6 +134,8 @@ async function pollForDeposits() {
     }
 
     lastProcessedBlock = safeBlock;
+    // Persist block number so we survive restarts
+    try { db.setMonitorBlock(MONITOR_NAME, safeBlock); } catch (_) {}
   } catch (err) {
     logger.error("Deposit poll error", { error: err.message });
   }
@@ -176,8 +183,8 @@ async function scanTransfers(provider, tokenAddress, fromBlock, toBlock) {
 async function processDeposit(log, tokenAddress, tokenInfo) {
   const txHash = log.transactionHash;
 
-  // Skip if already processed
-  if (processedTxHashes.has(txHash)) return;
+  // Skip if already processed (DB-persisted, survives restarts)
+  if (db.isTxProcessed(txHash)) return;
 
   // Parse the Transfer event
   const from = ethers.getAddress("0x" + log.topics[1].slice(26));
@@ -188,7 +195,7 @@ async function processDeposit(log, tokenAddress, tokenInfo) {
   // Validate amount
   if (amountUSD < MIN_DEPOSIT_USD) {
     logger.warn(`Deposit too small: ${amountUSD} ${tokenInfo.symbol} from ${from}`, { txHash });
-    processedTxHashes.add(txHash);
+    db.markTxProcessed(txHash, MONITOR_NAME);
     return;
   }
 
@@ -243,9 +250,8 @@ async function processDeposit(log, tokenAddress, tokenInfo) {
       effective_gas_price: mintResult.effectiveGasPrice,
     });
 
-    // Mark as processed
-    processedTxHashes.add(txHash);
-    cleanProcessedCache();
+    // Mark as processed (DB-persisted)
+    db.markTxProcessed(txHash, MONITOR_NAME);
 
     logger.info(`AUTO-MINT SUCCESS: ${amountHuman} KAIROS → ${from}`, {
       depositTx: txHash,
@@ -277,14 +283,6 @@ async function processDeposit(log, tokenAddress, tokenInfo) {
 //                          UTILITY
 // ═════════════════════════════════════════════════════════════════════════════
 
-function cleanProcessedCache() {
-  if (processedTxHashes.size > MAX_PROCESSED_CACHE) {
-    const arr = [...processedTxHashes];
-    const toDelete = arr.slice(0, arr.length - MAX_PROCESSED_CACHE / 2);
-    toDelete.forEach((h) => processedTxHashes.delete(h));
-  }
-}
-
 function stop() {
   isRunning = false;
   if (pollInterval) {
@@ -299,7 +297,7 @@ function getStatus() {
     running: isRunning,
     depositAddress: DEPOSIT_ADDRESS || "NOT CONFIGURED",
     lastProcessedBlock,
-    processedTransactions: processedTxHashes.size,
+    processedTransactions: 'persisted in DB',
     supportedStablecoins: Object.keys(STABLECOINS).map(
       (addr) => `${STABLECOINS[addr].symbol} (${addr})`
     ),

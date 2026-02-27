@@ -201,8 +201,8 @@ export default function BrokerManager() {
     setKeyError('');
     setStep(FLOW.VERIFYING);
 
-    // Add broker to store (keys get encrypted via btoa in addBroker)
-    const newBroker = addBroker({
+    // Add broker to store (keys get encrypted via AES-256-GCM in addBroker)
+    const newBroker = await addBroker({
       brokerId: selectedBroker.id,
       label: keyForm.label || selectedBroker.name,
       apiKey: keyForm.apiKey.trim(),

@@ -32,28 +32,32 @@ router.post(
     try {
       let event;
 
-      // ── 1. Verify webhook signature ──────────────────────────────────────
-      if (config.stripeWebhookSecret) {
-        const stripe = require("stripe")(config.stripeSecretKey);
-        const sig = req.headers["stripe-signature"];
+      // ── 1. Verify webhook signature (MANDATORY) ───────────────────────────
+      if (!config.stripeWebhookSecret) {
+        logger.error("STRIPE_WEBHOOK_SECRET not configured — rejecting webhook for security");
+        return res.status(503).json({ error: "Webhook verification not configured" });
+      }
 
-        try {
-          event = stripe.webhooks.constructEvent(
-            req.body,
-            sig,
-            config.stripeWebhookSecret
-          );
-        } catch (err) {
-          logger.warn("Stripe webhook signature verification failed", {
-            error: err.message,
-            ip: req.ip,
-          });
-          return res.status(400).json({ error: "Invalid webhook signature" });
-        }
-      } else {
-        // No webhook secret configured — parse body directly (dev mode)
-        event = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-        logger.warn("Stripe webhook received WITHOUT signature verification");
+      const stripe = require("stripe")(config.stripeSecretKey);
+      const sig = req.headers["stripe-signature"];
+
+      if (!sig) {
+        logger.warn("Stripe webhook missing signature header", { ip: req.ip });
+        return res.status(400).json({ error: "Missing stripe-signature header" });
+      }
+
+      try {
+        event = stripe.webhooks.constructEvent(
+          req.body,
+          sig,
+          config.stripeWebhookSecret
+        );
+      } catch (err) {
+        logger.warn("Stripe webhook signature verification failed", {
+          error: err.message,
+          ip: req.ip,
+        });
+        return res.status(400).json({ error: "Invalid webhook signature" });
       }
 
       logger.info("Stripe webhook received", {
@@ -110,7 +114,7 @@ router.post(
 
           // Record reserve increase
           db.recordReserveChange({
-            type: "deposit",
+            type: "DEPOSIT",
             amount: String(mintAmount),
             asset: "USD",
             source: "stripe",

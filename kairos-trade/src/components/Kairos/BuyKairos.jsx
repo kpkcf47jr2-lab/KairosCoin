@@ -3,7 +3,7 @@
 //  Permite a los usuarios comprar KairosCoin directamente desde la plataforma
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CreditCard, Shield, DollarSign, Zap, Loader2, CheckCircle2,
@@ -18,18 +18,27 @@ const MIN_AMOUNT = 10;
 const MAX_AMOUNT = 50000;
 
 export default function BuyKairos() {
-  const { showToast, user } = useStore();
+  const { showToast, user, setPage } = useStore();
 
   // Auto-detect wallet from Kairos account
   const walletAddress = user?.walletAddress || '';
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null); // { success, orderId, checkoutUrl, error }
+  const [stripeAvailable, setStripeAvailable] = useState(null); // null=loading, true/false
 
   const numAmount = parseFloat(amount) || 0;
   const isValidAmount = numAmount >= MIN_AMOUNT && numAmount <= MAX_AMOUNT;
   const isValidWallet = /^0x[a-fA-F0-9]{40}$/.test(walletAddress);
-  const canPurchase = isValidAmount && isValidWallet && !isLoading;
+  const canPurchase = isValidAmount && isValidWallet && !isLoading && stripeAvailable;
+
+  // ── Check if Stripe is available on mount ────────────────────────────────
+  useEffect(() => {
+    fetch(`${API_BASE}/api/stripe/config`)
+      .then(r => r.json())
+      .then(d => setStripeAvailable(d.configured !== false))
+      .catch(() => setStripeAvailable(false));
+  }, []);
 
   // ── Stripe Checkout ──────────────────────────────────────────────────────
   const handleCheckout = useCallback(async () => {
@@ -86,10 +95,10 @@ export default function BuyKairos() {
             <div className="absolute inset-0 rounded-2xl" style={{ boxShadow: '0 0 40px rgba(59,130,246,0.3)' }} />
           </div>
           <h1 className="text-2xl font-bold text-white mb-2">
-            Get KairosCoin
+            Comprar KairosCoin
           </h1>
           <p className="text-sm text-[var(--text-dim)] max-w-md mx-auto">
-            Get KAIROS directly with your credit or debit card. 1 KAIROS = 1 USD — Backed stablecoin.
+            Compra KAIROS directamente con tu tarjeta de crédito o débito. 1 KAIROS = 1 USD — Stablecoin respaldada.
           </p>
         </motion.div>
 
@@ -108,6 +117,20 @@ export default function BuyKairos() {
             </div>
           ))}
         </div>
+
+        {/* Stripe not available banner */}
+        {stripeAvailable === false && (
+          <div className="mb-6 p-4 rounded-xl flex items-center gap-3"
+            style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
+            <AlertCircle size={20} className="text-amber-400 shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-amber-400">Pagos con tarjeta — Próximamente</p>
+              <p className="text-xs text-[var(--text-dim)]">
+                Estamos configurando los pagos con Stripe. Por ahora, puedes adquirir KAIROS a través de nuestro broker o exchange. 
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Main Purchase Card */}
         <motion.div
@@ -153,9 +176,15 @@ export default function BuyKairos() {
                   <span>{walletAddress}</span>
                 </div>
               ) : (
-                <div className="w-full px-4 py-3 rounded-xl text-sm"
+                <div className="w-full px-4 py-3 rounded-xl text-sm flex items-center justify-between"
                   style={{ background: 'rgba(15,17,22,0.6)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--text-dim)' }}>
-                  Wallet no disponible — cierra sesión y crea una nueva cuenta
+                  <span>Wallet no disponible</span>
+                  <button
+                    onClick={() => setPage('wallet')}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold text-blue-300 hover:text-white transition-all"
+                    style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)' }}>
+                    Ir a Wallet →
+                  </button>
                 </div>
               )}
               {isValidWallet && (
@@ -274,7 +303,7 @@ export default function BuyKairos() {
               ) : (
                 <>
                   <CreditCard size={18} />
-                  Get {numAmount > 0 ? `${numAmount.toLocaleString()} KAIROS` : 'KairosCoin'}
+                  Comprar {numAmount > 0 ? `${numAmount.toLocaleString()} KAIROS` : 'KairosCoin'}
                   <ArrowRight size={16} />
                 </>
               )}

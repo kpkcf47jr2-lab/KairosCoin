@@ -10,6 +10,7 @@ import { ethers } from 'ethers';
 import useStore from '../../store/useStore';
 import apiClient from '../../services/apiClient';
 import { encrypt as vaultEncrypt, decryptKey, migrateLegacyKey, isLegacyKey } from '../../utils/keyVault';
+import { setSessionKey } from '../../utils/sessionVault';
 
 /* ─── API Host ─── */
 const API_HOST = apiClient.host;
@@ -57,7 +58,7 @@ const FEATURES = [
   { icon: BarChart3, title: 'Gráficos Pro', desc: 'Charts en tiempo real con 7+ indicadores técnicos. Multi-chart y profundidad.', color: '#00DC82' },
   { icon: Sparkles, title: 'Kairos AI', desc: 'Asistente de trading inteligente que analiza tendencias y sugiere estrategias.', color: '#A855F7' },
   { icon: Shield, title: '10 Brokers Integrados', desc: 'Binance, Bybit, Coinbase, Kraken, OKX, KuCoin, y más. Un solo dashboard.', color: '#60A5FA' },
-  { icon: Gift, title: '100 KAIROS Gratis', desc: 'Recibe 100 KAIROS al registrarte + 20 KAIROS por cada amigo que invites.', color: '#F59E0B' },
+  { icon: Gift, title: 'Bonus de Bienvenida', desc: 'Recibe crédito de trading al registrarte + 20 KAIROS por cada amigo referido.', color: '#F59E0B' },
   { icon: Lock, title: 'Seguridad Total', desc: 'Encriptación bcrypt, JWT, 2FA. Tu wallet se genera automáticamente.', color: '#EF4444' },
 ];
 
@@ -172,7 +173,7 @@ export default function AuthScreen() {
       try {
         const { privateKey, needsMigration } = await decryptKey(user.encryptedKey, password);
         if (privateKey) {
-          sessionStorage.setItem('kairos_pk', privateKey);
+          setSessionKey(privateKey);
         }
         // Auto-migrate legacy btoa keys to AES-256-GCM
         if (needsMigration && privateKey) {
@@ -239,8 +240,8 @@ export default function AuthScreen() {
 
         // Persist wallet backup locally (encrypted — safe to store)
         localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress, encryptedKey }));
-        // Keep decrypted PK in sessionStorage only (cleared on tab close)
-        sessionStorage.setItem('kairos_pk', wallet.privateKey);
+        // Keep decrypted PK in memory only (cleared on tab close)
+        setSessionKey(wallet.privateKey);
 
         // Show signup bonus notification
         if (data.data?.referral?.signupBonus) {
@@ -479,7 +480,7 @@ export default function AuthScreen() {
                 style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)' }}
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.2 }}>
                 <Gift size={14} className="text-amber-400" />
-                <span className="text-xs text-amber-400/90 font-semibold">Recibe 100 KAIROS gratis al registrarte</span>
+                <span className="text-xs text-amber-400/90 font-semibold">Bonus de bienvenida al registrarte</span>
               </motion.div>
 
               {/* Scroll hint */}

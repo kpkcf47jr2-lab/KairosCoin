@@ -10,6 +10,7 @@
 const express = require("express");
 const router = express.Router();
 const logger = require("../utils/logger");
+const { requireWalletSignature } = require("../middleware/walletAuth");
 
 let db = null;
 
@@ -30,8 +31,8 @@ function initWalletBackup(database) {
   logger.info("Wallet backup table initialized");
 }
 
-// ── POST /backup — Create or update encrypted vault backup ──
-router.post("/backup", (req, res) => {
+// ── POST /backup — Create or update encrypted vault backup (requires wallet signature) ──
+router.post("/backup", requireWalletSignature, (req, res) => {
   try {
     const { walletAddress, encryptedVault, version } = req.body;
 
@@ -126,17 +127,13 @@ router.get("/backup/check", (req, res) => {
   }
 });
 
-// ── DELETE /backup — Delete backup ──
-router.delete("/backup", (req, res) => {
+// ── DELETE /backup — Delete backup (requires wallet signature) ──
+router.delete("/backup", requireWalletSignature, (req, res) => {
   try {
-    const { walletAddress } = req.body;
-
-    if (!walletAddress || !/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
-      return res.status(400).json({ error: "Valid wallet address required" });
-    }
+    const walletAddress = req.verifiedWallet; // Use verified address
 
     db.prepare("DELETE FROM wallet_backups WHERE wallet_address = ?")
-      .run(walletAddress.toLowerCase());
+      .run(walletAddress);
 
     logger.info(`Wallet backup deleted for ${walletAddress.slice(0, 10)}...`);
 

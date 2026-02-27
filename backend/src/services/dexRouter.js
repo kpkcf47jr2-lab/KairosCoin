@@ -1157,6 +1157,62 @@ function getStatus() {
 //  EXPORTS
 // ═════════════════════════════════════════════════════════════════════════════
 
+// ═════════════════════════════════════════════════════════════════════════════
+//  DEPOSIT / WITHDRAW — Manage collateral balance
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Deposit KAIROS as collateral (adds to balance)
+ */
+function depositCollateral(walletAddress, amount) {
+  const wallet = walletAddress.toLowerCase();
+  const account = ensureAccount(wallet);
+  const numAmount = parseFloat(amount);
+  if (!numAmount || numAmount <= 0) throw new Error("Amount must be positive");
+  if (numAmount < 1) throw new Error("Minimum deposit: 1 KAIROS");
+
+  db.prepare(
+    "UPDATE dex_accounts SET balance = balance + ?, total_deposited = total_deposited + ? WHERE wallet = ?"
+  ).run(numAmount, numAmount, wallet);
+
+  const updated = db.prepare("SELECT * FROM dex_accounts WHERE wallet = ?").get(wallet);
+  logger.info(`DEX deposit: ${wallet} +${numAmount} KAIROS → balance ${updated.balance}`);
+  return {
+    wallet,
+    deposited: numAmount,
+    balance: updated.balance,
+    available: updated.balance - updated.locked,
+  };
+}
+
+/**
+ * Withdraw available collateral
+ */
+function withdrawCollateral(walletAddress, amount) {
+  const wallet = walletAddress.toLowerCase();
+  const account = ensureAccount(wallet);
+  const numAmount = parseFloat(amount);
+  if (!numAmount || numAmount <= 0) throw new Error("Amount must be positive");
+
+  const available = account.balance - account.locked;
+  if (numAmount > available) {
+    throw new Error(`Insufficient available balance. Available: ${available.toFixed(2)} KAIROS`);
+  }
+
+  db.prepare(
+    "UPDATE dex_accounts SET balance = balance - ? WHERE wallet = ?"
+  ).run(numAmount, wallet);
+
+  const updated = db.prepare("SELECT * FROM dex_accounts WHERE wallet = ?").get(wallet);
+  logger.info(`DEX withdraw: ${wallet} -${numAmount} KAIROS → balance ${updated.balance}`);
+  return {
+    wallet,
+    withdrawn: numAmount,
+    balance: updated.balance,
+    available: updated.balance - updated.locked,
+  };
+}
+
 module.exports = {
   initialize,
   openPosition,
@@ -1171,4 +1227,6 @@ module.exports = {
   getSupportedPairs,
   getRelayerAddress,
   getStatus,
+  depositCollateral,
+  withdrawCollateral,
 };

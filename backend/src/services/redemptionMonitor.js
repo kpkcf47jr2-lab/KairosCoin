@@ -32,8 +32,7 @@ const USDT_ABI = [
 let isRunning = false;
 let pollInterval = null;
 let lastProcessedBlock = 0;
-const processedTxHashes = new Set();
-const MAX_PROCESSED_CACHE = 10000;
+const MONITOR_NAME = 'redemption';
 
 // ── Configuration ────────────────────────────────────────────────────────────
 const REDEMPTION_ADDRESS = config.redemptionAddress; // Owner wallet receives KAIROS for redemption
@@ -66,8 +65,14 @@ async function start() {
   isRunning = true;
 
   try {
-    lastProcessedBlock = await provider.getBlockNumber();
-    lastProcessedBlock -= 5;
+    const savedBlock = db.getMonitorBlock(MONITOR_NAME);
+    if (savedBlock) {
+      lastProcessedBlock = savedBlock;
+      logger.info(`Redemption monitor restored from DB — block ${savedBlock}`);
+    } else {
+      lastProcessedBlock = (await provider.getBlockNumber()) - 5;
+      logger.info(`Redemption monitor starting fresh — block ${lastProcessedBlock}`);
+    }
     logger.info(`Redemption monitor STARTED — watching for KAIROS → ${REDEMPTION_ADDRESS}`, {
       startBlock: lastProcessedBlock,
       pollInterval: `${POLL_INTERVAL_MS}ms`,
@@ -137,6 +142,7 @@ async function pollForRedemptions() {
     }
 
     lastProcessedBlock = safeBlock;
+    try { db.setMonitorBlock(MONITOR_NAME, safeBlock); } catch (_) {}
   } catch (err) {
     logger.error("Redemption poll error", { error: err.message });
   }
@@ -149,7 +155,7 @@ async function pollForRedemptions() {
 async function processRedemption(log) {
   const txHash = log.transactionHash;
 
-  if (processedTxHashes.has(txHash)) return;
+  if (db.isTxProcessed(txHash)) return;
 
   const from = ethers.getAddress("0x" + log.topics[1].slice(26));
   const amount = ethers.toBigInt(log.data);
@@ -159,7 +165,7 @@ async function processRedemption(log) {
   // Validate amount
   if (amountUSD < MIN_REDEEM_KAIROS) {
     logger.warn(`Redemption too small: ${amountUSD} KAIROS from ${from}`, { txHash });
-    processedTxHashes.add(txHash);
+    db.markTxProcessed(txHash, MONITOR_NAME);
     return;
   }
 
@@ -219,8 +225,7 @@ async function processRedemption(log) {
       effective_gas_price: burnResult.effectiveGasPrice,
     });
 
-    processedTxHashes.add(txHash);
-    cleanProcessedCache();
+    db.markTxProcessed(txHash, MONITOR_NAME);
 
     logger.info(`AUTO-BURN + USDT PAYOUT SUCCESS: ${amountHuman} KAIROS burned, ${amountHuman} USDT → ${from}`, {
       redemptionTx: txHash,
@@ -274,6 +279,7 @@ async function sendUSDT(to, amount) {
 
   const tx = await usdtContract.transfer(to, amountWei, {
     gasPrice: ethers.parseUnits("3", "gwei"),
+    nonce: await blockchain.getNextNonce(),
   });
 
   const receipt = await tx.wait(2);
@@ -289,14 +295,6 @@ async function sendUSDT(to, amount) {
 //                          UTILITY
 // ═════════════════════════════════════════════════════════════════════════════
 
-function cleanProcessedCache() {
-  if (processedTxHashes.size > MAX_PROCESSED_CACHE) {
-    const arr = [...processedTxHashes];
-    const toDelete = arr.slice(0, arr.length - MAX_PROCESSED_CACHE / 2);
-    toDelete.forEach((h) => processedTxHashes.delete(h));
-  }
-}
-
 function stop() {
   isRunning = false;
   if (pollInterval) {
@@ -311,7 +309,7 @@ function getStatus() {
     running: isRunning,
     redemptionAddress: REDEMPTION_ADDRESS || "NOT CONFIGURED",
     lastProcessedBlock,
-    processedTransactions: processedTxHashes.size,
+    processedTransactions: 'persisted in DB',
     payoutToken: "USDT (BSC)",
     pollInterval: `${POLL_INTERVAL_MS}ms`,
     confirmations: CONFIRMATIONS_REQUIRED,

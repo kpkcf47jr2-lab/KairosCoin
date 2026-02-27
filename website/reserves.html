@@ -69,6 +69,8 @@
     .nav-links { display: flex; gap: 24px; align-items: center; }
     .nav-links a { color: var(--gray); font-size: 0.9rem; font-weight: 500; }
     .nav-links a:hover, .nav-links a.active { color: var(--gold); }
+    .mobile-toggle { display: none; flex-direction: column; gap: 5px; background: none; border: none; cursor: pointer; padding: 8px; z-index: 1001; }
+    .mobile-toggle span { display: block; width: 24px; height: 2px; background: var(--gold); border-radius: 2px; transition: transform 0.3s, opacity 0.3s; }
     .nav-badge {
       background: linear-gradient(135deg, var(--gold-deep), var(--gold));
       color: #000; font-size: 0.7rem; font-weight: 700;
@@ -167,6 +169,13 @@
     @media (max-width: 900px) {
       .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
       .ratio-banner { flex-direction: column; text-align: center; }
+      .nav-links { display: none; }
+      .mobile-toggle { display: flex; }
+      .mobile-toggle.active span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+      .mobile-toggle.active span:nth-child(2) { opacity: 0; }
+      .mobile-toggle.active span:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
+      .nav-links.open { display: flex; flex-direction: column; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(13,13,13,0.98); justify-content: center; align-items: center; gap: 24px; z-index: 1000; }
+      .nav-links.open a { font-size: 1.2rem; }
     }
 
     .card {
@@ -337,12 +346,15 @@
         <img src="kairos-logo.png" alt="Kairos" />
         <span>Kairos</span>
       </a>
-      <div class="nav-links">
+      <div class="nav-links" id="navLinks">
         <a href="index.html">Home</a>
         <a href="whitepaper.html">Whitepaper</a>
         <a href="reserves.html" class="active">Reserves</a>
         <span class="nav-badge">Live</span>
       </div>
+      <button class="mobile-toggle" id="mobileToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </nav>
 
@@ -788,6 +800,23 @@
     // ── Auto-refresh every 60s ────────────────────────────────
     loadDashboard();
     setInterval(loadDashboard, 60000);
+  </script>
+
+  <!-- Mobile Nav Toggle -->
+  <script>
+    (function(){
+      const btn = document.getElementById('mobileToggle');
+      const nav = document.getElementById('navLinks');
+      if(btn && nav){
+        btn.addEventListener('click', function(){
+          btn.classList.toggle('active');
+          nav.classList.toggle('open');
+        });
+        nav.querySelectorAll('a').forEach(function(a){
+          a.addEventListener('click', function(){ btn.classList.remove('active'); nav.classList.remove('open'); });
+        });
+      }
+    })();
   </script>
 </body>
 </html>

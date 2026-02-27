@@ -2,19 +2,32 @@
 // Real execution on Binance (HMAC-SHA256) + Coinbase CDP (JWT/EC)
 // Uses Web Crypto API (no external dependencies)
 import { BROKERS } from '../constants';
+import { decryptKey } from '../utils/keyVault';
+import useStore from '../store/useStore';
 
 class BrokerService {
   constructor() {
     this.connections = new Map();
   }
 
-  // Decrypt stored credentials (base64)
-  _decrypt(broker) {
+  // Decrypt stored credentials (AES-256-GCM or legacy base64)
+  async _decrypt(broker) {
+    const derivedPwd = `kairos:broker:${useStore.getState().user?.email || 'anon'}`;
+    const decryptField = async (val) => {
+      if (!val) return undefined;
+      // New AES format starts with 'v1:'
+      if (val.startsWith('v1:')) {
+        const { privateKey } = await decryptKey(val, derivedPwd);
+        return privateKey;
+      }
+      // Legacy base64 fallback
+      try { return atob(val); } catch { return val; }
+    };
     return {
       ...broker,
-      apiKey: atob(broker.apiKey),
-      apiSecret: atob(broker.apiSecret),
-      passphrase: broker.passphrase ? atob(broker.passphrase) : undefined,
+      apiKey: await decryptField(broker.apiKey),
+      apiSecret: await decryptField(broker.apiSecret),
+      passphrase: await decryptField(broker.passphrase),
     };
   }
 
@@ -564,7 +577,7 @@ class BrokerService {
 
   // ─── Connect to broker ───
   async connect(broker) {
-    const creds = this._decrypt(broker);
+    const creds = await this._decrypt(broker);
     const config = BROKERS[broker.brokerId];
     if (!config) throw new Error(`Unsupported broker: ${broker.brokerId}`);
 

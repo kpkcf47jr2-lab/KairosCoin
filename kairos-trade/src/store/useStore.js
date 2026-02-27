@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { toast } from 'react-hot-toast';
 import { STORAGE_KEYS, ADMIN_CONFIG, USER_SCOPED_KEYS, getUserKey } from '../constants';
 import { feeService } from '../services/feeService';
+import { encrypt as vaultEncrypt } from '../utils/keyVault';
 
 const loadJSON = (key, fallback) => {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; }
@@ -134,13 +135,14 @@ const useStore = create((set, get) => ({
   brokers: loadUserJSON(STORAGE_KEYS.BROKERS, uid, []),
   activeBroker: null,
 
-  addBroker: (broker) => {
+  addBroker: async (broker) => {
+    const derivedPwd = `kairos:broker:${get().user?.email || 'anon'}`;
     const encrypted = {
       ...broker,
       id: Date.now().toString(36),
-      apiKey: btoa(broker.apiKey),
-      apiSecret: btoa(broker.apiSecret),
-      passphrase: broker.passphrase ? btoa(broker.passphrase) : undefined,
+      apiKey: await vaultEncrypt(broker.apiKey, derivedPwd),
+      apiSecret: await vaultEncrypt(broker.apiSecret, derivedPwd),
+      passphrase: broker.passphrase ? await vaultEncrypt(broker.passphrase, derivedPwd) : undefined,
       connected: false,
       addedAt: new Date().toISOString(),
     };

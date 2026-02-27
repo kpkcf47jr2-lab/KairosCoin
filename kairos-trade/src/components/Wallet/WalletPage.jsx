@@ -1,5 +1,5 @@
 // Kairos Trade — Wallet Integration Page (Multi-Chain KAIROS)
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wallet, Send, Download, Copy, Check, ExternalLink, RefreshCw,
@@ -9,6 +9,8 @@ import {
 import { ethers } from 'ethers';
 import useStore from '../../store/useStore';
 import apiClient from '../../services/apiClient';
+import { encrypt as vaultEncrypt } from '../../utils/keyVault';
+import { getSessionKey, setSessionKey } from '../../utils/sessionVault';
 import { KAIROS_COIN } from '../../constants';
 
 /* ─── Chain Configurations ─── */
@@ -20,7 +22,7 @@ const CHAINS = [
     explorer: 'https://bscscan.com',
     explorerApi: 'https://api.bscscan.com/api',
     nativeSymbol: 'BNB', nativeDecimals: 18,
-    apiKey: 'YourBscScanKey',
+    apiKey: '',
   },
   {
     id: 8453, name: 'Base', short: 'Base', color: '#0052FF',
@@ -171,6 +173,7 @@ export default function WalletPage() {
   const [securityPassword, setSecurityPassword] = useState('');
   const [securityError, setSecurityError] = useState('');
   const [verifyingPassword, setVerifyingPassword] = useState(false);
+  const verifiedPasswordRef = useRef(null);
   const [openingWallet, setOpeningWallet] = useState(false);
   const [showImportPK, setShowImportPK] = useState(false);
   const [importPKValue, setImportPKValue] = useState('');
@@ -180,8 +183,8 @@ export default function WalletPage() {
   // Get private key from session memory (decrypted at login)
   const privateKey = useMemo(() => {
     try {
-      // Primary: session-only storage (set during login, cleared on tab close)
-      const sessionPK = sessionStorage.getItem('kairos_pk');
+      // Primary: in-memory vault (set during login, cleared on tab close)
+      const sessionPK = getSessionKey();
       if (sessionPK && sessionPK.startsWith('0x')) return sessionPK;
       // Fallback: legacy unencrypted keys (backward compat)
       if (user?.encryptedKey && !user.encryptedKey.startsWith('v1:')) {
@@ -263,12 +266,14 @@ export default function WalletPage() {
         password: securityPassword,
       });
       if (res.data?.success) {
+        verifiedPasswordRef.current = securityPassword;
         setSecurityUnlocked(true);
         setSecurityPassword('');
         // Auto-lock after 60 seconds
         setTimeout(() => {
           setSecurityUnlocked(false);
           setShowPK(false);
+          verifiedPasswordRef.current = null;
         }, 60000);
       } else {
         setSecurityError('Contraseña incorrecta');
@@ -288,12 +293,17 @@ export default function WalletPage() {
       setImportError('Private key inválida. Debe empezar con 0x y tener 66 caracteres.');
       return;
     }
+    const pwd = verifiedPasswordRef.current;
+    if (!pwd) {
+      setImportError('Sesión de seguridad expirada. Desbloquea de nuevo.');
+      return;
+    }
     setImporting(true);
     try {
       const imported = new ethers.Wallet(pk);
-      const encKey = btoa(pk);
+      const encKey = await vaultEncrypt(pk, pwd);
       localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress: imported.address, encryptedKey: encKey }));
-      sessionStorage.setItem('kairos_pk', pk);
+      setSessionKey(pk);
       // Update backend
       const host = import.meta.env.DEV ? '' : 'https://kairos-api-u6k5.onrender.com';
       await fetch(`${host}/api/auth/update-key`, {
@@ -317,15 +327,17 @@ export default function WalletPage() {
   /* ─── Generate wallet for legacy accounts ─── */
   const [generating, setGenerating] = useState(false);
   const generateWallet = async () => {
+    const pwd = verifiedPasswordRef.current || prompt('Ingresa tu contraseña para cifrar la wallet:');
+    if (!pwd) return;
     setGenerating(true);
     try {
       const wallet = ethers.Wallet.createRandom();
       const newAddress = wallet.address;
       const newPK = wallet.privateKey;
-      // Store encrypted key locally (base64 as fallback)
-      const encKey = btoa(newPK);
+      // Encrypt with AES-256-GCM (password-derived key)
+      const encKey = await vaultEncrypt(newPK, pwd);
       localStorage.setItem('kairos_trade_wallet', JSON.stringify({ walletAddress: newAddress, encryptedKey: encKey }));
-      sessionStorage.setItem('kairos_pk', newPK);
+      setSessionKey(newPK);
       // Update backend
       const host = import.meta.env.DEV ? '' : 'https://kairos-api-u6k5.onrender.com';
       await fetch(`${host}/api/auth/update-key`, {

@@ -34,16 +34,23 @@ router.post("/transak", async (req, res) => {
   try {
     const webhookData = req.body;
 
-    // ── 1. Verify webhook signature ────────────────────────────────────────
-    if (config.transakWebhookSecret) {
-      const signature = req.headers["x-transak-signature"] || req.headers["webhook-secret"];
-      if (!verifyWebhookSignature(webhookData, signature)) {
-        logger.warn("Webhook signature verification failed", {
-          ip: req.ip,
-          orderId: webhookData?.data?.id,
-        });
-        return res.status(401).json({ error: "Invalid webhook signature" });
-      }
+    // ── 1. Verify webhook signature (MANDATORY) ────────────────────────────
+    if (!config.transakWebhookSecret) {
+      logger.error("TRANSAK_WEBHOOK_SECRET not configured — rejecting webhook for security");
+      return res.status(503).json({ error: "Webhook verification not configured" });
+    }
+
+    const signature = req.headers["x-transak-signature"] || req.headers["webhook-secret"];
+    if (!signature) {
+      logger.warn("Transak webhook missing signature", { ip: req.ip });
+      return res.status(401).json({ error: "Missing webhook signature" });
+    }
+    if (!verifyWebhookSignature(webhookData, signature)) {
+      logger.warn("Webhook signature verification failed", {
+        ip: req.ip,
+        orderId: webhookData?.data?.id,
+      });
+      return res.status(401).json({ error: "Invalid webhook signature" });
     }
 
     // ── 2. Extract order data ──────────────────────────────────────────────

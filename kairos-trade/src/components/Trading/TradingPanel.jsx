@@ -63,6 +63,12 @@ export default function TradingPanel() {
 
   return (
     <div className="flex flex-col h-full" style={{ width: 320, borderLeft: '1px solid rgba(30,34,45,0.6)' }}>
+      {/* Paper Trading Badge */}
+      <div className="flex items-center justify-center gap-1.5 py-1.5 shrink-0"
+        style={{ background: 'rgba(245,158,11,0.08)', borderBottom: '1px solid rgba(245,158,11,0.15)' }}>
+        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+        <span className="text-[10px] font-bold text-amber-400 tracking-wider uppercase">Simulador — Paper Trading</span>
+      </div>
       {/* Tabs */}
       <div className="flex shrink-0 px-2 pt-2 gap-1"
         style={{ borderBottom: '1px solid rgba(30,34,45,0.4)' }}>

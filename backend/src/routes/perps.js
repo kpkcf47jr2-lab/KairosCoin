@@ -78,6 +78,49 @@ router.get("/pairs", (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  POST /api/perps/deposit — Deposit KAIROS as collateral
+// ═══════════════════════════════════════════════════════════════════════════════
+router.post("/deposit", requireWallet, (req, res) => {
+  try {
+    const { amount } = req.body;
+    const numAmount = parseFloat(amount);
+
+    if (!numAmount || numAmount <= 0) {
+      return res.status(400).json({ error: "Amount must be a positive number" });
+    }
+    if (numAmount < 1) {
+      return res.status(400).json({ error: "Minimum deposit: 1 KAIROS" });
+    }
+
+    const result = dexRouter.depositCollateral(req.wallet, numAmount);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error("Perps deposit failed", { wallet: req.wallet, error: err.message });
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  POST /api/perps/withdraw — Withdraw available collateral
+// ═══════════════════════════════════════════════════════════════════════════════
+router.post("/withdraw", requireWallet, (req, res) => {
+  try {
+    const { amount } = req.body;
+    const numAmount = parseFloat(amount);
+
+    if (!numAmount || numAmount <= 0) {
+      return res.status(400).json({ error: "Amount must be a positive number" });
+    }
+
+    const result = dexRouter.withdrawCollateral(req.wallet, numAmount);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    logger.error("Perps withdraw failed", { wallet: req.wallet, error: err.message });
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  GET /api/perps/account — Get trader's on-chain account
 // ═══════════════════════════════════════════════════════════════════════════════
 router.get("/account", requireWallet, async (req, res) => {

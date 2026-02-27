@@ -183,9 +183,15 @@ router.post('/send', async (req, res) => {
   }
 });
 
-// ── POST /send-to-address — Send notification to specific wallet address ──
+// ── POST /send-to-address — Send notification to specific wallet address (admin only) ──
 router.post('/send-to-address', async (req, res) => {
   try {
+    // Require admin API key for sending push to any address
+    const apiKey = req.headers['x-api-key'];
+    if (apiKey !== process.env.API_MASTER_KEY) {
+      return res.status(401).json({ success: false, error: 'Unauthorized - admin API key required' });
+    }
+
     const { address, title, body, type, data } = req.body;
 
     if (!address || !title) {

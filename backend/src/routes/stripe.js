@@ -30,10 +30,10 @@ function getStripe() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 router.get("/config", (req, res) => {
-  if (!config.stripePublishableKey) {
-    return res.status(503).json({ error: "Stripe is not yet configured" });
+  if (!config.stripePublishableKey || !config.stripeSecretKey) {
+    return res.json({ configured: false, message: "Stripe payments coming soon" });
   }
-  res.json({ publishableKey: config.stripePublishableKey });
+  res.json({ configured: true, publishableKey: config.stripePublishableKey });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════

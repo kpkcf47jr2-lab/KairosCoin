@@ -19,11 +19,12 @@ const blockchain = require("../services/blockchain");
 const db = require("../services/database");
 const logger = require("../utils/logger");
 const { generalLimiter } = require("../middleware/rateLimiter");
+const { requireWalletSignature } = require("../middleware/walletAuth");
 
 const router = express.Router();
 
 // ── POST /onboard — Create Stripe Connect Express account ────────────────────
-router.post("/onboard", async (req, res) => {
+router.post("/onboard", requireWalletSignature, async (req, res) => {
   try {
     const { walletAddress, email } = req.body;
 
@@ -134,9 +135,10 @@ router.get("/account-status", async (req, res) => {
 });
 
 // ── POST /create — Create redemption: burn KAIROS → send USD ─────────────────
-router.post("/create", async (req, res) => {
+router.post("/create", requireWalletSignature, async (req, res) => {
   try {
-    const { walletAddress, amount, method } = req.body;
+    const walletAddress = req.verifiedWallet; // Use verified wallet, not user-supplied
+    const { amount, method } = req.body;
     const numAmount = parseFloat(amount);
 
     // Validate
@@ -359,7 +361,8 @@ router.get("/history", async (req, res) => {
 });
 
 // ── GET /balance — Platform payout balance (admin) ───────────────────────────
-router.get("/balance", async (req, res) => {
+const { requireMasterKey } = require("../middleware/auth");
+router.get("/balance", requireMasterKey, async (req, res) => {
   try {
     const balance = await payouts.getPlatformBalance();
     res.json(balance);
