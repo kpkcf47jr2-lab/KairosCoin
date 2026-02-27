@@ -20,7 +20,7 @@ Nuestro ecosistema incluye:
 
 🔸 **KairosCoin (KAIROS)** — Stablecoin 1:1 con USD, disponible en BSC, Base, Arbitrum y Polygon
 🔸 **Kairos Wallet** — Donde estás ahora 📱 Tu billetera multi-chain segura
-🔸 **Kairos Trade** — Plataforma de trading algorítmico con 33+ pares y hasta 150x
+🔸 **Kairos 777** — Plataforma de trading algorítmico con 33+ pares y hasta 150x
 🔸 **Reservas Transparentes** — Verificación en tiempo real del respaldo
 
 🔹 **Seguro** — Smart contracts auditados con OpenZeppelin v5.4
@@ -174,7 +174,7 @@ Una vez comprado, aparecerá automáticamente en tu Kairos Wallet.
 🔸 **Kairos Wallet** — Donde estás ahora 📱
    → Envía, recibe y gestiona KAIROS
 
-🔸 **Kairos Trade** — Trading algorítmico
+🔸 **Kairos 777** — Trading algorítmico
    → 33+ pares · Hasta 150x · Bots AI
    → [kairos-trade.netlify.app](https://kairos-trade.netlify.app)
 
@@ -226,7 +226,7 @@ Es perfecto para:
         keywords: ['trade','trading','operar','bots','bot','invertir','invest','exchange','intercambiar','swap'],
         answer: `**¿Quieres operar con KAIROS?** 📊
 
-Visita **Kairos Trade** — nuestra plataforma de trading:
+Visita **Kairos 777** — nuestra plataforma de trading:
 
 🔸 **33+ pares** de criptomonedas
 🔸 **Hasta 150x** de apalancamiento

@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════
    KAIROS 777 — AI Agent Widget (Trade Edition)
-   Smart conversational agent for Kairos Trade
+   Smart conversational agent for Kairos 777
    "In God We Trust"
    ═══════════════════════════════════════════════════════════════ */
 
@@ -9,7 +9,7 @@
 
   // ── Knowledge Base ──
   const KB = {
-    greeting: "👋 ¡Hola! Soy el asistente de **Kairos Trade**. ¿Tienes dudas sobre trading, pares, apalancamiento, o cómo funciona la plataforma? ¡Pregúntame lo que necesites!",
+    greeting: "👋 ¡Hola! Soy el asistente de **Kairos 777**. ¿Tienes dudas sobre trading, pares, apalancamiento, o cómo funciona la plataforma? ¡Pregúntame lo que necesites!",
 
     topics: {
       what_is: {
@@ -19,7 +19,7 @@
 Nuestro ecosistema incluye:
 
 🔸 **KairosCoin (KAIROS)** — Stablecoin 1:1 con USD, disponible en BSC, Base, Arbitrum y Polygon
-🔸 **Kairos Trade** — Donde estás ahora 📊 Trading algorítmico con 33+ pares y hasta 150x
+🔸 **Kairos 777** — Donde estás ahora 📊 Trading algorítmico con 33+ pares y hasta 150x
 🔸 **Kairos Wallet** — Billetera multi-chain para gestionar tus activos
 🔸 **Reservas Transparentes** — Verificación en tiempo real del respaldo
 
@@ -32,7 +32,7 @@ Nuestro ecosistema incluye:
 
       how_to_trade: {
         keywords: ['cómo operar','como operar','how to trade','empezar','start','comenzar','begin','primeros pasos','getting started','tutorial','guía','guide'],
-        answer: `**¡Empieza a operar en Kairos Trade!** 🚀
+        answer: `**¡Empieza a operar en Kairos 777!** 🚀
 
 **Paso 1:** Conecta tu wallet (MetaMask, Trust Wallet, etc.)
 **Paso 2:** Elige un par de trading (ej: BTC/USD, ETH/USD)
@@ -52,7 +52,7 @@ Nuestro ecosistema incluye:
 
       pairs: {
         keywords: ['pares','pairs','par','pair','mercados','markets','qué puedo operar','what can i trade','lista','list','activos','assets','crypto'],
-        answer: `**33+ pares disponibles en Kairos Trade** 📊
+        answer: `**33+ pares disponibles en Kairos 777** 📊
 
 **Crypto Majors:**
 → BTC/USD · ETH/USD · BNB/USD · SOL/USD
@@ -71,7 +71,7 @@ Todos con datos en tiempo real de TradingView.
 
       leverage: {
         keywords: ['apalancamiento','leverage','x','multiplicador','multiplier','margen','margin','150x','100x','50x'],
-        answer: `**Apalancamiento en Kairos Trade** ⚡
+        answer: `**Apalancamiento en Kairos 777** ⚡
 
 Ofrecemos apalancamiento flexible:
 → **1x** — Sin apalancamiento (spot)
@@ -93,7 +93,7 @@ Ofrecemos apalancamiento flexible:
         keywords: ['bot','bots','automatizado','automated','algoritmo','algorithm','ai','inteligencia artificial','estrategia','strategy','auto'],
         answer: `**Bots de Trading con AI** 🤖
 
-Kairos Trade incluye bots algorítmicos inteligentes:
+Kairos 777 incluye bots algorítmicos inteligentes:
 
 🔸 **Grid Bot** — Compra y vende automáticamente en rangos
 🔸 **DCA Bot** — Dollar Cost Averaging automatizado
@@ -141,7 +141,7 @@ Kairos Trade incluye bots algorítmicos inteligentes:
 → Usa PancakeSwap en BSC
 → Contrato: \`0x14D41707269c7D8b8DFa5095b38824a46dA05da3\`
 
-Una vez tengas KAIROS, conéctalo como colateral en Kairos Trade.
+Una vez tengas KAIROS, conéctalo como colateral en Kairos 777.
 
 ¿Necesitas ayuda paso a paso?`
       },
@@ -153,7 +153,7 @@ Una vez tengas KAIROS, conéctalo como colateral en Kairos Trade.
 🔸 **KairosCoin (KAIROS)** — Stablecoin USD-pegged
    → [kairos-777.com](https://kairos-777.com)
 
-🔸 **Kairos Trade** — Donde estás ahora 📊
+🔸 **Kairos 777** — Donde estás ahora 📊
    → 33+ pares · Hasta 150x apalancamiento · Bots AI
 
 🔸 **Kairos Wallet** — Billetera multi-chain
@@ -181,7 +181,7 @@ Es perfecto como **colateral de trading**:
 
       security: {
         keywords: ['seguro','safe','seguridad','security','confiable','trust','audited','auditado','scam','estafa','legítimo','legitimate','hack','fondos'],
-        answer: `**Seguridad en Kairos Trade** 🛡️
+        answer: `**Seguridad en Kairos 777** 🛡️
 
 **Empresa Registrada**
 → Kairos 777 Inc — Florida, EE.UU.
@@ -204,7 +204,7 @@ Es perfecto como **colateral de trading**:
         keywords: ['wallet','billetera','monedero','conectar','connect','metamask','trust wallet','guardar','almacenar'],
         answer: `**Conectar tu Wallet** 🔗
 
-Kairos Trade soporta múltiples wallets:
+Kairos 777 soporta múltiples wallets:
 → **MetaMask** — La más popular
 → **Trust Wallet** — Ideal para móvil
 → **WalletConnect** — Compatible con 200+ wallets
@@ -295,7 +295,7 @@ Una stablecoin es una criptomoneda diseñada para mantener un precio estable, ge
 ✅ No tiene la volatilidad de BTC o ETH
 ✅ Ideal como colateral estable para trading
 
-En Kairos Trade, puedes usar KAIROS como base para todas tus operaciones.
+En Kairos 777, puedes usar KAIROS como base para todas tus operaciones.
 
 ¿Quieres saber más?`
       },
@@ -369,12 +369,12 @@ Escribe tu pregunta o elige un tema 😊`,
     const normalizedInput = input.toLowerCase().trim();
     
     if (greetings.some(g => normalizedInput === g || normalizedInput.startsWith(g + ' ') || normalizedInput.startsWith(g + ','))) {
-      return { text: `¡Hola! 😊 Bienvenido a **Kairos Trade**. ¿En qué te puedo ayudar?\n\nPuedes preguntarme sobre pares de trading, apalancamiento, bots AI, comisiones, o cualquier duda sobre la plataforma.`, showQuickReplies: true };
+      return { text: `¡Hola! 😊 Bienvenido a **Kairos 777**. ¿En qué te puedo ayudar?\n\nPuedes preguntarme sobre pares de trading, apalancamiento, bots AI, comisiones, o cualquier duda sobre la plataforma.`, showQuickReplies: true };
     }
 
     const thanks = ['gracias','thanks','thank you','thx','ty','valeu','merci'];
     if (thanks.some(t => normalizedInput.includes(t))) {
-      return { text: `¡Con mucho gusto! 😊 Si necesitas algo más, estoy aquí 24/7.\n\n📊 **Kairos Trade** — *In God We Trust*`, showQuickReplies: false };
+      return { text: `¡Con mucho gusto! 😊 Si necesitas algo más, estoy aquí 24/7.\n\n📊 **Kairos 777** — *In God We Trust*`, showQuickReplies: false };
     }
 
     const byes = ['adiós','adios','bye','chao','hasta luego','see you','nos vemos'];
@@ -594,7 +594,7 @@ Escribe tu pregunta o elige un tema 😊`,
 
     const btn = document.createElement('button');
     btn.id = 'kairos-agent-btn';
-    btn.setAttribute('aria-label', 'Abrir chat de Kairos Trade');
+    btn.setAttribute('aria-label', 'Abrir chat de Kairos 777');
     btn.innerHTML = `
       <svg class="chat-icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/><path d="M7 9h2v2H7zm4 0h2v2h-2zm4 0h2v2h-2z"/></svg>
       <svg class="close-icon" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
@@ -608,7 +608,7 @@ Escribe tu pregunta o elige un tema 😊`,
       <div class="ka-header">
         <div class="ka-header-avatar">📊</div>
         <div class="ka-header-info">
-          <h3>Kairos Trade Agent</h3>
+          <h3>Kairos 777 Agent</h3>
           <p>Online — Tu asistente de trading</p>
         </div>
       </div>

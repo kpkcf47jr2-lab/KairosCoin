@@ -1,6 +1,6 @@
 // Kairos Trade — Constants
 export const APP_VERSION = '2.0.0';
-export const APP_NAME = 'Kairos Trade';
+export const APP_NAME = 'Kairos 777';
 
 // Supported brokers
 export const BROKERS = {
@@ -174,7 +174,7 @@ export const BRAND = {
   surface: '#0E1015',
   green: '#00DC82',
   red: '#FF4757',
-  name: 'Kairos Trade',
+  name: 'Kairos 777',
   company: 'Kairos 777 Inc',
   tagline: 'Professional AI-Powered Trading',
 };

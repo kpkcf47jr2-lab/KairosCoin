@@ -63,7 +63,7 @@ export default function AIChat() {
     { label: 'Crea un Script Bot', icon: Code, prompt: `Crea un kairos script ganador para ${selectedPair}` },
     { label: 'Estrategia ganadora', icon: Target, prompt: `Dame una estrategia para ${formatPair(selectedPair)} según el mercado` },
     { label: '¿Qué es el RSI?', icon: BookOpen, prompt: '¿Qué es el RSI y cómo se usa?' },
-    { label: 'Muéstrame SOLUSDT', icon: ArrowRightLeft, prompt: 'Muéstrame SOLUSDT' },
+    { label: 'Muéstrame SOLKAIROS', icon: ArrowRightLeft, prompt: 'Muéstrame SOLKAIROS' },
     { label: 'Ayuda', icon: Sparkles, prompt: '¿Qué puedes hacer?' },
   ];
 

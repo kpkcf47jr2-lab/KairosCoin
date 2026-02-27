@@ -222,7 +222,7 @@ export default function SettingsPanel() {
 
       {/* Version */}
       <div className="text-center text-xs text-[var(--text-dim)] pb-4">
-        <p>Kairos Trade v2.0.0 • Kairos 777 Inc</p>
+        <p>Kairos 777 v2.0.0 • Kairos 777 Inc</p>
         <p className="text-[var(--gold)] mt-1">Powered by Kairos AI</p>
       </div>
       </>)}

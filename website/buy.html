@@ -1207,11 +1207,11 @@
             💳
           </div>
           <h3>Transak</h3>
-          <div class="provider-desc">Buy KAIROS with card or bank transfer. 160+ countries supported. Integration complete — activation in progress.</div>
+          <div class="provider-desc">Buy KAIROS, BTC, ETH, BNB, SOL and 100+ cryptos with card or bank transfer. 160+ countries supported. Integration complete — activation in progress.</div>
           <div class="provider-features">
             <div class="pf-item"><span class="check">✓</span> Visa, Mastercard, Apple Pay</div>
             <div class="pf-item"><span class="check">✓</span> Bank Transfer (ACH/SEPA)</div>
-            <div class="pf-item"><span class="check">✓</span> 160+ countries</div>
+            <div class="pf-item"><span class="check">✓</span> 100+ cryptos, 160+ countries</div>
           </div>
           <button class="provider-btn transak-btn" disabled style="opacity: 0.7; cursor: default;">
             Activating Soon
@@ -1765,17 +1765,18 @@
       container.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
       const wrap = document.getElementById('transakWrap');
-      // Build Transak URL with USDT on BSC as default
+      // Multi-crypto ready — users can buy KAIROS (default), USDT, BTC, ETH, BNB, etc.
+      // When Transak KYB is approved, remove cryptoCurrencyCode to enable full crypto catalog
       const walletAddr = userAddress || '';
       const transakUrl = `https://global.transak.com/?apiKey=02324dee-49a4-4ba2-a42b-44eb70e40e5a` +
-        `&cryptoCurrencyCode=USDT` +
         `&network=bsc` +
         `&defaultCryptoCurrency=USDT` +
         `&defaultNetwork=bsc` +
+        `&cryptoCurrencyList=USDT,USDC,BTC,ETH,BNB,SOL,XRP,ADA,DOGE,DOT,AVAX,LINK,MATIC` +
         `&fiatCurrency=USD` +
         `&productsAvailed=BUY` +
         `&themeColor=D4AF37` +
-        `&hideMenu=true` +
+        `&hideMenu=false` +
         (walletAddr ? `&walletAddress=${encodeURIComponent(walletAddr)}` : '') +
         `&redirectURL=${encodeURIComponent(window.location.href)}`;
 

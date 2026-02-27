@@ -140,8 +140,8 @@ class AIService {
 
     if (intent.greeting) {
       return this._reply(`👋 ¡Hola! Soy **Kairos AI**, tu experto de trading.\n\n` +
-        `Puedo:\n• 📊 **Analizar cualquier par** — "Analiza ETHUSDT"\n• 🎯 **Generar estrategias** — "Dame una estrategia para SOL"\n` +
-        `• 💻 **Crear Kairos Script** — "Crea un script para BTC"\n• 🔄 **Cambiar el gráfico** — "Muéstrame SOLUSDT"\n` +
+        `Puedo:\n• 📊 **Analizar cualquier par** — "Analiza ETHKAIROS"\n• 🎯 **Generar estrategias** — "Dame una estrategia para SOL"\n` +
+        `• 💻 **Crear Kairos Script** — "Crea un script para BTC"\n• 🔄 **Cambiar el gráfico** — "Muéstrame SOLKAIROS"\n` +
         `• 📚 **Enseñarte trading** — "¿Qué es el RSI?"\n\n¿En qué te ayudo?`);
     }
 
@@ -198,7 +198,7 @@ class AIService {
     if (kb) return this._reply(kb);
 
     // Fallback
-    return this._reply(`🤖 Entiendo: "${message}"\n\nPuedo:\n• 📊 **"Analiza BTCUSDT"** — Análisis técnico\n• 💻 **"Crea un script para ETH"** — Código para bot\n• 🔄 **"Muéstrame SOLUSDT"** — Cambiar gráfico\n• 📚 **"¿Qué es el MACD?"** — Educación\n\n¿Qué necesitas?`);
+    return this._reply(`🤖 Entiendo: "${message}"\n\nPuedo:\n• 📊 **"Analiza BTCKAIROS"** — Análisis técnico\n• 💻 **"Crea un script para ETH"** — Código para bot\n• 🔄 **"Muéstrame SOLKAIROS"** — Cambiar gráfico\n• 📚 **"¿Qué es el MACD?"** — Educación\n\n¿Qué necesitas?`);
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -692,7 +692,7 @@ config({ stopLoss: 2, takeProfit: 4.5 });`;
       } catch {}
     }
 
-    const sys = `Eres Kairos AI, experto de trading de Kairos Trade (Kairos 777 Inc). Responde en español. Sé directo y profesional. Usa datos reales proporcionados. Nunca des consejos financieros personales. Incluye siempre SL/TP en estrategias.` +
+    const sys = `Eres Kairos AI, experto de trading de Kairos 777 (Kairos 777 Inc). Responde en español. Sé directo y profesional. Usa datos reales proporcionados. Nunca des consejos financieros personales. Incluye siempre SL/TP en estrategias.` +
       (intent.kairosScript ? `\n\nPara Kairos Script:\n${CHATGPT_PROMPT}` : '');
 
     try {

@@ -305,7 +305,7 @@ export default function BrokerManager() {
         <div>
           <p className="text-sm font-bold text-[var(--gold)]">Conexión segura con API Keys</p>
           <p className="text-xs text-[var(--text-dim)] mt-1">
-            Tu exchange genera claves especiales (API Keys) que solo permiten leer y operar — <strong className="text-[var(--text)]">nunca retirar fondos</strong>. Las claves se almacenan encriptadas solo en tu dispositivo. Kairos Trade nunca tiene acceso a tu contraseña ni a tus fondos directamente.
+            Tu exchange genera claves especiales (API Keys) que solo permiten leer y operar — <strong className="text-[var(--text)]">nunca retirar fondos</strong>. Las claves se almacenan encriptadas solo en tu dispositivo. Kairos 777 nunca tiene acceso a tu contraseña ni a tus fondos directamente.
           </p>
         </div>
       </div>
@@ -836,7 +836,7 @@ export default function BrokerManager() {
                   <div className="text-center">
                     <p className="text-sm font-bold mb-1">¡Conectado exitosamente!</p>
                     <p className="text-[11px] text-[var(--text-dim)]">
-                      Tu cuenta de {selectedBroker.name} está lista para operar desde Kairos Trade
+                      Tu cuenta de {selectedBroker.name} está lista para operar desde Kairos 777
                     </p>
                   </div>
                 </div>

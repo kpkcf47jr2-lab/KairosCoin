@@ -39,7 +39,7 @@ class TelegramService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: this.chatId,
-          text: '✅ *Kairos Trade conectado*\n\nRecibirás notificaciones de:\n• Trades ejecutados\n• Señales de bot\n• Alertas de precio\n• Estado del sistema',
+          text: '✅ *Kairos 777 conectado*\n\nRecibirás notificaciones de:\n• Trades ejecutados\n• Señales de bot\n• Alertas de precio\n• Estado del sistema',
           parse_mode: 'Markdown',
         }),
       });
@@ -162,7 +162,7 @@ class TelegramService {
       + `💰 P&L Total: *${stats.totalPnl >= 0 ? '+' : ''}$${stats.totalPnl?.toFixed(2)}*\n`
       + `📉 Max Drawdown: ${stats.maxDrawdown?.toFixed(1)}%\n`
       + `🏆 Mejor trade: +$${stats.bestTrade?.toFixed(2)}\n`
-      + `\n_Kairos Trade — ${new Date().toLocaleDateString('es')}_`;
+      + `\n_Kairos 777 — ${new Date().toLocaleDateString('es')}_`;
     this.send(text);
   }
 }

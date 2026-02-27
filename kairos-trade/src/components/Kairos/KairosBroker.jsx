@@ -28,14 +28,14 @@ const LEVERAGE_INTERNAL = [2, 3, 5, 10];
 const LEVERAGE_DEX = [2, 3, 5, 10, 20, 50];
 
 const PAIR_ICONS = {
-  'BTC/USDT': '₿', 'ETH/USDT': 'Ξ', 'BNB/USDT': '◆', 'SOL/USDT': '◎',
-  'XRP/USDT': '✕', 'DOGE/USDT': 'Ð', 'ADA/USDT': '₳', 'AVAX/USDT': 'A',
-  'DOT/USDT': '●', 'LINK/USDT': '⬡', 'UNI/USDT': '🦄', 'LTC/USDT': 'Ł',
-  'ATOM/USDT': '⚛', 'NEAR/USDT': 'N', 'APT/USDT': 'A', 'ARB/USDT': '◇',
-  'SUI/USDT': '💧', 'SEI/USDT': 'S', 'AAVE/USDT': '👻', 'OP/USDT': '🔴',
-  'FIL/USDT': 'F', 'ALGO/USDT': 'A', 'ICP/USDT': '∞', 'XLM/USDT': '✦',
-  'ETC/USDT': 'Ξc', 'HBAR/USDT': 'ℏ', 'TIA/USDT': 'T', 'PEPE/USDT': '🐸',
-  'SHIB/USDT': '🐕', 'BONK/USDT': '🐶', 'RENDER/USDT': 'R', 'ENA/USDT': 'E',
+  'BTC/KAIROS': '₿', 'ETH/KAIROS': 'Ξ', 'BNB/KAIROS': '◆', 'SOL/KAIROS': '◎',
+  'XRP/KAIROS': '✕', 'DOGE/KAIROS': 'Ð', 'ADA/KAIROS': '₳', 'AVAX/KAIROS': 'A',
+  'DOT/KAIROS': '●', 'LINK/KAIROS': '⬡', 'UNI/KAIROS': '🦄', 'LTC/KAIROS': 'Ł',
+  'ATOM/KAIROS': '⚛', 'NEAR/KAIROS': 'N', 'APT/KAIROS': 'A', 'ARB/KAIROS': '◇',
+  'SUI/KAIROS': '💧', 'SEI/KAIROS': 'S', 'AAVE/KAIROS': '👻', 'OP/KAIROS': '🔴',
+  'FIL/KAIROS': 'F', 'ALGO/KAIROS': 'A', 'ICP/KAIROS': '∞', 'XLM/KAIROS': '✦',
+  'ETC/KAIROS': 'Ξc', 'HBAR/KAIROS': 'ℏ', 'TIA/KAIROS': 'T', 'PEPE/KAIROS': '🐸',
+  'SHIB/KAIROS': '🐕', 'BONK/KAIROS': '🐶', 'RENDER/KAIROS': 'R', 'ENA/KAIROS': 'E',
   'KAIROS/USDT': 'K',
 };
 
@@ -81,7 +81,7 @@ export default function KairosBroker() {
   const [leverageTiers, setLeverageTiers] = useState({});
 
   // ── Trading form ──
-  const [selectedPair, setSelectedPair] = useState('BTC/USDT');
+  const [selectedPair, setSelectedPair] = useState('BTC/KAIROS');
   const [side, setSide] = useState('LONG');
   const [leverage, setLeverage] = useState(2);
   const [collateralInput, setCollateralInput] = useState('');
@@ -643,14 +643,14 @@ export default function KairosBroker() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                   {Object.entries(prices).map(([symbol, data]) => (
                     <button key={symbol}
-                      onClick={() => setSelectedPair(symbol.replace('USDT', '/USDT'))}
+                      onClick={() => setSelectedPair(symbol.replace('USDT', '/KAIROS'))}
                       className={`flex flex-col items-center gap-1 px-2 py-2.5 rounded-lg text-xs transition-colors ${
-                        selectedPair === symbol.replace('USDT', '/USDT')
+                        selectedPair === symbol.replace('USDT', '/KAIROS')
                           ? 'bg-blue-900/30 border border-blue-500/30'
                           : 'bg-zinc-800/50 hover:bg-zinc-800 border border-transparent'
                       }`}>
-                      <span className="text-lg">{PAIR_ICONS[symbol.replace('USDT', '/USDT')] || '•'}</span>
-                      <span className="text-zinc-300 font-medium truncate w-full text-center">{symbol.replace('USDT', '/USDT')}</span>
+                      <span className="text-lg">{PAIR_ICONS[symbol.replace('USDT', '/KAIROS')] || '•'}</span>
+                      <span className="text-zinc-300 font-medium truncate w-full text-center">{symbol.replace('USDT', '/KAIROS')}</span>
                       <span className="text-white font-mono text-[11px]">${data.price?.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                       <span className={`text-[10px] font-mono ${(data.change24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {(data.change24h || 0) >= 0 ? '+' : ''}{(data.change24h || 0).toFixed(2)}%

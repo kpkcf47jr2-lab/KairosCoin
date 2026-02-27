@@ -592,7 +592,7 @@ export default function WalletPage() {
               <p className="text-[10px] text-[var(--text-dim)] leading-relaxed">
                 {!walletAddress && 'No tienes wallet vinculada. Genera una nueva o importa una existente para operar.'}
                 {walletAddress && !privateKey && 'Wallet vinculada. Importa tu clave privada para enviar transacciones.'}
-                {walletAddress && privateKey && 'Wallet activa — puedes enviar, recibir y operar directamente desde Kairos Trade.'}
+                {walletAddress && privateKey && 'Wallet activa — puedes enviar, recibir y operar directamente desde Kairos 777.'}
               </p>
             </div>
           </div>

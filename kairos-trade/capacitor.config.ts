@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.kairos777.trade',
-  appName: 'Kairos Trade',
+  appName: 'Kairos 777',
   webDir: 'dist',
   
   // Production server (loads from built files for App Store)
@@ -37,7 +37,7 @@ const config: CapacitorConfig = {
     allowsLinkPreview: false,
     backgroundColor: '#08090C',
     preferredContentMode: 'mobile',
-    scheme: 'Kairos Trade',
+    scheme: 'Kairos 777',
   },
 
   android: {

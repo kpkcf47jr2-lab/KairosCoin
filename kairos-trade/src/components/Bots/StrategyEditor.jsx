@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { executeScript, validateScript, backtestScript, SCRIPT_TEMPLATES } from '../../services/kairosScript';
 import { marketData } from '../../services/marketData';
+import { toApiPair } from '../../utils/pairUtils';
 
 // ─── Smart code extraction from clipboard ───
 function extractCodeFromText(raw) {
@@ -172,7 +173,7 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
   const [view, setView] = useState('editor');
   const [backtestResults, setBacktestResults] = useState(null);
   const [testing, setTesting] = useState(false);
-  const [testPair, setTestPair] = useState('BTCUSDT');
+  const [testPair, setTestPair] = useState('BTCKAIROS');
   const [testTimeframe, setTestTimeframe] = useState('1h');
   const [saved, setSaved] = useState(false);
 
@@ -189,7 +190,7 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
   const handleBacktest = async () => {
     setTesting(true); setBacktestResults(null);
     try {
-      const candles = await marketData.getCandles(testPair, testTimeframe, 500);
+      const candles = await marketData.getCandles(toApiPair(testPair), testTimeframe, 500);
       if (!candles || candles.length < 50) { setError('No hay suficientes datos'); setTesting(false); return; }
       setBacktestResults(backtestScript(code, candles, { initialBalance: 1000, riskPercent: 2 }));
     } catch (err) { setError(`Error: ${err.message}`); }
@@ -304,7 +305,7 @@ export default function StrategyEditor({ onSave, onClose, initialCode, initialNa
                 <select value={testPair} onChange={(e) => setTestPair(e.target.value)}
                   className="px-3 py-1.5 rounded-lg text-[11px] font-semibold outline-none"
                   style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: '#c9d1d9' }}>
-                  {['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT'].map(p => <option key={p} value={p}>{p}</option>)}
+                  {['BTCKAIROS', 'ETHKAIROS', 'BNBKAIROS', 'SOLKAIROS', 'XRPKAIROS'].map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
                 <select value={testTimeframe} onChange={(e) => setTestTimeframe(e.target.value)}
                   className="px-3 py-1.5 rounded-lg text-[11px] font-semibold outline-none"

@@ -121,7 +121,7 @@ class DCABotEngine {
           avgPrice: +state.avgPrice.toFixed(2),
         });
 
-        onLog?.(`✅ DCA Buy #${state.executedOrders}: ${quantity.toFixed(6)} ${state.pair.replace('USDT', '')} @ $${currentPrice.toFixed(2)}`);
+        onLog?.(`✅ DCA Buy #${state.executedOrders}: ${quantity.toFixed(6)} ${state.pair.replace('USDT', '').replace('KAIROS', '')} @ $${currentPrice.toFixed(2)}`);
         onLog?.(`📊 Avg price: $${state.avgPrice.toFixed(2)} | Total invested: $${state.totalInvested.toFixed(2)}`);
 
       } catch (err) {

@@ -13,7 +13,7 @@ const STEPS = [
     id: 'welcome',
     icon: Rocket,
     color: '#3B82F6',
-    title: '¡Bienvenido a Kairos Trade!',
+    title: '¡Bienvenido a Kairos 777!',
     subtitle: 'Tu plataforma de trading automatizado está lista.',
     body: 'Hemos creado tu cuenta con una wallet blockchain y 100 KAIROS de regalo. En los próximos pasos te mostraremos cómo sacar el máximo provecho.',
     tip: 'Tu wallet Kairos se generó automáticamente con encriptación de grado militar.',
@@ -35,7 +35,7 @@ const STEPS = [
     color: '#00DC82',
     title: 'Tu Primera Operación',
     subtitle: 'Abre tu primer trade en segundos.',
-    body: 'Ve al Chart, selecciona un par (ej. BTCUSDT), ajusta tu tamaño de posición y apalancamiento, y ejecuta. También puedes usar el Simulador para practicar sin riesgo.',
+    body: 'Ve al Chart, selecciona un par (ej. BTCKAIROS), ajusta tu tamaño de posición y apalancamiento, y ejecuta. También puedes usar el Simulador para practicar sin riesgo.',
     tip: 'El Simulador usa precios reales pero con balance virtual — perfecto para aprender.',
     action: 'chart',
     actionLabel: 'Ir al Chart',
@@ -47,7 +47,7 @@ const STEPS = [
     title: 'Automatiza con Bots',
     subtitle: 'Deja que los bots trabajen por ti 24/7.',
     body: 'Crea bots Grid, DCA o escribe scripts personalizados con Kairos Script. Los bots ejecutan trades automáticamente basados en tus reglas.',
-    tip: 'Empieza con un Grid Bot en BTCUSDT — configura rango de precio y número de grids.',
+    tip: 'Empieza con un Grid Bot en BTCKAIROS — configura rango de precio y número de grids.',
     action: 'bots',
     actionLabel: 'Crear un Bot',
   },
@@ -136,7 +136,7 @@ export default function OnboardingWizard({ onComplete }) {
   }, []);
 
   const handleShare = useCallback((platform) => {
-    const msg = encodeURIComponent(`Únete a Kairos Trade — plataforma de trading automatizado con 10+ brokers y bots AI. Usa mi código ${referralCode} y recibe 100 KAIROS gratis: ${referralLink}`);
+    const msg = encodeURIComponent(`Únete a Kairos 777 — plataforma de trading automatizado con 10+ brokers y bots AI. Usa mi código ${referralCode} y recibe 100 KAIROS gratis: ${referralLink}`);
     const urls = {
       whatsapp: `https://wa.me/?text=${msg}`,
       telegram: `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${msg}`,

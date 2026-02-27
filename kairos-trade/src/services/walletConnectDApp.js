@@ -8,7 +8,7 @@ import SignClient from '@walletconnect/sign-client';
 
 const PROJECT_ID = '2b0ddf4a2e6e6a53f52d2bcb9a0c2e0f'; // Same WC Cloud project
 const METADATA = {
-  name: 'Kairos Trade',
+  name: 'Kairos 777',
   description: 'AI-Powered Trading Platform — Trade crypto with bots, charts & on-chain execution',
   url: 'https://kairos-trade.netlify.app',
   icons: ['https://kairos-trade.netlify.app/icons/icon-192.png'],

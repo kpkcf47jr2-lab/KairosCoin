@@ -639,7 +639,7 @@ function ReferralCard({ code }) {
   }, []);
 
   const handleShare = useCallback((platform) => {
-    const msg = encodeURIComponent(`Únete a Kairos Trade — trading automatizado con 10+ brokers y bots AI. Usa mi código ${code} y recibe 100 KAIROS gratis: ${link}`);
+    const msg = encodeURIComponent(`Únete a Kairos 777 — trading automatizado con 10+ brokers y bots AI. Usa mi código ${code} y recibe 100 KAIROS gratis: ${link}`);
     const urls = {
       whatsapp: `https://wa.me/?text=${msg}`,
       telegram: `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${msg}`,

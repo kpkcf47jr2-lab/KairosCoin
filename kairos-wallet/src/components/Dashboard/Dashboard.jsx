@@ -270,7 +270,7 @@ export default function Dashboard() {
             <TrendingUp size={18} className="text-blue-400" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-white">Kairos Trade</p>
+            <p className="text-sm font-bold text-white">Kairos 777</p>
             <p className="text-[10px] text-dark-400 truncate">
               {linkedTrade ? `Conectado · ${linkedTrade.email}` : 'Trading con AI · Bots · 10 Brokers'}
             </p>

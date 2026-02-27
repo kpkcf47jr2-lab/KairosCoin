@@ -85,7 +85,7 @@ export default function App() {
         try {
           await pair(decodeURIComponent(wcUri));
           setTimeout(() => {
-            showToast('🔗 Kairos Trade conectado via WalletConnect', 'success');
+            showToast('🔗 Kairos 777 conectado via WalletConnect', 'success');
             // Navigate to WC screen to approve
             if (hasWallet()) navigate('walletconnect');
           }, 1000);
@@ -112,7 +112,7 @@ export default function App() {
               linkedAt: new Date().toISOString(),
             }));
             // Don't store tokens — Wallet has its own auth
-            setTimeout(() => showToast('✅ Cuenta de Kairos Trade vinculada', 'success'), 1500);
+            setTimeout(() => showToast('✅ Cuenta de Kairos 777 vinculada', 'success'), 1500);
           }
         })
         .catch(() => {}); // Silently fail — non-critical
