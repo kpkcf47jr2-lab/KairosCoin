@@ -25,6 +25,8 @@
   html, body, #root {
     height: 100%;
     overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   body {
@@ -134,9 +136,17 @@
   }
 
   .screen-container {
+    @apply flex flex-col h-full overflow-hidden;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .screen-container-scroll {
     @apply flex flex-col h-full;
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .balance-text {

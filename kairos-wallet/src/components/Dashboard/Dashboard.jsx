@@ -156,7 +156,7 @@ export default function Dashboard() {
   const tokensWithBalance = allTokens.filter(t => t.hasBalance || t.isNative);
 
   return (
-    <div className="screen-container">
+    <div className="screen-container-scroll">
       {/* ── Top Bar ── */}
       <div className="px-5 pt-4 pb-2">
         <div className="flex items-center justify-between mb-3">
@@ -318,7 +318,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Token List ── */}
-      <div className="flex-1 overflow-y-auto px-5 pb-8">
+      <div className="px-5 pb-8">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-dark-200">{t('dashboard.tokens')}</h3>
           <button
