@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 27, 2026 (Session 21 — App Store Submission)
+#  Last Updated: February 28, 2026 (Session 22 — Chatbot v2.0 + Kairos Exchange)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -98,6 +98,24 @@
   - GlobalErrorBoundary with auto-retry (3 attempts, 500ms delay, 10s stability reset)
   - `scripts/deploy-trade.js` — full pipeline: lint → build → deploy → verify
 - **Deploy:** `npx netlify deploy --prod --dir=kairos-trade/dist --site=b7b3fd54-863a-4e6f-a334-460b1092045b --auth=nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93`
+
+### Kairos Exchange (Netlify) — DEX Aggregator
+- **URL:** https://kairos-exchange-app.netlify.app
+- **Netlify Site ID:** `9d14d95f-3b48-47a9-bb63-b4637b77bcd4`
+- **Tech:** React 18 + Vite 6 + Tailwind 3 + Zustand + ethers v6
+- **Purpose:** Multi-chain DEX aggregator — best price across 100+ DEXes on 5 chains
+- **Chains:** BSC, Ethereum, Polygon, Arbitrum, Base
+- **Aggregation API:** 0x Protocol Swap API (primary)
+- **Fee:** 0.15% base (0.075% with KAIROS holder discount)
+- **Smart Contracts (not yet deployed to mainnet):**
+  - `FeeModule.sol` — Fee calculation + KAIROS holder discount + treasury
+  - `KairosRouter.sol` — Multi-route swap router with adapter registry
+  - `PancakeSwapAdapter.sol` — PancakeSwap V2 adapter
+  - `SushiSwapAdapter.sol` — SushiSwap adapter
+  - `MockERC20.sol` / `MockDEXAdapter.sol` — Test mocks
+- **Features:** Safe Mode (MEV protection), route visualization, chatbot agent
+- **Tests:** 17/17 passing (Hardhat)
+- **Deploy:** `npx netlify deploy --prod --dir=kairos-exchange/dist --site=9d14d95f-3b48-47a9-bb63-b4637b77bcd4`
 
 ### GitHub Repository
 - **Repo:** `kpkcf47jr2-lab/KairosCoin`
@@ -1463,6 +1481,41 @@ Full Chrome-compatible browser extension (also works on Brave, Edge, Opera):
 - Wallet: https://kairos-wallet.netlify.app (rebuilt & deployed)
 
 **Commits:** `c2ab5e8`
+
+---
+
+### Session 22 — Chatbot v2.0 + Kairos Exchange DEX Aggregator (Feb 28, 2026)
+
+**Chatbot v2.0 — All 3 Platforms Upgraded:**
+- Built new intelligent chatbot engine v2.0 with Levenshtein fuzzy matching, multi-signal scoring, conversation memory, response variations
+- Trade chatbot: 22 topics, blue theme
+- Wallet chatbot: 16 topics, purple theme
+- Website chatbot: 16 topics, gold theme
+- All deployed to Netlify
+- **Commit:** `b07a518`
+
+**Kairos Exchange — DEX Aggregator MVP (NEW PLATFORM):**
+- Full React + Vite + Tailwind + Zustand + ethers.js frontend
+- Multi-chain support: BSC, Ethereum, Polygon, Arbitrum, Base
+- Aggregation via 0x Protocol Swap API (100+ DEXes)
+- Fee: 0.15% base (0.075% with KAIROS holder discount)
+- Features: Smart Order Routing visualization, Safe Mode (MEV protection), slippage settings, chatbot agent
+- Blue/black branding consistent with Kairos 777
+
+**Smart Contracts (Solidity 0.8.24, OpenZeppelin v5):**
+- `FeeModule.sol` — Fee calculation, KAIROS holder discount (50% off), configurable treasury, fee-exempt addresses
+- `KairosRouter.sol` — Multi-route swap router, adapter registry, guardian emergency pause, emergency withdraw
+- `PancakeSwapAdapter.sol` — PancakeSwap V2 adapter with auto path building
+- `SushiSwapAdapter.sol` — SushiSwap adapter with factory pair detection
+- `MockERC20.sol` / `MockDEXAdapter.sol` — Test helpers
+- **17/17 tests passing** (Hardhat)
+- Deploy script: `kairos-exchange/scripts/deploy-exchange.js` (FeeModule → Router → Adapters → Register)
+- Contracts NOT deployed to mainnet yet (Phase 2)
+
+**Kairos Exchange — Netlify:**
+- URL: https://kairos-exchange-app.netlify.app
+- Site ID: `9d14d95f-3b48-47a9-bb63-b4637b77bcd4`
+- Deploy: `npx netlify deploy --prod --dir=kairos-exchange/dist --site=9d14d95f-3b48-47a9-bb63-b4637b77bcd4`
 
 ---
 
