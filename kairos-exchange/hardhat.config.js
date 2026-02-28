@@ -68,14 +68,7 @@ module.exports = {
     },
   },
   etherscan: {
-    apiKey: {
-      bsc: BSCSCAN_API_KEY,
-      bscTestnet: BSCSCAN_API_KEY,
-      mainnet: ETHERSCAN_API_KEY,
-      polygon: ETHERSCAN_API_KEY,
-      arbitrumOne: ETHERSCAN_API_KEY,
-      base: ETHERSCAN_API_KEY,
-    },
+    apiKey: BSCSCAN_API_KEY,
   },
   paths: {
     sources: "./contracts",

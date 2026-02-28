@@ -1,0 +1,11 @@
+{
+  "chainId": 56,
+  "timestamp": "2026-02-28T21:13:39.978Z",
+  "deployer": "0xCee44904A6aA94dEa28754373887E07D4B6f4968",
+  "contracts": {
+    "FeeModule": "0xAa0059A44296e8130f5Dd9c3C5c2e7E0c33e101D",
+    "KairosRouter": "0xb1bddE970C221c7bc8020F5f21e7FB9209bc7902",
+    "PancakeSwapAdapter": "0xD8114536bD6a883b7D126ef01c87509f80711AA8",
+    "SushiSwapAdapter": "0xAeFDc67DC2c38901Ad2BA228B2Aa2B16dbC6586C"
+  }
+}

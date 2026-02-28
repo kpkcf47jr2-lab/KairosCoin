@@ -120,12 +120,14 @@
 - **Contracts Source:** `contracts/KairosSwapFactory.sol`, `contracts/KairosSwapPair.sol`, `contracts/KairosSwapRouter.sol`
 - **Deployed:** February 28, 2026
 
-#### Smart Contracts (Exchange Router — not yet deployed to mainnet):
-  - `FeeModule.sol` — Fee calculation + KAIROS holder discount (50% off) + configurable treasury
-  - `KairosRouter.sol` — Multi-route swap router with adapter registry + guardian emergency pause
-  - `PancakeSwapAdapter.sol` — PancakeSwap V2 adapter with auto path building
-  - `SushiSwapAdapter.sol` — SushiSwap adapter with factory pair detection
-  - `MockERC20.sol` / `MockDEXAdapter.sol` — Test helpers
+#### Exchange Router Contracts (BSC — DEPLOYED & VERIFIED)
+- **FeeModule:** `0xAa0059A44296e8130f5Dd9c3C5c2e7E0c33e101D` on BSC ([BscScan](https://bscscan.com/address/0xAa0059A44296e8130f5Dd9c3C5c2e7E0c33e101D#code))
+- **KairosRouter:** `0xb1bddE970C221c7bc8020F5f21e7FB9209bc7902` on BSC ([BscScan](https://bscscan.com/address/0xb1bddE970C221c7bc8020F5f21e7FB9209bc7902#code))
+- **PancakeSwapAdapter:** `0xD8114536bD6a883b7D126ef01c87509f80711AA8` on BSC ([BscScan](https://bscscan.com/address/0xD8114536bD6a883b7D126ef01c87509f80711AA8#code))
+- **SushiSwapAdapter:** `0xAeFDc67DC2c38901Ad2BA228B2Aa2B16dbC6586C` on BSC ([BscScan](https://bscscan.com/address/0xAeFDc67DC2c38901Ad2BA228B2Aa2B16dbC6586C#code))
+- **Fee:** 0.15% → KAIROS holders get 50% discount (0.075%)
+- **Deployed:** February 28, 2026
+- **Source:** `kairos-exchange/contracts/FeeModule.sol`, `KairosRouter.sol`, `adapters/`
 - **Tests:** 17/17 passing (Hardhat)
 
 #### Features:
@@ -690,7 +692,7 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 - [x] Liquidity pool management UI ✅ DONE Feb 28, 2026
 - [x] On-chain DEX routing (no API key) ✅ DONE Feb 28, 2026
 - [x] Li.Fi bridge integration ✅ DONE Feb 28, 2026
-- [ ] Deploy FeeModule + KairosRouter smart contracts to BSC mainnet
+- [x] Deploy FeeModule + KairosRouter smart contracts to BSC mainnet ✅ DONE Feb 28, 2026
 - [ ] Deploy KairosSwap to other chains (Arbitrum, Base, Polygon)
 - [ ] TVL tracking + analytics dashboard
 - [ ] Farming/staking rewards for LP providers
@@ -1753,9 +1755,13 @@ Comprehensive production hardening of the Kairos Exchange DEX:
 - Added `https://kairos-exchange-app.netlify.app` to allowed origins
 - Added port 5176 for local development
 
-**6. Contract Deployment — PENDING**
-- FeeModule + KairosRouter contracts NOT deployed (deployer has only 0.0049 BNB, needs ~0.03 BNB)
-- On-chain routing already works via existing DEX routers (PancakeSwap, Uniswap, etc.)
+**6. Exchange Router Contracts DEPLOYED + VERIFIED on BSC**
+- FeeModule: `0xAa0059A44296e8130f5Dd9c3C5c2e7E0c33e101D`
+- KairosRouter: `0xb1bddE970C221c7bc8020F5f21e7FB9209bc7902`
+- PancakeSwapAdapter: `0xD8114536bD6a883b7D126ef01c87509f80711AA8`
+- SushiSwapAdapter: `0xAeFDc67DC2c38901Ad2BA228B2Aa2B16dbC6586C`
+- All 4 verified on BscScan (Etherscan API v2)
+- Adapters registered in KairosRouter
 
 **Deployed:** Exchange to https://kairos-exchange-app.netlify.app
 
