@@ -522,7 +522,7 @@ class TradingEngine {
           const result = await brokerService.placeLeveragedOrder(bot.brokerId, {
             ...order,
             leverage: lev,
-            execRoute: 'dex', // Use DEX perps (GMX V2) by default
+            execRoute: 'dex', // Use DEX perps (Kairos Exchange) by default
           });
           const fillPrice = result.filledPrice || currentPrice;
           this._log(bot.id, `✅ APALANCADO: ${signal.type.toUpperCase()} ${lev}x | Colateral: $${result.quantity?.toFixed(2)} | Posición: $${result.filledQty?.toFixed(2)} @ $${fillPrice.toFixed(2)}`);

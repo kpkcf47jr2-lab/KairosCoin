@@ -1,18 +1,18 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-//  KairosCoin Backend — DEX Router Service (HYBRID MODE)
-//  SQLite position tracking with real market prices + optional GMX V2 mirroring
+//  KairosCoin Backend — DEX Router Service (Kairos Exchange Engine)
+//  SQLite position tracking with real market prices + optional on-chain mirroring
 //
 //  Architecture:
 //  1. User submits order via API → Backend validates & records in SQLite
 //  2. Positions tracked locally with real prices from priceOracle
-//  3. If relayer has enough USDC + ETH → mirror on GMX V2 (optional)
+//  3. If relayer has enough funds → mirror on-chain (optional)
 //  4. KairosPerps contract used optionally for on-chain transparency
 //  5. Liquidation monitor checks every 10s against real prices
 //
-//  HYBRID flow:
+//  Kairos Exchange flow:
 //  - SQLite is the source of truth for all positions
 //  - Each new user gets 10,000 KAIROS demo balance (virtual)
-//  - GMX V2 mirroring attempted when relayer has funds — failures don't block trades
+//  - On-chain mirroring attempted when relayer has funds — failures don't block trades
 //  - On-chain KairosPerps recording is best-effort (try/catch)
 //
 //  "In God We Trust"
@@ -28,26 +28,66 @@ const logger = require("../utils/logger");
 const DB_PATH = path.join(__dirname, "../../data/kairos.db");
 let db = null;
 
-// ── GMX V2 Contract Addresses on Arbitrum ────────────────────────────────────
-const GMX_CONTRACTS = {
-  exchangeRouter: "0x7C68C7866A64FA2160F78EEaE12217FFbf871fa8",
-  orderVault:     "0x31eF83a530Fde1B38deDA89C0A6660c6E3143B3c",
-  dataStore:      "0xFD70de6b91282D8017aA4E741e9Ae325CAb992d8",
-  reader:         "0xf60becbba223EEA9495Da3f606753867eC10d139",
-  orderHandler:   "0x352f684ab9e97a6321a13CF03A61316B681D9fD2",
-  router:         "0x7452c558d45f8afC8c83dAe62C3f8A5BE19c71f6",
+// ── Kairos Exchange — Multi-chain DEX Aggregator Config ───────────────────────
+// Uses 0x Protocol API for optimal routing across 100+ DEXes,
+// with on-chain fallback via KairosSwap / PancakeSwap.
+// Primary execution chain: BSC (best liquidity + lowest fees)
+
+const ZERO_X_API_KEY = process.env.ZERO_X_API_KEY || '';
+const KAIROS_FEE_BPS = 15; // 0.15% Kairos platform fee
+const KAIROS_FEE_RECIPIENT = '0xCee44904A6aA94dEa28754373887E07D4B6f4968';
+
+// 0x Protocol API endpoints per chain
+const ZERO_X_ENDPOINTS = {
+  56:    'https://bsc.api.0x.org',
+  1:     'https://api.0x.org',
+  8453:  'https://base.api.0x.org',
+  42161: 'https://arbitrum.api.0x.org',
+  137:   'https://polygon.api.0x.org',
 };
 
-// ── GMX V2 Market Addresses (Arbitrum) ───────────────────────────────────────
-const GMX_MARKETS = {
-  "BTC/USD":  "0x47c031236e19d024b42f8AE6DA7A02043e22CF03", // BTC/USD [WBTC-USDC]
-  "ETH/USD":  "0x70d95587d40A2caf56bd97485aB3Eec10Bee6336", // ETH/USD [WETH-USDC]
-  "ARB/USD":  "0xC25cEf6061Cf5dE5eb761b50E4743c1F5D7E5407", // ARB/USD
-  "SOL/USD":  "0x09400D9DB990D5ed3f35D7be61DfAEB900Af03C9", // SOL/USD
-  "DOGE/USD": "0x6853EA96FF216fAb11D2d930CE3C508556A4bdc4", // DOGE/USD
-  "LINK/USD": "0x7f1fa204bb700853D36994DA19F830b6Ad18455C", // LINK/USD
-  "AVAX/USD": "0xD9535bB5f58A1a75032416F2dFe7880C30575a41", // AVAX/USD
-  "MATIC/USD":"0x2b3a5F8a2b8B6bDB5c0F3B2f5C1A8a8e7b8D6f9c", // MATIC/USD (if available)
+// KairosSwap native AMM (BSC)
+const KAIROS_SWAP = {
+  router:  '0x4F8C99a49d04790Ea8C48CC60F88DB327e509Cd6',
+  factory: '0xB5891c54199d539CB8afd37BFA9E17370095b9D9',
+};
+
+// Primary DEX routers per chain (fallback when 0x unavailable)
+const PRIMARY_ROUTERS = {
+  56:    '0x10ED43C718714eb63d5aA57B78B54704E256024E', // PancakeSwap V2
+  1:     '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D', // Uniswap V2
+  42161: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', // SushiSwap
+  8453:  '0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24', // Aerodrome
+  137:   '0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff', // QuickSwap
+};
+
+const DEX_NAMES = {
+  56: 'PancakeSwap', 1: 'Uniswap V2', 42161: 'SushiSwap',
+  8453: 'BaseSwap', 137: 'QuickSwap',
+};
+
+// Execution chain config (BSC primary)
+const EXECUTION_CHAIN_ID = 56;
+const EXECUTION_CHAIN = {
+  name: 'BSC',
+  rpc: process.env.BSC_RPC_URL || 'https://bsc-dataseed1.binance.org',
+  wrappedNative: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', // WBNB
+  stablecoin: '0x55d398326f99059fF775485246999027B3197955',    // USDT (BSC)
+  stablecoinDecimals: 18,
+  kairos: '0x14D41707269c7D8b8DFa5095b38824a46dA05da3',
+};
+
+// Supported trading pairs + BSC token mapping for hedging swaps
+const SUPPORTED_PAIRS = {
+  "BTC/USD":   { token: '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c', decimals: 18, name: 'BTCB' },
+  "ETH/USD":   { token: '0x2170Ed0880ac9A755fd29B2688956BD959F933F8', decimals: 18, name: 'ETH' },
+  "BNB/USD":   { token: EXECUTION_CHAIN.wrappedNative,                decimals: 18, name: 'WBNB' },
+  "SOL/USD":   { token: '0x570A5D26f7765Ecb712C0924E4De545B89fD43dF', decimals: 18, name: 'SOL' },
+  "DOGE/USD":  { token: '0xbA2aE424d960c26247Dd6c32edC70B295c744C43', decimals: 8,  name: 'DOGE' },
+  "LINK/USD":  { token: '0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD', decimals: 18, name: 'LINK' },
+  "AVAX/USD":  { token: '0x1CE0c2827e2eF14D5C4f29a091d735A204794041', decimals: 18, name: 'AVAX' },
+  "MATIC/USD": { token: '0xCC42724C6683B7E57334c4E856f4c9965ED682bD', decimals: 18, name: 'MATIC' },
+  "ARB/USD":   { token: null, decimals: 0, name: 'ARB' }, // Not on BSC — virtual only
 };
 
 // Map trading pair → Binance symbol for price lookup
@@ -60,33 +100,21 @@ const PAIR_TO_SYMBOL = {
   "LINK/USD":  "LINKUSDT",
   "AVAX/USD":  "AVAXUSDT",
   "MATIC/USD": "MATICUSDT",
-};
-
-// ── Tokens on Arbitrum ───────────────────────────────────────────────────────
-const TOKENS = {
-  USDC:   "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", // native USDC on Arbitrum
-  USDC_E: "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8", // bridged USDC.e
-  WETH:   "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-  WBTC:   "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f",
-  ARB:    "0x912CE59144191C1204E64559FE8253a0e49E6548",
-  KAIROS: "0x14D41707269c7D8b8DFa5095b38824a46dA05da3", // KairosCoin on Arbitrum
+  "BNB/USD":   "BNBUSDT",
 };
 
 // ── KairosPerps Contract (optional, for on-chain transparency) ───────────────
 let KAIROS_PERPS_ADDRESS = process.env.KAIROS_PERPS_ADDRESS || "0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9";
 
-// ── Minimal ABIs ─────────────────────────────────────────────────────────────
+// ── ABIs ─────────────────────────────────────────────────────────────────────
 
-const EXCHANGE_ROUTER_ABI = [
-  "function createOrder(tuple(tuple(address receiver, address cancellationReceiver, address callbackContract, address uiFeeReceiver, address market, address initialCollateralToken, address[] swapPath) addresses, tuple(uint256 sizeDeltaUsd, uint256 initialCollateralDeltaAmount, uint256 triggerPrice, uint256 acceptablePrice, uint256 executionFee, uint256 callbackGasLimit, uint256 minOutputAmount) numbers, uint256 orderType, uint256 decreasePositionSwapType, bool isLong, bool shouldUnwrapNativeToken, bool autoCancel, bytes32 referralCode) createOrderParams) external payable returns (bytes32 key)",
-  "function sendWnt(address receiver, uint256 amount) external payable",
-  "function sendTokens(address token, address receiver, uint256 amount) external",
-  "function multicall(bytes[] calldata data) external payable returns (bytes[] memory results)",
-];
-
-const READER_ABI = [
-  "function getMarketTokenPrice(address dataStore, tuple(address marketToken, address indexToken, address longToken, address shortToken) market, tuple(uint256 min, uint256 max) indexTokenPrice, tuple(uint256 min, uint256 max) longTokenPrice, tuple(uint256 min, uint256 max) shortTokenPrice, bytes32 pnlFactorType, bool maximize) external view returns (int256, tuple(int256 poolValue, int256 longPnl, int256 shortPnl, int256 netPnl, uint256 longTokenAmount, uint256 shortTokenAmount, uint256 longTokenUsd, uint256 shortTokenUsd, uint256 totalBorrowingFees, uint256 borrowingFeePoolFactor, uint256 impactPoolAmount))",
-  "function getAccountPositions(address dataStore, address account, uint256 start, uint256 end) external view returns (tuple(tuple(address account, address market, address collateralToken) addresses, tuple(uint256 sizeInUsd, uint256 sizeInTokens, uint256 collateralAmount, uint256 borrowingFactor, uint256 fundingFeeAmountPerSize, uint256 longTokenClaimableFundingAmountPerSize, uint256 shortTokenClaimableFundingAmountPerSize, uint256 increasedAtTime, uint256 decreasedAtTime, bool isLong) numbers, tuple(bytes32 key) flags)[])",
+// Uniswap V2 fork ABI (PancakeSwap, SushiSwap, QuickSwap, KairosSwap, etc.)
+const DEX_ROUTER_ABI = [
+  "function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)",
+  "function swapExactETHForTokensSupportingFeeOnTransferTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable",
+  "function swapExactTokensForETHSupportingFeeOnTransferTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external",
+  "function swapExactTokensForTokensSupportingFeeOnTransferTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external",
+  "function WETH() external view returns (address)",
 ];
 
 const KAIROS_PERPS_ABI = [
@@ -116,22 +144,9 @@ const ERC20_ABI = [
 
 let provider = null;
 let relayerWallet = null;
-let exchangeRouter = null;
-let reader = null;
+let dexRouter = null; // PancakeSwap / primary DEX router contract
 let kairosPerps = null;
 let isInitialized = false;
-
-// GMX order type constants
-const OrderType = {
-  MarketSwap: 0,
-  LimitSwap: 1,
-  MarketIncrease: 2,
-  LimitIncrease: 3,
-  MarketDecrease: 4,
-  LimitDecrease: 5,
-  StopLossDecrease: 6,
-  Liquidation: 7,
-};
 
 // Fee constants
 const OPEN_FEE_RATE  = 0.001; // 0.10%
@@ -229,38 +244,45 @@ function initialize() {
     // 1. Initialize SQLite (always — this is the primary data store)
     initializeDatabase();
 
-    // 2. Initialize Arbitrum connection + GMX (optional)
-    const rpcUrl = process.env.ARBITRUM_RPC_URL || "https://arb1.arbitrum.io/rpc";
+    // 2. Initialize BSC connection + DEX router for on-chain execution
+    const rpcUrl = EXECUTION_CHAIN.rpc;
     const relayerKey = process.env.RELAYER_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY || process.env.OWNER_PRIVATE_KEY;
     KAIROS_PERPS_ADDRESS = process.env.KAIROS_PERPS_ADDRESS || KAIROS_PERPS_ADDRESS || "0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9";
 
     if (!relayerKey) {
-      logger.warn("DEX Router: No relayer private key configured — GMX mirroring disabled");
+      logger.warn("DEX Router: No relayer private key configured — on-chain execution disabled");
       try { provider = new ethers.JsonRpcProvider(rpcUrl); } catch { /* ignore */ }
     } else {
       try {
         provider = new ethers.JsonRpcProvider(rpcUrl);
         relayerWallet = new ethers.Wallet(relayerKey, provider);
 
-        // Connect to GMX V2 contracts
-        exchangeRouter = new ethers.Contract(GMX_CONTRACTS.exchangeRouter, EXCHANGE_ROUTER_ABI, relayerWallet);
-        reader = new ethers.Contract(GMX_CONTRACTS.reader, READER_ABI, provider);
+        // Connect to PancakeSwap router (primary DEX for on-chain fallback)
+        dexRouter = new ethers.Contract(PRIMARY_ROUTERS[EXECUTION_CHAIN_ID], DEX_ROUTER_ABI, relayerWallet);
 
-        // Connect to KairosPerps if deployed
+        // Connect to KairosPerps if deployed (Arbitrum — optional transparency)
         if (KAIROS_PERPS_ADDRESS) {
-          kairosPerps = new ethers.Contract(KAIROS_PERPS_ADDRESS, KAIROS_PERPS_ABI, relayerWallet);
-          logger.info(`DEX Router: Connected to KairosPerps at ${KAIROS_PERPS_ADDRESS}`);
+          try {
+            const arbProvider = new ethers.JsonRpcProvider(process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc');
+            const arbWallet = new ethers.Wallet(relayerKey, arbProvider);
+            kairosPerps = new ethers.Contract(KAIROS_PERPS_ADDRESS, KAIROS_PERPS_ABI, arbWallet);
+            logger.info(`DEX Router: Connected to KairosPerps at ${KAIROS_PERPS_ADDRESS}`);
+          } catch (err) {
+            logger.warn(`DEX Router: KairosPerps connection failed (non-fatal): ${err.message}`);
+          }
         }
 
         logger.info(`DEX Router: Relayer wallet: ${relayerWallet.address}`);
-        logger.info(`DEX Router: GMX V2 Exchange Router: ${GMX_CONTRACTS.exchangeRouter}`);
+        logger.info(`DEX Router: Execution chain: ${EXECUTION_CHAIN.name} (chainId ${EXECUTION_CHAIN_ID})`);
+        logger.info(`DEX Router: Primary DEX: ${DEX_NAMES[EXECUTION_CHAIN_ID]} (${PRIMARY_ROUTERS[EXECUTION_CHAIN_ID]})`);
+        logger.info(`DEX Router: 0x API: ${ZERO_X_API_KEY ? 'configured ✓' : 'not configured — using on-chain routing'}`);
       } catch (err) {
-        logger.warn(`DEX Router: Arbitrum/GMX setup failed (non-fatal): ${err.message}`);
+        logger.warn(`DEX Router: BSC router setup failed (non-fatal): ${err.message}`);
       }
     }
 
     isInitialized = true;
-    logger.info("DEX Router: Initialized in HYBRID mode (SQLite + optional GMX)");
+    logger.info("DEX Router: Initialized — Kairos Exchange Engine (0x Aggregator + DEX routing)");
 
     // Start liquidation monitor
     startLiquidationMonitor();
@@ -329,7 +351,7 @@ function ensureAccount(wallet) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  ORDER EXECUTION — SQLite primary + optional GMX V2 mirroring
+//  ORDER EXECUTION — SQLite primary + optional on-chain mirroring
 // ═════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -341,7 +363,7 @@ function ensureAccount(wallet) {
  * 3. Ensure account exists, check balance
  * 4. Calculate position size, fees, liquidation price
  * 5. Insert position into SQLite
- * 6. Try GMX V2 mirror if relayer has enough funds (non-blocking)
+ * 6. Try on-chain mirror if relayer has enough funds (non-blocking)
  * 7. Try KairosPerps on-chain recording (non-blocking)
  * 8. Return position object
  *
@@ -358,8 +380,8 @@ async function openPosition(trader, pair, side, leverage, collateralKairos) {
   logger.info(`DEX Router: Opening ${side} ${pair} ${leverage}x — ${collateralKairos} KAIROS — ${trader}`);
 
   // 1. Validate inputs
-  const marketAddress = GMX_MARKETS[pair];
-  if (!marketAddress) throw new Error(`Unsupported pair: ${pair}. Available: ${Object.keys(GMX_MARKETS).join(", ")}`);
+  const pairConfig = SUPPORTED_PAIRS[pair];
+  if (!pairConfig) throw new Error(`Unsupported pair: ${pair}. Available: ${Object.keys(SUPPORTED_PAIRS).join(", ")}`);
   if (leverage < 2 || leverage > 50) throw new Error("Leverage must be 2-50x");
   if (collateralKairos < 10) throw new Error("Minimum collateral: 10 KAIROS");
 
@@ -405,42 +427,32 @@ async function openPosition(trader, pair, side, leverage, collateralKairos) {
 
   logger.info(`DEX Router: Position #${positionId} inserted — ${side} ${pair} ${leverage}x, size $${sizeUsd.toFixed(2)}, entry $${currentPrice}`);
 
-  // 7. Try GMX V2 mirroring (non-blocking)
-  let gmxOrderKey = "";
-  if (relayerWallet && exchangeRouter) {
+  // 7. Try on-chain execution via Kairos Exchange (0x API / PancakeSwap — non-blocking)
+  let exchangeOrderKey = "";
+  if (relayerWallet && pairConfig.token) {
     try {
-      const collateralToken = TOKENS.USDC;
-      const collateralDecimals = 6;
-      const collateralAmountGMX = ethers.parseUnits(collateralKairos.toFixed(6), collateralDecimals);
-      const sizeDeltaUsd = ethers.parseUnits(sizeUsd.toString(), 30);
-      const executionFee = ethers.parseEther("0.0012");
-      const slippageBps = 50;
-      const priceWith30Dec = ethers.parseUnits(currentPrice.toString(), 30);
-      const acceptablePrice = isLong
-        ? priceWith30Dec + (priceWith30Dec * BigInt(slippageBps) / 10000n)
-        : priceWith30Dec - (priceWith30Dec * BigInt(slippageBps) / 10000n);
+      const stableBalance = await getRelayerBalance(EXECUTION_CHAIN.stablecoin, EXECUTION_CHAIN.stablecoinDecimals);
+      const gasBalance = await provider.getBalance(relayerWallet.address);
+      const minGas = ethers.parseEther("0.005"); // 0.005 BNB for gas
 
-      const relayerUsdcBalance = await getRelayerBalance(TOKENS.USDC, collateralDecimals);
-      const relayerEthBalance = await provider.getBalance(relayerWallet.address);
-
-      if (relayerUsdcBalance >= collateralKairos && relayerEthBalance >= executionFee) {
-        gmxOrderKey = await executeGMXOrder(
-          marketAddress,
-          collateralToken,
-          collateralAmountGMX,
-          sizeDeltaUsd,
-          isLong,
-          acceptablePrice,
-          executionFee
+      if (stableBalance >= collateralKairos && gasBalance >= minGas) {
+        const sellAmount = ethers.parseUnits(collateralKairos.toFixed(6), EXECUTION_CHAIN.stablecoinDecimals);
+        const txHash = await executeKairosSwap(
+          EXECUTION_CHAIN.stablecoin, // sell USDT
+          pairConfig.token,            // buy asset (BTCB, ETH, etc.)
+          sellAmount,
+          isLong ? 'BUY' : 'SELL',
+          pair
         );
-        // Update position with GMX order key
-        db.prepare("UPDATE dex_positions SET gmx_order_key = ? WHERE id = ?").run(gmxOrderKey, positionId);
-        logger.info(`DEX Router: GMX order submitted — key: ${gmxOrderKey}`);
+        exchangeOrderKey = txHash;
+        // Update position with exchange tx hash
+        db.prepare("UPDATE dex_positions SET gmx_order_key = ? WHERE id = ?").run(txHash, positionId);
+        logger.info(`DEX Router: Kairos Exchange swap executed — tx: ${txHash}`);
       } else {
-        logger.warn(`DEX Router: GMX mirror skipped — relayer USDC: ${relayerUsdcBalance.toFixed(2)}, ETH: ${ethers.formatEther(relayerEthBalance)}`);
+        logger.warn(`DEX Router: On-chain execution skipped — relayer USDT: ${stableBalance.toFixed(2)}, BNB: ${ethers.formatEther(gasBalance)}`);
       }
     } catch (err) {
-      logger.warn(`DEX Router: GMX mirror failed (non-fatal): ${err.message}`);
+      logger.warn(`DEX Router: Kairos Exchange execution failed (non-fatal): ${err.message}`);
     }
   }
 
@@ -455,7 +467,7 @@ async function openPosition(trader, pair, side, leverage, collateralKairos) {
         leverage,
         ethers.parseUnits(collateralKairos.toString(), 18),
         entryPrice18,
-        gmxOrderKey || ethers.ZeroHash
+        exchangeOrderKey || ethers.ZeroHash
       );
       await tx.wait();
       logger.info(`DEX Router: Position #${positionId} recorded on-chain (KairosPerps)`);
@@ -476,9 +488,10 @@ async function openPosition(trader, pair, side, leverage, collateralKairos) {
     entryPrice: currentPrice,
     openFee,
     liquidationPrice,
-    gmxOrderKey,
+    exchangeOrderKey,
     status: "OPEN",
     openedAt: new Date().toISOString(),
+    executionEngine: "kairos-exchange",
     source: "sqlite",
   };
 }
@@ -540,32 +553,31 @@ async function closePosition(positionId) {
 
   logger.info(`DEX Router: Position #${positionId} closed — exit $${exitPrice}, P&L: ${netPnl >= 0 ? "+" : ""}${netPnl.toFixed(2)} KAIROS`);
 
-  // 8. Try GMX close if original had GMX order key (non-blocking)
-  let gmxCloseKey = "";
-  if (position.gmx_order_key && position.gmx_order_key !== "" && relayerWallet && exchangeRouter) {
+  // 8. Try on-chain close via Kairos Exchange (0x API / PancakeSwap — non-blocking)
+  let exchangeCloseKey = "";
+  if (position.gmx_order_key && position.gmx_order_key !== "" && relayerWallet) {
     try {
-      const marketAddress = GMX_MARKETS[position.pair];
-      if (marketAddress) {
-        const sizeDeltaUsd = ethers.parseUnits(position.size_usd.toString(), 30);
-        const executionFee = ethers.parseEther("0.0012");
-        const priceWith30Dec = ethers.parseUnits(exitPrice.toString(), 30);
-        const slippageBps = 50;
-        const acceptablePrice = isLong
-          ? priceWith30Dec - (priceWith30Dec * BigInt(slippageBps) / 10000n)
-          : priceWith30Dec + (priceWith30Dec * BigInt(slippageBps) / 10000n);
-
-        gmxCloseKey = await executeGMXCloseOrder(
-          marketAddress,
-          TOKENS.USDC,
-          sizeDeltaUsd,
-          isLong,
-          acceptablePrice,
-          executionFee
-        );
-        logger.info(`DEX Router: GMX close order — key: ${gmxCloseKey}`);
+      const pairConfig = SUPPORTED_PAIRS[position.pair];
+      if (pairConfig && pairConfig.token) {
+        // Reverse swap: sell asset → buy USDT
+        const assetBalance = await getRelayerBalance(pairConfig.token, pairConfig.decimals);
+        if (assetBalance > 0) {
+          const sellAmount = ethers.parseUnits(
+            Math.min(assetBalance, position.collateral).toFixed(6),
+            pairConfig.decimals
+          );
+          exchangeCloseKey = await executeKairosSwap(
+            pairConfig.token,            // sell asset
+            EXECUTION_CHAIN.stablecoin,  // buy USDT
+            sellAmount,
+            isLong ? 'SELL' : 'BUY',
+            position.pair
+          );
+          logger.info(`DEX Router: Kairos Exchange close swap — tx: ${exchangeCloseKey}`);
+        }
       }
     } catch (err) {
-      logger.warn(`DEX Router: GMX close mirror failed (non-fatal): ${err.message}`);
+      logger.warn(`DEX Router: Kairos Exchange close failed (non-fatal): ${err.message}`);
     }
   }
 
@@ -573,7 +585,7 @@ async function closePosition(positionId) {
   if (kairosPerps) {
     try {
       const exitPrice18 = ethers.parseUnits(exitPrice.toString(), 18);
-      const tx = await kairosPerps.closePosition(positionId, exitPrice18, gmxCloseKey || ethers.ZeroHash);
+      const tx = await kairosPerps.closePosition(positionId, exitPrice18, exchangeCloseKey || ethers.ZeroHash);
       await tx.wait();
       logger.info(`DEX Router: Position #${positionId} closed on-chain (KairosPerps)`);
     } catch (err) {
@@ -597,145 +609,187 @@ async function closePosition(positionId) {
     closeFee,
     liquidationPrice: position.liquidation_price,
     gmxOrderKey: position.gmx_order_key,
-    gmxCloseOrderKey: gmxCloseKey,
+    exchangeCloseKey,
     status: "CLOSED",
     openedAt: position.opened_at,
     closedAt: now,
+    executionEngine: "kairos-exchange",
     source: "sqlite",
   };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  GMX V2 ORDER EXECUTION (optional mirroring)
+//  KAIROS EXCHANGE EXECUTION ENGINE (0x Protocol API + On-chain DEX fallback)
+//  Routes swaps through 100+ DEXes via 0x aggregator, with PancakeSwap fallback
 // ═════════════════════════════════════════════════════════════════════════════
 
 /**
- * Execute a market increase order on GMX V2
- * Uses multicall: sendWnt (execution fee) + sendTokens (collateral) + createOrder
+ * Execute a swap through Kairos Exchange
+ * Strategy: Try 0x API first (optimal routing), fallback to PancakeSwap direct
+ *
+ * @param {string} sellToken - Token to sell address
+ * @param {string} buyToken - Token to buy address
+ * @param {BigInt} sellAmount - Amount to sell (in token wei)
+ * @param {string} direction - 'BUY' or 'SELL' (for logging)
+ * @param {string} pair - Trading pair name (for logging)
+ * @returns {string} Transaction hash
  */
-async function executeGMXOrder(market, collateralToken, collateralAmount, sizeDeltaUsd, isLong, acceptablePrice, executionFee) {
-  // Approve USDC spending by GMX Router if needed
-  const usdcContract = new ethers.Contract(collateralToken, ERC20_ABI, relayerWallet);
-  const allowance = await usdcContract.allowance(relayerWallet.address, GMX_CONTRACTS.router);
-  if (allowance < collateralAmount) {
-    const approveTx = await usdcContract.approve(GMX_CONTRACTS.router, ethers.MaxUint256);
-    await approveTx.wait();
-    logger.info("DEX Router: USDC approved for GMX Router");
-  }
+async function executeKairosSwap(sellToken, buyToken, sellAmount, direction, pair) {
+  logger.info(`Kairos Exchange: ${direction} ${pair} — ${sellToken} → ${buyToken}`);
 
-  // Build multicall data
-  const sendWntData = exchangeRouter.interface.encodeFunctionData("sendWnt", [
-    GMX_CONTRACTS.orderVault,
-    executionFee,
-  ]);
-
-  const sendTokensData = exchangeRouter.interface.encodeFunctionData("sendTokens", [
-    collateralToken,
-    GMX_CONTRACTS.orderVault,
-    collateralAmount,
-  ]);
-
-  const createOrderParams = {
-    addresses: {
-      receiver: relayerWallet.address,
-      cancellationReceiver: relayerWallet.address,
-      callbackContract: ethers.ZeroAddress,
-      uiFeeReceiver: ethers.ZeroAddress,
-      market: market,
-      initialCollateralToken: collateralToken,
-      swapPath: [],
-    },
-    numbers: {
-      sizeDeltaUsd: sizeDeltaUsd,
-      initialCollateralDeltaAmount: collateralAmount,
-      triggerPrice: 0,
-      acceptablePrice: acceptablePrice,
-      executionFee: executionFee,
-      callbackGasLimit: 0n,
-      minOutputAmount: 0,
-    },
-    orderType: OrderType.MarketIncrease,
-    decreasePositionSwapType: 0,
-    isLong: isLong,
-    shouldUnwrapNativeToken: false,
-    autoCancel: false,
-    referralCode: ethers.ZeroHash,
-  };
-
-  const createOrderData = exchangeRouter.interface.encodeFunctionData("createOrder", [createOrderParams]);
-
-  // Execute multicall
-  const tx = await exchangeRouter.multicall(
-    [sendWntData, sendTokensData, createOrderData],
-    { value: executionFee, gasLimit: 3000000 }
-  );
-
-  const receipt = await tx.wait();
-
-  // Extract order key from events
-  const orderKey = extractOrderKey(receipt);
-  return orderKey;
-}
-
-/**
- * Execute a market decrease order on GMX V2 (close position)
- */
-async function executeGMXCloseOrder(market, collateralToken, sizeDeltaUsd, isLong, acceptablePrice, executionFee) {
-  const sendWntData = exchangeRouter.interface.encodeFunctionData("sendWnt", [
-    GMX_CONTRACTS.orderVault,
-    executionFee,
-  ]);
-
-  const createOrderParams = {
-    addresses: {
-      receiver: relayerWallet.address,
-      cancellationReceiver: relayerWallet.address,
-      callbackContract: ethers.ZeroAddress,
-      uiFeeReceiver: ethers.ZeroAddress,
-      market: market,
-      initialCollateralToken: collateralToken,
-      swapPath: [],
-    },
-    numbers: {
-      sizeDeltaUsd: sizeDeltaUsd,
-      initialCollateralDeltaAmount: 0,
-      triggerPrice: 0,
-      acceptablePrice: acceptablePrice,
-      executionFee: executionFee,
-      callbackGasLimit: 0n,
-      minOutputAmount: 0,
-    },
-    orderType: OrderType.MarketDecrease,
-    decreasePositionSwapType: 0,
-    isLong: isLong,
-    shouldUnwrapNativeToken: false,
-    autoCancel: false,
-    referralCode: ethers.ZeroHash,
-  };
-
-  const createOrderData = exchangeRouter.interface.encodeFunctionData("createOrder", [createOrderParams]);
-
-  const tx = await exchangeRouter.multicall(
-    [sendWntData, createOrderData],
-    { value: executionFee, gasLimit: 3000000 }
-  );
-
-  const receipt = await tx.wait();
-  return extractOrderKey(receipt);
-}
-
-/**
- * Extract order key from GMX V2 transaction receipt
- */
-function extractOrderKey(receipt) {
-  for (const log of receipt.logs) {
+  // Strategy 1: Try 0x Protocol API (aggregates 100+ DEXes)
+  if (ZERO_X_API_KEY) {
     try {
-      if (log.topics && log.topics.length > 1) {
-        return log.topics[1] || ethers.ZeroHash;
-      }
-    } catch { /* skip */ }
+      const txHash = await executeVia0xAPI(sellToken, buyToken, sellAmount);
+      logger.info(`Kairos Exchange: 0x API swap success — tx: ${txHash}`);
+      return txHash;
+    } catch (err) {
+      logger.warn(`Kairos Exchange: 0x API failed, falling back to on-chain DEX: ${err.message}`);
+    }
   }
-  return ethers.id(receipt.hash); // Fallback: use tx hash as reference
+
+  // Strategy 2: Direct on-chain DEX routing (PancakeSwap on BSC)
+  const txHash = await executeViaOnChainDex(sellToken, buyToken, sellAmount);
+  logger.info(`Kairos Exchange: On-chain DEX swap success — tx: ${txHash}`);
+  return txHash;
+}
+
+/**
+ * Execute swap via 0x Protocol Swap API
+ * Gets a quote with optimal routing across all available DEXes,
+ * then executes the returned calldata with our relayer wallet.
+ */
+async function executeVia0xAPI(sellToken, buyToken, sellAmount) {
+  const endpoint = ZERO_X_ENDPOINTS[EXECUTION_CHAIN_ID];
+  if (!endpoint) throw new Error(`0x API: chain ${EXECUTION_CHAIN_ID} not supported`);
+
+  // 1. Get swap quote from 0x
+  const params = new URLSearchParams({
+    sellToken,
+    buyToken,
+    sellAmount: sellAmount.toString(),
+    slippagePercentage: '0.01', // 1% slippage for backend execution
+    feeRecipient: KAIROS_FEE_RECIPIENT,
+    buyTokenPercentageFee: (KAIROS_FEE_BPS / 10000).toString(),
+    enableSlippageProtection: 'true',
+    takerAddress: relayerWallet.address,
+  });
+
+  const response = await fetch(`${endpoint}/swap/v1/quote?${params}`, {
+    headers: { '0x-api-key': ZERO_X_API_KEY },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error?.reason || `0x quote failed (HTTP ${response.status})`);
+  }
+
+  const quoteData = await response.json();
+  const sources = (quoteData.sources || [])
+    .filter(s => parseFloat(s.proportion) > 0)
+    .map(s => `${s.name} ${Math.round(parseFloat(s.proportion) * 100)}%`)
+    .join(' + ');
+  logger.info(`Kairos Exchange: 0x routing → ${sources || 'Direct'}`);
+
+  // 2. Approve token spending if needed
+  if (sellToken !== EXECUTION_CHAIN.wrappedNative) {
+    const erc20 = new ethers.Contract(sellToken, ERC20_ABI, relayerWallet);
+    const allowanceTarget = quoteData.allowanceTarget;
+    const currentAllowance = await erc20.allowance(relayerWallet.address, allowanceTarget);
+    if (currentAllowance < sellAmount) {
+      const approveTx = await erc20.approve(allowanceTarget, ethers.MaxUint256);
+      await approveTx.wait();
+      logger.info(`Kairos Exchange: Token approved for 0x allowance target`);
+    }
+  }
+
+  // 3. Execute the swap transaction
+  const tx = await relayerWallet.sendTransaction({
+    to: quoteData.to,
+    data: quoteData.data,
+    value: quoteData.value || '0',
+    gasLimit: Math.ceil(Number(quoteData.estimatedGas || 500000) * 1.3),
+  });
+
+  const receipt = await tx.wait();
+  if (receipt.status !== 1) throw new Error('Swap transaction reverted');
+
+  return tx.hash;
+}
+
+/**
+ * Execute swap via on-chain DEX router (PancakeSwap / KairosSwap)
+ * Used as fallback when 0x API is unavailable.
+ * Routes token→token through WBNB if needed.
+ */
+async function executeViaOnChainDex(sellToken, buyToken, sellAmount) {
+  if (!dexRouter) throw new Error('DEX router not initialized');
+
+  const isNativeSell = sellToken.toLowerCase() === EXECUTION_CHAIN.wrappedNative.toLowerCase();
+  const isNativeBuy = buyToken.toLowerCase() === EXECUTION_CHAIN.wrappedNative.toLowerCase();
+
+  // Build path: direct or via WBNB
+  let path;
+  if (isNativeSell || isNativeBuy) {
+    path = [sellToken, buyToken];
+  } else {
+    // Try direct first, then via WBNB
+    try {
+      const directAmounts = await dexRouter.getAmountsOut(sellAmount, [sellToken, buyToken]);
+      if (directAmounts && directAmounts[1] > 0n) {
+        path = [sellToken, buyToken];
+      }
+    } catch {
+      // No direct pair — route via WBNB
+    }
+    if (!path) {
+      path = [sellToken, EXECUTION_CHAIN.wrappedNative, buyToken];
+    }
+  }
+
+  // Get expected output for slippage calculation
+  const amounts = await dexRouter.getAmountsOut(sellAmount, path);
+  const expectedOut = amounts[amounts.length - 1];
+  const amountOutMin = (expectedOut * 99n) / 100n; // 1% slippage
+  const deadline = Math.floor(Date.now() / 1000) + 1200; // 20 min
+
+  logger.info(`Kairos Exchange: On-chain swap path [${path.length} hops], expected out: ${expectedOut}`);
+
+  let tx;
+  if (isNativeSell) {
+    // BNB → Token
+    tx = await dexRouter.swapExactETHForTokensSupportingFeeOnTransferTokens(
+      amountOutMin, path, relayerWallet.address, deadline,
+      { value: sellAmount }
+    );
+  } else if (isNativeBuy) {
+    // Token → BNB
+    const erc20 = new ethers.Contract(sellToken, ERC20_ABI, relayerWallet);
+    const allowance = await erc20.allowance(relayerWallet.address, PRIMARY_ROUTERS[EXECUTION_CHAIN_ID]);
+    if (allowance < sellAmount) {
+      const approveTx = await erc20.approve(PRIMARY_ROUTERS[EXECUTION_CHAIN_ID], ethers.MaxUint256);
+      await approveTx.wait();
+    }
+    tx = await dexRouter.swapExactTokensForETHSupportingFeeOnTransferTokens(
+      sellAmount, amountOutMin, path, relayerWallet.address, deadline
+    );
+  } else {
+    // Token → Token
+    const erc20 = new ethers.Contract(sellToken, ERC20_ABI, relayerWallet);
+    const allowance = await erc20.allowance(relayerWallet.address, PRIMARY_ROUTERS[EXECUTION_CHAIN_ID]);
+    if (allowance < sellAmount) {
+      const approveTx = await erc20.approve(PRIMARY_ROUTERS[EXECUTION_CHAIN_ID], ethers.MaxUint256);
+      await approveTx.wait();
+    }
+    tx = await dexRouter.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+      sellAmount, amountOutMin, path, relayerWallet.address, deadline
+    );
+  }
+
+  const receipt = await tx.wait();
+  if (receipt.status !== 1) throw new Error('On-chain swap reverted');
+
+  return tx.hash;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -1130,7 +1184,7 @@ function getRelayerAddress() {
 }
 
 function getSupportedPairs() {
-  return Object.keys(GMX_MARKETS);
+  return Object.keys(SUPPORTED_PAIRS);
 }
 
 function getStatus() {
@@ -1139,17 +1193,26 @@ function getStatus() {
 
   return {
     initialized: isInitialized,
-    mode: "HYBRID (SQLite + optional GMX)",
+    mode: "Kairos Exchange Engine (0x Aggregator + DEX routing)",
+    executionChain: EXECUTION_CHAIN.name,
+    chainId: EXECUTION_CHAIN_ID,
     relayer: relayerWallet?.address || null,
     kairosPerps: KAIROS_PERPS_ADDRESS || null,
-    gmxExchangeRouter: GMX_CONTRACTS.exchangeRouter,
-    supportedPairs: Object.keys(GMX_MARKETS),
-    network: "Arbitrum One (42161)",
+    primaryDex: DEX_NAMES[EXECUTION_CHAIN_ID],
+    primaryRouter: PRIMARY_ROUTERS[EXECUTION_CHAIN_ID],
+    kairosSwap: KAIROS_SWAP.router,
+    zeroXApiConfigured: !!ZERO_X_API_KEY,
+    supportedPairs: Object.keys(SUPPORTED_PAIRS),
+    network: "Multi-chain (BSC primary)",
     database: db ? "connected" : "offline",
     openPositions: openCount,
     totalPositions: totalCount,
-    fees: { openRate: OPEN_FEE_RATE, closeRate: CLOSE_FEE_RATE },
+    fees: { openRate: OPEN_FEE_RATE, closeRate: CLOSE_FEE_RATE, platformFee: `${KAIROS_FEE_BPS} BPS` },
     defaultBalance: DEFAULT_BALANCE,
+    aggregator: {
+      sources: ['0x Protocol', 'PancakeSwap', 'KairosSwap', 'Uniswap', 'SushiSwap', 'QuickSwap', 'Aerodrome'],
+      feeRecipient: KAIROS_FEE_RECIPIENT,
+    },
   };
 }
 

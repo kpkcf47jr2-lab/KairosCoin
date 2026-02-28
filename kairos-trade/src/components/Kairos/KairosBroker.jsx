@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 //  Kairos Trade — Kairos Broker (DEX Perpetual Trading)
-//  Dual execution: DEX mode (GMX V2 on Arbitrum) or Internal margin engine
-//  KAIROS locked as collateral → Orders routed to GMX V2 → Real P&L
-//  Smart contract: KairosPerps on Arbitrum • Liquidation on-chain
+//  Dual execution: DEX mode (Kairos Exchange) or Internal margin engine
+//  KAIROS locked as collateral → Orders routed to Kairos Exchange → Real P&L
+//  Smart contract: KairosPerps • Liquidation on-chain
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
@@ -21,7 +21,7 @@ import useStore from '../../store/useStore';
 // ── Config ───────────────────────────────────────────────────────────────────
 const API_HOST = 'https://kairos-api-u6k5.onrender.com';
 const API_MARGIN = `${API_HOST}/api/margin`;  // Internal margin engine
-const API_PERPS  = `${API_HOST}/api/perps`;   // DEX route → GMX V2 (Arbitrum)
+const API_PERPS  = `${API_HOST}/api/perps`;   // DEX route → Kairos Exchange
 const PRICE_POLL_MS = 3000;
 const ACCOUNT_POLL_MS = 5000;
 const LEVERAGE_INTERNAL = [2, 3, 5, 10];
@@ -64,7 +64,7 @@ export default function KairosBroker() {
   const walletAddress = user?.walletAddress || '';
   const isConnected = !!walletAddress;
 
-  // ── Execution mode: 'dex' = GMX V2 on Arbitrum, 'internal' = Kairos margin engine ──
+  // ── Execution mode: 'dex' = Kairos Exchange, 'internal' = Kairos margin engine ──
   const [execMode, setExecMode] = useState('dex');
   const API_BASE = execMode === 'dex' ? API_PERPS : API_MARGIN;
   const api = useMemo(() => createApi(API_BASE), [API_BASE]);
@@ -298,14 +298,14 @@ export default function KairosBroker() {
                 Kairos Broker
                 {execMode === 'dex' ? (
                   <span className="text-xs bg-green-600 text-white px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse" /> GMX V2
+                    <span className="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse" /> Kairos Exchange
                   </span>
                 ) : (
                   <span className="text-xs bg-blue-600 text-white px-2 py-0.5 rounded-full">INTERNO</span>
                 )}
               </h1>
               <p className="text-sm text-blue-300">
-                {execMode === 'dex' ? 'Perpetuales DEX — Órdenes en GMX V2 (Arbitrum)' : 'Leverage Trading con Reserva Kairos 777'}
+                {execMode === 'dex' ? 'Perpetuales DEX — Órdenes en Kairos Exchange' : 'Leverage Trading con Reserva Kairos 777'}
               </p>
             </div>
           </div>
@@ -369,10 +369,10 @@ export default function KairosBroker() {
             <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/20 border border-green-500/20 rounded-lg px-4 py-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-green-400 text-sm">🔗</span>
-                <span className="text-green-300 text-xs font-medium">DEX Mode — Órdenes ejecutadas en GMX V2 (Arbitrum)</span>
+                <span className="text-green-300 text-xs font-medium">DEX Mode — Órdenes ejecutadas en Kairos Exchange</span>
               </div>
               <div className="flex items-center gap-3 text-[10px] text-green-400/60">
-                <span>Contrato: KairosPerps</span>
+                <span>Motor: Kairos Exchange</span>
                 <span>•</span>
                 <span>Colateral: KAIROS</span>
                 <span>•</span>

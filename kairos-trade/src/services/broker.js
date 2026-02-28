@@ -1251,7 +1251,7 @@ class BrokerService {
 
   // ═══════════════════════════════════════════════════════════════════════════
   //  LEVERAGED ORDER — Open/Close positions via Kairos Margin/Perps API
-  //  Routes bot signals to the backend margin engine or DEX perps (GMX V2)
+  //  Routes bot signals to the backend margin engine or DEX perps (Kairos Exchange)
   // ═══════════════════════════════════════════════════════════════════════════
 
   async placeLeveragedOrder(brokerId, order) {
@@ -1262,7 +1262,7 @@ class BrokerService {
     const walletAddress = useStore.getState().user?.walletAddress;
     if (!walletAddress) throw new Error('Wallet address required for leveraged trading');
 
-    // Choose API route: 'dex' → GMX V2 on Arbitrum, 'internal' → Kairos margin engine
+    // Choose API route: 'dex' → Kairos Exchange on BSC, 'internal' → Kairos margin engine
     const apiBase = execRoute === 'dex' ? `${KAIROS_API}/api/perps` : `${KAIROS_API}/api/margin`;
 
     // ── CLOSE position ──

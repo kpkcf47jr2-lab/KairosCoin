@@ -37,9 +37,9 @@
 //    GET  /api/margin/positions    — Open positions (live P&L)
 //    GET  /api/margin/history      — Closed/liquidated positions
 //    GET  /api/margin/trades       — Trade audit trail
-//    ── DEX Perpetuals (GMX V2) ──
-//    POST /api/perps/open          — Open position via GMX V2
-//    POST /api/perps/close         — Close position via GMX V2
+//    ── DEX Perpetuals (Kairos Exchange) ──
+//    POST /api/perps/open          — Open position via Kairos Exchange
+//    POST /api/perps/close         — Close position via Kairos Exchange
 //    GET  /api/perps/positions     — On-chain open positions
 //    GET  /api/perps/account       — On-chain margin account
 //    GET  /api/perps/history       — Closed positions history
@@ -374,7 +374,7 @@ async function start() {
     walletBackupRoutes.initWalletBackup(db.getDb());
     logger.info("Wallet Backup started ✓");
 
-    logger.info("Initializing DEX Router (GMX V2 on Arbitrum)...");
+    logger.info("Initializing DEX Router (Kairos Exchange Engine)...");
     dexRouter.initialize();
     logger.info("DEX Router started ✓");
 

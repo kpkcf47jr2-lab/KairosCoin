@@ -1,12 +1,12 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 //  KairosCoin Backend — Perpetuals API Routes (DEX-Routed)
 //
-//  Routes trading orders through GMX V2 on Arbitrum
+//  Routes trading orders through Kairos Exchange
 //  Collateral locked on KairosPerps smart contract
 //
 //  PUBLIC (wallet auth):
-//    POST /api/perps/open            — Open leveraged position (→ GMX V2)
-//    POST /api/perps/close           — Close a position (→ GMX V2)
+//    POST /api/perps/open            — Open leveraged position (→ Kairos Exchange)
+//    POST /api/perps/close           — Close a position (→ Kairos Exchange)
 //    GET  /api/perps/positions       — Get open positions (on-chain)
 //    GET  /api/perps/history         — Get closed/liquidated positions
 //    GET  /api/perps/account         — Get margin account (on-chain)
@@ -48,7 +48,7 @@ router.get("/status", (req, res) => {
   res.json({ 
     success: true, 
     data: status,
-    message: "KairosPerps DEX Router — Orders routed to GMX V2 on Arbitrum",
+    message: "Kairos Exchange DEX Router — Perpetual Trading Engine",
   });
 });
 
@@ -67,8 +67,8 @@ router.get("/pairs", (req, res) => {
   const pairs = dexRouter.getSupportedPairs();
   const pairInfo = pairs.map(pair => ({
     pair,
-    market: "GMX V2",
-    network: "Arbitrum",
+    market: "Kairos Exchange",
+    network: "Multi-chain",
     maxLeverage: 50,
     minCollateral: 10,
     collateralToken: "KAIROS",
@@ -139,7 +139,7 @@ router.get("/account", requireWallet, async (req, res) => {
         unrealizedPnl,
         freeMargin: (account.available || 0) + unrealizedPnl,
         openPositions: positions.length,
-        execution: "Hybrid (SQLite + GMX V2)",
+        execution: "Hybrid (SQLite + Kairos Exchange)",
       },
     });
   } catch (err) {
@@ -192,10 +192,10 @@ router.post("/open", requireWallet, async (req, res) => {
     res.json({
       success: true,
       data: position,
-      message: `${sideUpper} ${pair} ${leverageNum}x opened — routed to GMX V2`,
+      message: `${sideUpper} ${pair} ${leverageNum}x opened — routed to Kairos Exchange`,
       execution: {
-        dex: "GMX V2",
-        network: "Arbitrum",
+        dex: "Kairos Exchange",
+        network: "Multi-chain",
         gmxOrderKey: position.gmxOrderKey,
         contract: "KairosPerps",
       },
@@ -232,8 +232,8 @@ router.post("/close", requireWallet, async (req, res) => {
       data: result,
       message: `Position #${positionId} closed — P&L: ${result.pnl >= 0 ? '+' : ''}${result.pnl.toFixed(2)} KAIROS`,
       execution: {
-        dex: "GMX V2",
-        network: "Arbitrum", 
+        dex: "Kairos Exchange",
+        network: "Multi-chain", 
         gmxCloseOrderKey: result.gmxCloseOrderKey,
       },
     });
@@ -254,7 +254,7 @@ router.get("/positions", requireWallet, async (req, res) => {
       success: true, 
       data: positions,
       count: positions.length,
-      execution: "GMX V2 (Arbitrum)",
+      execution: "Kairos Exchange (Multi-chain)",
     });
   } catch (err) {
     logger.error("Perps positions error:", err.message);
@@ -289,8 +289,8 @@ router.get("/stats", async (req, res) => {
       success: true,
       data: {
         ...stats,
-        dex: "GMX V2",
-        network: "Arbitrum One",
+        dex: "Kairos Exchange",
+        network: "Multi-chain",
         contract: process.env.KAIROS_PERPS_ADDRESS || "Not deployed",
       },
     });
