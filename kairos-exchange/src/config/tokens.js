@@ -17,7 +17,7 @@ const COMMON = {
     name: 'KairosCoin',
     address: KAIROS_ADDRESS[chainId],
     decimals: 18,
-    logoURI: '/kairos-logo.svg',
+    logoURI: '/kairos-token.png',
     isKairos: true,
   } : null,
 };

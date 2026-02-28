@@ -1,10 +1,66 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+    <!-- Outer ring gradient (blue) -->
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#60A5FA"/>
-      <stop offset="100%" stop-color="#2563EB"/>
+      <stop offset="50%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
     </linearGradient>
+    <!-- Inner coin gradient (gold) -->
+    <linearGradient id="coin" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F5D060"/>
+      <stop offset="35%" stop-color="#D4AF37"/>
+      <stop offset="65%" stop-color="#C5981A"/>
+      <stop offset="100%" stop-color="#B8860B"/>
+    </linearGradient>
+    <!-- K letter gradient -->
+    <linearGradient id="kgrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0E15"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+    <!-- Shine effect -->
+    <radialGradient id="shine" cx="35%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.35)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+    <!-- Shadow -->
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
   </defs>
-  <circle cx="32" cy="32" r="30" fill="#0B0E15" stroke="url(#g)" stroke-width="2"/>
-  <text x="32" y="42" text-anchor="middle" font-family="Inter,sans-serif" font-weight="800" font-size="26" fill="url(#g)">K</text>
+  
+  <!-- Background circle (blue ring) -->
+  <circle cx="100" cy="100" r="96" fill="url(#ring)"/>
+  
+  <!-- Inner gold coin -->
+  <circle cx="100" cy="100" r="82" fill="url(#coin)" filter="url(#shadow)"/>
+  
+  <!-- Inner border detail -->
+  <circle cx="100" cy="100" r="72" fill="none" stroke="#B8860B" stroke-width="1.5" opacity="0.5"/>
+  <circle cx="100" cy="100" r="76" fill="none" stroke="#F5D060" stroke-width="0.5" opacity="0.4"/>
+  
+  <!-- Stylized K Letter -->
+  <g transform="translate(100,100)">
+    <!-- K stem -->
+    <rect x="-28" y="-38" width="14" height="76" rx="3" fill="url(#kgrad)"/>
+    <!-- K upper diagonal -->
+    <polygon points="-14,-10 26,-38 40,-26 -6,2" fill="url(#kgrad)"/>
+    <!-- K lower diagonal -->
+    <polygon points="-14,10 -6,-2 40,26 26,38" fill="url(#kgrad)"/>
+  </g>
+  
+  <!-- Shine overlay -->
+  <circle cx="100" cy="100" r="82" fill="url(#shine)"/>
+  
+  <!-- Top text arc: KAIROS -->
+  <path id="topArc" d="M 30,100 A 70,70 0 0,1 170,100" fill="none"/>
+  <text font-family="Inter,Arial,sans-serif" font-size="10" font-weight="700" letter-spacing="6" fill="url(#kgrad)" opacity="0.6">
+    <textPath href="#topArc" startOffset="50%" text-anchor="middle">KAIROS</textPath>
+  </text>
+  
+  <!-- Bottom text arc: 777 -->
+  <path id="botArc" d="M 40,115 A 65,65 0 0,0 160,115" fill="none"/>
+  <text font-family="Inter,Arial,sans-serif" font-size="9" font-weight="600" letter-spacing="4" fill="url(#kgrad)" opacity="0.4">
+    <textPath href="#botArc" startOffset="50%" text-anchor="middle">777</textPath>
+  </text>
 </svg>
