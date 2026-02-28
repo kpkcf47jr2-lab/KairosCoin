@@ -1,15 +1,23 @@
 /* ═══════════════════════════════════════════════════════════
    Kairos Exchange — Liquidity Service
-   Add/Remove liquidity directly on PancakeSwap V2 / Uniswap V2
-   Router contracts — keeps everything inside Kairos Exchange
+   KairosSwap (native AMM) on BSC + fallback DEXes on other chains
+   100% of protocol fees stay within Kairos 777 ecosystem
    ═══════════════════════════════════════════════════════════ */
 import { ethers } from 'ethers';
 import { CHAINS } from '../config/chains';
 import { KAIROS_ADDRESS, NATIVE_ADDRESS } from '../config/tokens';
 
+// ══ KairosSwap — Native AMM (BSC) ══
+// All fees (0.05% protocol + 0.25% LP) stay in Kairos ecosystem
+const KAIROS_SWAP = {
+  factory: '0xB5891c54199d539CB8afd37BFA9E17370095b9D9',
+  router:  '0x4F8C99a49d04790Ea8C48CC60F88DB327e509Cd6',
+};
+
 // ── Router V2 addresses per chain ──
+// BSC uses KairosSwap natively; other chains use established DEXes
 const ROUTER_ADDRESSES = {
-  56:    '0x10ED43C718714eb63d5aA57B78B54704E256024E', // PancakeSwap V2
+  56:    KAIROS_SWAP.router,  // KairosSwap (native AMM)
   1:     '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D', // Uniswap V2
   8453:  '0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24', // Aerodrome / BaseSwap
   42161: '0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506', // SushiSwap
@@ -18,7 +26,7 @@ const ROUTER_ADDRESSES = {
 
 // ── Factory V2 addresses per chain ──
 const FACTORY_ADDRESSES = {
-  56:    '0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73', // PancakeSwap V2
+  56:    KAIROS_SWAP.factory,  // KairosSwap Factory
   1:     '0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f', // Uniswap V2
   8453:  '0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6', // BaseSwap
   42161: '0xc35DADB65012eC5796536bD9864eD8773aBc74C4', // SushiSwap
@@ -26,9 +34,12 @@ const FACTORY_ADDRESSES = {
 };
 
 const DEX_NAMES = {
-  56: 'PancakeSwap V2', 1: 'Uniswap V2', 8453: 'BaseSwap',
+  56: 'KairosSwap', 1: 'Uniswap V2', 8453: 'BaseSwap',
   42161: 'SushiSwap', 137: 'QuickSwap',
 };
+
+// Exported for frontend display
+export const KAIROS_SWAP_INFO = KAIROS_SWAP;
 
 // ── ABIs ──
 const ROUTER_ABI = [

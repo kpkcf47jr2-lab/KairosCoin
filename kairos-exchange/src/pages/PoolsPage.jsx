@@ -7,7 +7,7 @@ import { KAIROS_ADDRESS, NATIVE_ADDRESS, TOKENS } from '../config/tokens';
 import {
   getDexName, getPairInfo, getUserPositions,
   approveForRouter, addLiquidity, removeLiquidity,
-  calculatePairedAmount, getPoolPrice,
+  calculatePairedAmount, getPoolPrice, KAIROS_SWAP_INFO,
 } from '../services/liquidity';
 import ChainSelector from '../components/ChainSelector';
 
@@ -194,14 +194,31 @@ function AddLiquidityTab({ chainId, account, provider, kairosAddr, t, setShowWal
     ? getPoolPrice(pairInfo.reserveA, pairInfo.reserveB, 18, selectedToken.decimals || 18)
     : null;
 
+  const isKairosSwap = chainId === 56;
+
   return (
     <div className="space-y-4">
       {/* Info banner */}
-      <div className="glass-card p-4 text-center">
+      <div className={`glass-card p-4 text-center ${isKairosSwap ? 'border-brand-500/30' : ''}`}>
         <img src="/kairos-token.png" alt="KAIROS" className="w-12 h-12 rounded-full mx-auto mb-2" />
-        <h3 className="text-base font-bold text-white mb-1">{t('add_liq_tab')}</h3>
-        <p className="text-xs text-white/40 max-w-sm mx-auto">{t('earn_fees_desc')}</p>
-        <p className="text-[10px] text-white/25 mt-1">{t('via_dex', { dex })}</p>
+        {isKairosSwap ? (
+          <>
+            <h3 className="text-base font-bold text-brand-400 mb-1">KairosSwap</h3>
+            <p className="text-xs text-white/50 max-w-sm mx-auto">AMM nativo de Kairos 777. 100% de comisiones se quedan en el ecosistema.</p>
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <span className="text-[9px] bg-brand-500/15 text-brand-400 px-2 py-0.5 rounded-full">0.25% LP fees</span>
+              <span className="text-[9px] bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full">0.05% Treasury</span>
+            </div>
+            <a href={`https://bscscan.com/address/${KAIROS_SWAP_INFO.router}`} target="_blank" rel="noopener noreferrer"
+              className="text-[9px] text-white/20 hover:text-white/40 mt-1 inline-block">Verified on BscScan</a>
+          </>
+        ) : (
+          <>
+            <h3 className="text-base font-bold text-white mb-1">{t('add_liq_tab')}</h3>
+            <p className="text-xs text-white/40 max-w-sm mx-auto">{t('earn_fees_desc')}</p>
+            <p className="text-[10px] text-white/25 mt-1">{t('via_dex', { dex })}</p>
+          </>
+        )}
       </div>
 
       <div className="glass-card p-5">
@@ -524,6 +541,36 @@ function OverviewTab({ chainId, provider, kairosAddr, t }) {
 
   return (
     <div>
+      {/* KairosSwap highlight for BSC */}
+      {chainId === 56 && (
+        <div className="glass-card p-5 mb-4 border-brand-500/20">
+          <div className="flex items-center gap-3 mb-3">
+            <img src="/kairos-token.png" alt="KairosSwap" className="w-10 h-10 rounded-full" />
+            <div>
+              <h3 className="text-sm font-bold text-brand-400">KairosSwap - AMM Nativo</h3>
+              <p className="text-[10px] text-white/30">DEX propio de Kairos 777 en BNB Chain</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="bg-dark-300/60 rounded-lg p-2.5 text-center">
+              <div className="text-[10px] text-white/30">Factory</div>
+              <a href={`https://bscscan.com/address/${KAIROS_SWAP_INFO.factory}`} target="_blank" rel="noopener noreferrer"
+                className="text-[9px] font-mono text-brand-400 hover:underline">{KAIROS_SWAP_INFO.factory.slice(0, 10)}...{KAIROS_SWAP_INFO.factory.slice(-6)}</a>
+            </div>
+            <div className="bg-dark-300/60 rounded-lg p-2.5 text-center">
+              <div className="text-[10px] text-white/30">Router</div>
+              <a href={`https://bscscan.com/address/${KAIROS_SWAP_INFO.router}`} target="_blank" rel="noopener noreferrer"
+                className="text-[9px] font-mono text-brand-400 hover:underline">{KAIROS_SWAP_INFO.router.slice(0, 10)}...{KAIROS_SWAP_INFO.router.slice(-6)}</a>
+            </div>
+          </div>
+          <div className="flex items-center justify-center gap-3 text-[10px]">
+            <span className="bg-brand-500/10 text-brand-400 px-2 py-1 rounded">0.30% swap fee</span>
+            <span className="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded">0.05% → Kairos Treasury</span>
+            <span className="bg-purple-500/10 text-purple-400 px-2 py-1 rounded">Verified on BscScan</span>
+          </div>
+        </div>
+      )}
+
       <div className="glass-card p-4 mb-4 text-center">
         <img src="/kairos-token.png" alt="KAIROS" className="w-10 h-10 rounded-full mx-auto mb-2" />
         <h3 className="text-sm font-bold text-white mb-1">KAIROS {t('liquidity_pools')}</h3>
