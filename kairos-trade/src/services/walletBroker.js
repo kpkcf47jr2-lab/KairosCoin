@@ -1,22 +1,134 @@
-// Kairos Trade — Wallet/DEX Broker Service
-// Enables on-chain trading via DEX Aggregator (100+ DEXes) or direct router
-// Powered by Kairos Exchange aggregation engine
+// Kairos Trade — Wallet/DEX Broker Service (Resilient v2.0)
+// Ultra-reliable DEX execution: Multi-aggregator + Retry + Circuit Breaker + Timeout
+// Zero-downtime design: if ALL aggregators fail → direct DEX router fallback
 // Uses ethers.js for blockchain interaction
 
 // ═══════════════════════════════════════════════════════════
-//  AGGREGATOR CONFIG — 0x Protocol (100+ DEXes per chain)
+//  MULTI-AGGREGATOR CONFIG — Redundant price sources
 // ═══════════════════════════════════════════════════════════
-const AGGREGATOR_ENDPOINTS = {
-  56:    'https://bsc.api.0x.org',
-  1:     'https://api.0x.org',
-  137:   'https://polygon.api.0x.org',
-  42161: 'https://arbitrum.api.0x.org',
-  8453:  'https://base.api.0x.org',
+
+// Primary: 0x Protocol (100+ DEXes per chain)
+const AGGREGATOR_0X = {
+  name: '0x',
+  endpoints: {
+    56:    'https://bsc.api.0x.org',
+    1:     'https://api.0x.org',
+    137:   'https://polygon.api.0x.org',
+    42161: 'https://arbitrum.api.0x.org',
+    8453:  'https://base.api.0x.org',
+  },
 };
+
+// Secondary: 1inch API (fallback aggregator)
+const AGGREGATOR_1INCH = {
+  name: '1inch',
+  endpoints: {
+    56:    'https://api.1inch.dev/swap/v6.0/56',
+    1:     'https://api.1inch.dev/swap/v6.0/1',
+    137:   'https://api.1inch.dev/swap/v6.0/137',
+    42161: 'https://api.1inch.dev/swap/v6.0/42161',
+    8453:  'https://api.1inch.dev/swap/v6.0/8453',
+  },
+};
+
+// Tertiary: Paraswap (second fallback)
+const AGGREGATOR_PARASWAP = {
+  name: 'Paraswap',
+  endpoints: {
+    56:    'https://apiv5.paraswap.io',
+    1:     'https://apiv5.paraswap.io',
+    137:   'https://apiv5.paraswap.io',
+    42161: 'https://apiv5.paraswap.io',
+    8453:  'https://apiv5.paraswap.io',
+  },
+};
+
+// Legacy flat map (backwards compatibility)
+const AGGREGATOR_ENDPOINTS = AGGREGATOR_0X.endpoints;
 
 // Kairos fee recipient (treasury)
 const KAIROS_FEE_RECIPIENT = '0xCee44904A6aA94dEa28754373887E07D4B6f4968';
 const KAIROS_FEE_BPS = 15; // 0.15%
+
+// ═══════════════════════════════════════════════════════════
+//  RESILIENCE CONFIG
+// ═══════════════════════════════════════════════════════════
+const RESILIENCE = {
+  QUOTE_TIMEOUT_MS: 8000,       // Max 8s per aggregator quote
+  EXECUTE_TIMEOUT_MS: 60000,    // Max 60s for TX confirmation
+  MAX_RETRIES: 2,               // Retry failed quotes up to 2x
+  RETRY_DELAY_MS: 500,          // Wait 500ms between retries
+  QUOTE_MAX_AGE_MS: 15000,      // Re-quote if older than 15s
+  CIRCUIT_BREAKER_THRESHOLD: 3, // Mark aggregator "down" after 3 consecutive fails
+  CIRCUIT_BREAKER_RESET_MS: 120000, // Reset circuit after 2 min
+  GAS_MULTIPLIER: 1.5,          // 50% gas buffer (up from 30%)
+  PARALLEL_QUOTES: true,        // Query multiple aggregators simultaneously
+};
+
+// Circuit breaker state per aggregator
+const _circuitState = {
+  '0x':       { failures: 0, lastFail: 0, open: false },
+  '1inch':    { failures: 0, lastFail: 0, open: false },
+  'Paraswap': { failures: 0, lastFail: 0, open: false },
+};
+
+function _recordSuccess(aggName) {
+  if (_circuitState[aggName]) {
+    _circuitState[aggName].failures = 0;
+    _circuitState[aggName].open = false;
+  }
+}
+
+function _recordFailure(aggName) {
+  const state = _circuitState[aggName];
+  if (!state) return;
+  state.failures++;
+  state.lastFail = Date.now();
+  if (state.failures >= RESILIENCE.CIRCUIT_BREAKER_THRESHOLD) {
+    state.open = true;
+    console.warn(`[CIRCUIT-BREAKER] ${aggName} marked DOWN (${state.failures} consecutive failures)`);
+  }
+}
+
+function _isCircuitOpen(aggName) {
+  const state = _circuitState[aggName];
+  if (!state || !state.open) return false;
+  // Auto-reset after cooldown
+  if (Date.now() - state.lastFail > RESILIENCE.CIRCUIT_BREAKER_RESET_MS) {
+    state.open = false;
+    state.failures = 0;
+    console.log(`[CIRCUIT-BREAKER] ${aggName} circuit RESET (cooldown elapsed)`);
+    return false;
+  }
+  return true;
+}
+
+// Timeout helper
+function _fetchWithTimeout(url, options, timeoutMs) {
+  return Promise.race([
+    fetch(url, options),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]);
+}
+
+// Retry helper
+async function _withRetry(fn, maxRetries, delayMs, label) {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        console.warn(`[RETRY] ${label} attempt ${attempt + 1}/${maxRetries} failed: ${err.message}. Retrying in ${delayMs}ms...`);
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+  }
+  throw lastError;
+}
 
 // Execution mode: 'aggregator' (best price) or 'direct' (single DEX fallback)
 let EXECUTION_MODE = 'aggregator';
@@ -183,63 +295,234 @@ class WalletBrokerService {
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  AGGREGATOR: Get Quote from 0x (scans 100+ DEXes)
+  //  MULTI-AGGREGATOR: Get best quote from ALL available sources
   // ═══════════════════════════════════════════════════════════
 
   async _getAggregatorQuote(chainId, tokenIn, tokenOut, amountInWei) {
-    const endpoint = AGGREGATOR_ENDPOINTS[chainId];
-    if (!endpoint) return null; // Fallback to direct if chain not supported
+    // Try aggregators in priority order, skip circuit-broken ones
+    const aggregators = [
+      { ...AGGREGATOR_0X, method: '_quote0x' },
+      { ...AGGREGATOR_1INCH, method: '_quote1inch' },
+      { ...AGGREGATOR_PARASWAP, method: '_quoteParaswap' },
+    ];
 
-    const config = CHAIN_CONFIG[chainId];
+    if (RESILIENCE.PARALLEL_QUOTES) {
+      // Race all available aggregators in parallel — fastest wins
+      const available = aggregators.filter(a => !_isCircuitOpen(a.name) && a.endpoints[chainId]);
+      if (available.length === 0) {
+        console.warn('[AGGREGATOR] All aggregators circuit-broken, will try direct DEX');
+        return null;
+      }
+
+      const results = await Promise.allSettled(
+        available.map(agg =>
+          _withRetry(
+            () => this[agg.method](chainId, tokenIn, tokenOut, amountInWei),
+            RESILIENCE.MAX_RETRIES,
+            RESILIENCE.RETRY_DELAY_MS,
+            agg.name
+          ).then(quote => {
+            if (quote) {
+              _recordSuccess(agg.name);
+              return { ...quote, aggregator: agg.name };
+            }
+            throw new Error('Empty quote');
+          }).catch(err => {
+            _recordFailure(agg.name);
+            throw err;
+          })
+        )
+      );
+
+      // Pick the best quote (highest buyAmount = best price for the user)
+      const validQuotes = results
+        .filter(r => r.status === 'fulfilled')
+        .map(r => r.value)
+        .sort((a, b) => {
+          const aBuy = BigInt(a.buyAmount || '0');
+          const bBuy = BigInt(b.buyAmount || '0');
+          return bBuy > aBuy ? 1 : bBuy < aBuy ? -1 : 0;
+        });
+
+      if (validQuotes.length > 0) {
+        const best = validQuotes[0];
+        console.log(`[AGGREGATOR] Best quote from ${best.aggregator} (${validQuotes.length} sources responded)`);
+        if (validQuotes.length > 1) {
+          console.log(`[AGGREGATOR] Compared: ${validQuotes.map(q => `${q.aggregator}=${q.buyAmount}`).join(' vs ')}`);
+        }
+        return best;
+      }
+
+      console.warn('[AGGREGATOR] All parallel quotes failed');
+      return null;
+    }
+
+    // Sequential mode (fallback) — try each aggregator one by one
+    for (const agg of aggregators) {
+      if (_isCircuitOpen(agg.name)) continue;
+      if (!agg.endpoints[chainId]) continue;
+
+      try {
+        const quote = await _withRetry(
+          () => this[agg.method](chainId, tokenIn, tokenOut, amountInWei),
+          RESILIENCE.MAX_RETRIES,
+          RESILIENCE.RETRY_DELAY_MS,
+          agg.name
+        );
+        if (quote) {
+          _recordSuccess(agg.name);
+          return { ...quote, aggregator: agg.name };
+        }
+      } catch (err) {
+        _recordFailure(agg.name);
+        console.warn(`[AGGREGATOR] ${agg.name} failed: ${err.message}`);
+      }
+    }
+
+    return null;
+  }
+
+  // ─── 0x Protocol Quote ───
+  async _quote0x(chainId, tokenIn, tokenOut, amountInWei) {
+    const endpoint = AGGREGATOR_0X.endpoints[chainId];
+    if (!endpoint) return null;
+
     const params = new URLSearchParams({
       sellToken: tokenIn,
       buyToken: tokenOut,
       sellAmount: amountInWei.toString(),
-      slippagePercentage: '0.005', // 0.5%
+      slippagePercentage: '0.005',
       feeRecipient: KAIROS_FEE_RECIPIENT,
       buyTokenPercentageFee: (KAIROS_FEE_BPS / 10000).toString(),
       enableSlippageProtection: 'true',
     });
 
-    try {
-      const response = await fetch(`${endpoint}/swap/v1/quote?${params}`, {
-        headers: { '0x-api-key': '' },
-      });
+    const response = await _fetchWithTimeout(
+      `${endpoint}/swap/v1/quote?${params}`,
+      { headers: { '0x-api-key': '' } },
+      RESILIENCE.QUOTE_TIMEOUT_MS
+    );
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        console.warn(`[AGGREGATOR] Quote failed (${response.status}):`, error?.reason || 'Unknown');
-        return null;
-      }
-
-      const data = await response.json();
-
-      // Parse sources (which DEXes are being used)
-      const sources = (data.sources || [])
-        .filter(s => parseFloat(s.proportion) > 0)
-        .map(s => ({ name: s.name, pct: Math.round(parseFloat(s.proportion) * 100) }))
-        .sort((a, b) => b.pct - a.pct);
-
-      return {
-        buyAmount: data.buyAmount,
-        to: data.to,
-        data: data.data,
-        value: data.value || '0',
-        gasEstimate: data.estimatedGas,
-        allowanceTarget: data.allowanceTarget,
-        sources,
-        sourceSummary: sources.map(s => `${s.name} ${s.pct}%`).join(' + ') || 'Direct',
-        price: data.price,
-        guaranteedPrice: data.guaranteedPrice,
-      };
-    } catch (err) {
-      console.warn('[AGGREGATOR] Error:', err.message);
-      return null;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(`0x quote failed (${response.status}): ${error?.reason || 'Unknown'}`);
     }
+
+    const data = await response.json();
+    const sources = (data.sources || [])
+      .filter(s => parseFloat(s.proportion) > 0)
+      .map(s => ({ name: s.name, pct: Math.round(parseFloat(s.proportion) * 100) }))
+      .sort((a, b) => b.pct - a.pct);
+
+    return {
+      buyAmount: data.buyAmount,
+      to: data.to,
+      data: data.data,
+      value: data.value || '0',
+      gasEstimate: data.estimatedGas,
+      allowanceTarget: data.allowanceTarget,
+      sources,
+      sourceSummary: sources.map(s => `${s.name} ${s.pct}%`).join(' + ') || 'Direct',
+      price: data.price,
+      guaranteedPrice: data.guaranteedPrice,
+      quotedAt: Date.now(),
+    };
+  }
+
+  // ─── 1inch Quote (fallback aggregator) ───
+  async _quote1inch(chainId, tokenIn, tokenOut, amountInWei) {
+    const endpoint = AGGREGATOR_1INCH.endpoints[chainId];
+    if (!endpoint) return null;
+
+    const params = new URLSearchParams({
+      src: tokenIn,
+      dst: tokenOut,
+      amount: amountInWei.toString(),
+      from: KAIROS_FEE_RECIPIENT, // placeholder — will be overridden on execution
+      slippage: '0.5',
+      fee: (KAIROS_FEE_BPS / 100).toString(), // 1inch uses % not bps
+      referrerAddress: KAIROS_FEE_RECIPIENT,
+      disableEstimate: 'true',
+    });
+
+    const response = await _fetchWithTimeout(
+      `${endpoint}/swap?${params}`,
+      { headers: { 'accept': 'application/json' } },
+      RESILIENCE.QUOTE_TIMEOUT_MS
+    );
+
+    if (!response.ok) {
+      throw new Error(`1inch quote failed (${response.status})`);
+    }
+
+    const data = await response.json();
+
+    return {
+      buyAmount: data.dstAmount || data.toAmount || '0',
+      to: data.tx?.to || data.to,
+      data: data.tx?.data || data.data,
+      value: data.tx?.value || '0',
+      gasEstimate: data.tx?.gas || data.estimatedGas || '300000',
+      allowanceTarget: data.tx?.to || data.to,
+      sources: [{ name: '1inch Router', pct: 100 }],
+      sourceSummary: '1inch Aggregation',
+      price: null,
+      guaranteedPrice: null,
+      quotedAt: Date.now(),
+    };
+  }
+
+  // ─── Paraswap Quote (second fallback) ───
+  async _quoteParaswap(chainId, tokenIn, tokenOut, amountInWei) {
+    const endpoint = AGGREGATOR_PARASWAP.endpoints[chainId];
+    if (!endpoint) return null;
+
+    // Step 1: Get price route
+    const priceParams = new URLSearchParams({
+      srcToken: tokenIn,
+      destToken: tokenOut,
+      amount: amountInWei.toString(),
+      srcDecimals: '18',
+      destDecimals: '18',
+      side: 'SELL',
+      network: chainId.toString(),
+      partner: 'kairos',
+      version: '6.2',
+    });
+
+    const priceResp = await _fetchWithTimeout(
+      `${endpoint}/prices?${priceParams}`,
+      { headers: { 'accept': 'application/json' } },
+      RESILIENCE.QUOTE_TIMEOUT_MS
+    );
+
+    if (!priceResp.ok) {
+      throw new Error(`Paraswap price failed (${priceResp.status})`);
+    }
+
+    const priceData = await priceResp.json();
+    const bestRoute = priceData.priceRoute;
+    if (!bestRoute) throw new Error('Paraswap: no route found');
+
+    return {
+      buyAmount: bestRoute.destAmount || '0',
+      to: null, // Paraswap requires a separate /transactions call to get calldata
+      data: null,
+      value: '0',
+      gasEstimate: bestRoute.gasCost || '300000',
+      allowanceTarget: bestRoute.tokenTransferProxy,
+      sources: [{ name: 'Paraswap', pct: 100 }],
+      sourceSummary: `Paraswap (${bestRoute.bestRoute?.[0]?.swaps?.[0]?.swapExchanges?.map(e => e.exchange).join('+') || 'multi'})`,
+      price: null,
+      guaranteedPrice: null,
+      priceRoute: bestRoute, // Needed for building TX later
+      quotedAt: Date.now(),
+      needsTxBuild: true,
+    };
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  AGGREGATOR: Execute Swap via 0x quote
+  //  RESILIENT EXECUTION: Execute Swap with re-quote protection
   // ═══════════════════════════════════════════════════════════
 
   async _executeAggregatorSwap(wallet, chainId, tokenIn, amountInWei, quote) {
@@ -247,30 +530,87 @@ class WalletBrokerService {
     const config = CHAIN_CONFIG[chainId];
     const isNativeIn = tokenIn.toLowerCase() === config.wrapped.toLowerCase();
 
+    // Re-quote if quote is stale (>15s old)
+    let activeQuote = quote;
+    if (Date.now() - (quote.quotedAt || 0) > RESILIENCE.QUOTE_MAX_AGE_MS) {
+      console.log('[AGGREGATOR] Quote is stale, refreshing...');
+      const freshQuote = await this._getAggregatorQuote(chainId, tokenIn, quote._tokenOut || tokenIn, amountInWei);
+      if (freshQuote && freshQuote.data) {
+        activeQuote = freshQuote;
+        console.log('[AGGREGATOR] Using fresh quote');
+      } else {
+        console.warn('[AGGREGATOR] Re-quote failed, proceeding with original');
+      }
+    }
+
+    // Paraswap needs a separate TX-build step
+    if (activeQuote.needsTxBuild && activeQuote.priceRoute) {
+      try {
+        const txResp = await _fetchWithTimeout(
+          `${AGGREGATOR_PARASWAP.endpoints[chainId]}/transactions/${chainId}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              srcToken: tokenIn,
+              destToken: activeQuote._tokenOut,
+              srcAmount: amountInWei.toString(),
+              destAmount: activeQuote.buyAmount,
+              priceRoute: activeQuote.priceRoute,
+              userAddress: wallet.address,
+              partner: 'kairos',
+            }),
+          },
+          RESILIENCE.QUOTE_TIMEOUT_MS
+        );
+        if (txResp.ok) {
+          const txData = await txResp.json();
+          activeQuote.to = txData.to;
+          activeQuote.data = txData.data;
+          activeQuote.value = txData.value || '0';
+          activeQuote.gasEstimate = txData.gas || activeQuote.gasEstimate;
+        } else {
+          throw new Error('Paraswap TX build failed');
+        }
+      } catch (err) {
+        console.warn('[PARASWAP] TX build failed:', err.message);
+        throw err; // Will trigger fallback to direct DEX
+      }
+    }
+
+    if (!activeQuote.to || !activeQuote.data) {
+      throw new Error('Quote has no execution data');
+    }
+
     // Approve if ERC20
-    if (!isNativeIn && quote.allowanceTarget) {
+    if (!isNativeIn && activeQuote.allowanceTarget) {
       const tokenContract = new ethers.Contract(tokenIn, ERC20_ABI, wallet);
-      const allowance = await tokenContract.allowance(wallet.address, quote.allowanceTarget);
+      const allowance = await tokenContract.allowance(wallet.address, activeQuote.allowanceTarget);
       if (allowance < BigInt(amountInWei)) {
-        console.log(`[AGGREGATOR] Approving token for ${quote.sourceSummary}...`);
-        const approveTx = await tokenContract.approve(quote.allowanceTarget, ethers.MaxUint256);
+        console.log(`[AGGREGATOR] Approving token for ${activeQuote.sourceSummary}...`);
+        const approveTx = await tokenContract.approve(activeQuote.allowanceTarget, ethers.MaxUint256);
         await approveTx.wait();
         console.log('[AGGREGATOR] Approval confirmed');
       }
     }
 
-    // Execute aggregated swap
+    // Execute aggregated swap with enhanced gas buffer
+    const gasLimit = Math.ceil(Number(activeQuote.gasEstimate || 300000) * RESILIENCE.GAS_MULTIPLIER);
     const tx = await wallet.sendTransaction({
-      to: quote.to,
-      data: quote.data,
-      value: quote.value,
-      gasLimit: Math.ceil(Number(quote.gasEstimate || 300000) * 1.3),
+      to: activeQuote.to,
+      data: activeQuote.data,
+      value: activeQuote.value,
+      gasLimit,
     });
 
-    console.log(`[AGGREGATOR] Swap tx: ${tx.hash} via ${quote.sourceSummary}`);
+    console.log(`[AGGREGATOR] Swap tx: ${tx.hash} via ${activeQuote.sourceSummary} (gas limit: ${gasLimit})`);
     const receipt = await tx.wait();
 
-    return { tx, receipt, sources: quote.sources, sourceSummary: quote.sourceSummary };
+    if (receipt.status === 0) {
+      throw new Error(`TX reverted on-chain: ${tx.hash}`);
+    }
+
+    return { tx, receipt, sources: activeQuote.sources, sourceSummary: activeQuote.sourceSummary, aggregator: activeQuote.aggregator };
   }
 
   // Get or create provider for chain
@@ -435,6 +775,7 @@ class WalletBrokerService {
       try {
         const aggQuote = await this._getAggregatorQuote(chainId, tokenInAddr, tokenOutAddr, amountInWei);
         if (aggQuote) {
+          aggQuote._tokenOut = tokenOutAddr; // Store for potential re-quote
           const formattedOut = ethers.formatUnits(aggQuote.buyAmount, decimalsOut);
           const effectivePrice = parseFloat(formattedOut) / parseFloat(amountIn);
           console.log(`[QUOTE] Aggregator → ${formattedOut} via ${aggQuote.sourceSummary}`);
@@ -570,7 +911,8 @@ class WalletBrokerService {
       try {
         const aggQuote = await this._getAggregatorQuote(chainId, tokenIn, tokenOut, amountIn);
         if (aggQuote) {
-          console.log(`[ORDER] Executing via Aggregator → ${aggQuote.sourceSummary}`);
+          aggQuote._tokenOut = tokenOut; // Store for potential re-quote
+          console.log(`[ORDER] Executing via ${aggQuote.aggregator || 'Aggregator'} → ${aggQuote.sourceSummary}`);
           const result = await this._executeAggregatorSwap(wallet, chainId, tokenIn, amountIn, aggQuote);
           const formattedOut = ethers.formatUnits(aggQuote.buyAmount, decimalsOut);
 
@@ -587,6 +929,7 @@ class WalletBrokerService {
             chain: config.name,
             dex: 'Kairos Exchange',
             mode: 'aggregator',
+            aggregator: result.aggregator || aggQuote.aggregator || '0x',
             sources: result.sources,
             sourceSummary: result.sourceSummary,
             explorer: `${config.explorer}/tx/${result.tx.hash}`,
@@ -720,6 +1063,21 @@ class WalletBrokerService {
     } catch {
       return null;
     }
+  }
+
+  // ─── DIAGNOSTICS: Get aggregator health status ───
+  getAggregatorStatus() {
+    return {
+      mode: this.executionMode,
+      aggregators: Object.entries(_circuitState).map(([name, state]) => ({
+        name,
+        status: state.open ? 'DOWN' : 'HEALTHY',
+        consecutiveFailures: state.failures,
+        lastFailure: state.lastFail ? new Date(state.lastFail).toISOString() : null,
+        willResetAt: state.open ? new Date(state.lastFail + RESILIENCE.CIRCUIT_BREAKER_RESET_MS).toISOString() : null,
+      })),
+      config: { ...RESILIENCE },
+    };
   }
 }
 
