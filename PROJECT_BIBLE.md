@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: March 2, 2026 (Session 23 — Exchange Production Hardening)
+#  Last Updated: March 2, 2026 (Session 23 — Exchange Audit Fixes)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -1764,6 +1764,15 @@ Comprehensive production hardening of the Kairos Exchange DEX:
 - Adapters registered in KairosRouter
 
 **Deployed:** Exchange to https://kairos-exchange-app.netlify.app
+
+**7. Post-Audit Bug Fixes (commit `595273d`)**
+- Fixed `BridgePage.jsx`: `nativeCurrency` rendered as `[object Object]` → added `.symbol`
+- Fixed `Stats.jsx`: Copyright changed from "Kaizen LLC" to "Kairos 777 Inc"
+- Fixed `BridgePage.jsx`: Hardcoded 'Enter amount to bridge' → i18n key `enter_amount_to_bridge`
+- Fixed `PoolsPage.jsx`: Hardcoded Spanish text → i18n keys (`kairos_swap_desc`, `kairos_swap_title`, `kairos_swap_subtitle`)
+- Fixed `ErrorBoundary.jsx`: Hardcoded English text → i18n (imports `i18n.t()` directly for class component)
+- Fixed `SwapCard.jsx`: Fee display now shows "0.15%" only for 0x routes, "0%" for on-chain routes
+- Added 4 new i18n keys to both EN and ES translations in `i18n.js`
 
 ---
 
