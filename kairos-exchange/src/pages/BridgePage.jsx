@@ -146,7 +146,7 @@ export default function BridgePage() {
 
         {/* Amount */}
         <div className="rounded-xl bg-dark-300/60 border border-white/5 p-4 mb-4">
-          <span className="text-xs text-white/40 mb-2 block">{t('amount')} ({CHAINS[fromChain]?.nativeCurrency || 'Native'})</span>
+          <span className="text-xs text-white/40 mb-2 block">{t('amount')} ({CHAINS[fromChain]?.nativeCurrency?.symbol || 'Native'})</span>
           <input type="text" inputMode="decimal" placeholder="0.0" value={amount}
             onChange={e => { const v = e.target.value.replace(/[^0-9.]/g, ''); if (v.split('.').length <= 2) setAmount(v); }}
             className="input-token" />
@@ -162,7 +162,7 @@ export default function BridgePage() {
             {estimatedReceive && (
               <div className="flex justify-between text-xs">
                 <span className="text-white/40">{t('you_receive')}</span>
-                <span className="text-white font-mono">{estimatedReceive} {CHAINS[toChain]?.nativeCurrency || 'Native'}</span>
+                <span className="text-white font-mono">{estimatedReceive} {CHAINS[toChain]?.nativeCurrency?.symbol || 'Native'}</span>
               </div>
             )}
             {quoteData.toolDetails?.name && (
@@ -226,7 +226,7 @@ export default function BridgePage() {
           </button>
         ) : (
           <button disabled className="btn-primary w-full py-4 text-base opacity-40">
-            {amount && parseFloat(amount) > 0 ? (quoteLoading ? t('finding_best_price') : 'Enter amount to bridge') : t('enter_amount')}
+            {amount && parseFloat(amount) > 0 ? (quoteLoading ? t('finding_best_price') : t('enter_amount_to_bridge')) : t('enter_amount')}
           </button>
         )}
       </div>

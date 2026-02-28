@@ -91,7 +91,7 @@ export default function Stats() {
           <a href="https://kairos-exchange-app.netlify.app" target="_blank" rel="noopener" className="hover:text-brand-400 transition-colors">Exchange</a>
           <a href="https://kairos-777.com/whitepaper.html" target="_blank" rel="noopener" className="hover:text-brand-400 transition-colors">Whitepaper</a>
         </div>
-        <p className="text-[10px] text-white/10 mt-4">© 2026 Kaizen LLC — In God We Trust</p>
+        <p className="text-[10px] text-white/10 mt-4">© 2026 Kairos 777 Inc — In God We Trust</p>
       </footer>
     </div>
   );

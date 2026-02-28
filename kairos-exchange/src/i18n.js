@@ -188,6 +188,12 @@ const resources = {
       'lp_balance': 'LP Balance',
       'share_of_pool': 'Share',
       'withdraw_percent': 'Withdraw %',
+      // Bridge extra
+      'enter_amount_to_bridge': 'Enter amount to bridge',
+      // KairosSwap pool
+      'kairos_swap_desc': 'Native AMM of Kairos 777. 100% of fees stay in the ecosystem.',
+      'kairos_swap_title': 'KairosSwap - Native AMM',
+      'kairos_swap_subtitle': 'Kairos 777 native DEX on BNB Chain',
     },
   },
   es: {
@@ -356,6 +362,12 @@ const resources = {
       'lp_balance': 'Balance LP',
       'share_of_pool': 'Participación',
       'withdraw_percent': '% a Retirar',
+      // Bridge extra
+      'enter_amount_to_bridge': 'Ingresa monto a transferir',
+      // KairosSwap pool
+      'kairos_swap_desc': 'AMM nativo de Kairos 777. 100% de comisiones se quedan en el ecosistema.',
+      'kairos_swap_title': 'KairosSwap - AMM Nativo',
+      'kairos_swap_subtitle': 'DEX propio de Kairos 777 en BNB Chain',
     },
   },
 };

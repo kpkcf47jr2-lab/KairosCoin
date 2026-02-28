@@ -412,7 +412,7 @@ export default function SwapCard() {
             </div>
             <div className="flex items-center justify-between px-1 text-xs text-white/40">
               <span>{t('kairos_fee')}</span>
-              <span className="text-brand-400">0.15%</span>
+              <span className="text-brand-400">{quote.routeType === '0x' ? '0.15%' : '0%'}</span>
             </div>
 
             {/* Price Impact Warning */}

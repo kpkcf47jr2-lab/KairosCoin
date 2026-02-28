@@ -1,4 +1,5 @@
 import React from 'react';
+import i18n from '../i18n';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -24,15 +25,15 @@ export default class ErrorBoundary extends React.Component {
         <div className="min-h-screen bg-dark-300 flex items-center justify-center p-6">
           <div className="text-center max-w-md">
             <div className="text-6xl mb-4">⚠️</div>
-            <h1 className="text-xl font-bold text-white mb-2">Something went wrong</h1>
+            <h1 className="text-xl font-bold text-white mb-2">{i18n.t('error_boundary_title')}</h1>
             <p className="text-sm text-white/40 mb-6">
-              An unexpected error occurred. Please reload the page.
+              {i18n.t('error_boundary_desc')}
             </p>
             <button
               onClick={this.handleReload}
               className="px-6 py-3 rounded-xl bg-brand-500 text-white font-semibold hover:bg-brand-600 transition-all"
             >
-              Reload
+              {i18n.t('reload')}
             </button>
             {this.state.error && (
               <pre className="mt-4 p-3 rounded-lg bg-white/5 text-[10px] text-red-400/60 text-left overflow-auto max-h-32">

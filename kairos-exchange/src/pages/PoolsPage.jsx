@@ -204,7 +204,7 @@ function AddLiquidityTab({ chainId, account, provider, kairosAddr, t, setShowWal
         {isKairosSwap ? (
           <>
             <h3 className="text-base font-bold text-brand-400 mb-1">KairosSwap</h3>
-            <p className="text-xs text-white/50 max-w-sm mx-auto">AMM nativo de Kairos 777. 100% de comisiones se quedan en el ecosistema.</p>
+            <p className="text-xs text-white/50 max-w-sm mx-auto">{t('kairos_swap_desc')}</p>
             <div className="flex items-center justify-center gap-2 mt-2">
               <span className="text-[9px] bg-brand-500/15 text-brand-400 px-2 py-0.5 rounded-full">0.25% LP fees</span>
               <span className="text-[9px] bg-emerald-500/15 text-emerald-400 px-2 py-0.5 rounded-full">0.05% Treasury</span>
@@ -547,8 +547,8 @@ function OverviewTab({ chainId, provider, kairosAddr, t }) {
           <div className="flex items-center gap-3 mb-3">
             <img src="/kairos-token.png" alt="KairosSwap" className="w-10 h-10 rounded-full" />
             <div>
-              <h3 className="text-sm font-bold text-brand-400">KairosSwap - AMM Nativo</h3>
-              <p className="text-[10px] text-white/30">DEX propio de Kairos 777 en BNB Chain</p>
+              <h3 className="text-sm font-bold text-brand-400">{t('kairos_swap_title')}</h3>
+              <p className="text-[10px] text-white/30">{t('kairos_swap_subtitle')}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 mb-3">
