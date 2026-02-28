@@ -1,6 +1,25 @@
 // Kairos Trade — Wallet/DEX Broker Service
-// Enables on-chain trading via PancakeSwap/Uniswap/QuickSwap DEX routers
+// Enables on-chain trading via DEX Aggregator (100+ DEXes) or direct router
+// Powered by Kairos Exchange aggregation engine
 // Uses ethers.js for blockchain interaction
+
+// ═══════════════════════════════════════════════════════════
+//  AGGREGATOR CONFIG — 0x Protocol (100+ DEXes per chain)
+// ═══════════════════════════════════════════════════════════
+const AGGREGATOR_ENDPOINTS = {
+  56:    'https://bsc.api.0x.org',
+  1:     'https://api.0x.org',
+  137:   'https://polygon.api.0x.org',
+  42161: 'https://arbitrum.api.0x.org',
+  8453:  'https://base.api.0x.org',
+};
+
+// Kairos fee recipient (treasury)
+const KAIROS_FEE_RECIPIENT = '0xCee44904A6aA94dEa28754373887E07D4B6f4968';
+const KAIROS_FEE_BPS = 15; // 0.15%
+
+// Execution mode: 'aggregator' (best price) or 'direct' (single DEX fallback)
+let EXECUTION_MODE = 'aggregator';
 
 const CHAIN_CONFIG = {
   56: {
@@ -145,6 +164,113 @@ class WalletBrokerService {
   constructor() {
     this.providers = {};
     this.wallets = {};
+    this.executionMode = EXECUTION_MODE;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  EXECUTION MODE CONTROL
+  // ═══════════════════════════════════════════════════════════
+
+  setExecutionMode(mode) {
+    if (!['aggregator', 'direct'].includes(mode)) throw new Error('Invalid mode. Use "aggregator" or "direct"');
+    this.executionMode = mode;
+    EXECUTION_MODE = mode;
+    console.log(`[BROKER] Execution mode → ${mode === 'aggregator' ? '🔄 Aggregator (100+ DEXes)' : '📍 Direct (single DEX)'}`);
+  }
+
+  getExecutionMode() {
+    return this.executionMode;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  AGGREGATOR: Get Quote from 0x (scans 100+ DEXes)
+  // ═══════════════════════════════════════════════════════════
+
+  async _getAggregatorQuote(chainId, tokenIn, tokenOut, amountInWei) {
+    const endpoint = AGGREGATOR_ENDPOINTS[chainId];
+    if (!endpoint) return null; // Fallback to direct if chain not supported
+
+    const config = CHAIN_CONFIG[chainId];
+    const params = new URLSearchParams({
+      sellToken: tokenIn,
+      buyToken: tokenOut,
+      sellAmount: amountInWei.toString(),
+      slippagePercentage: '0.005', // 0.5%
+      feeRecipient: KAIROS_FEE_RECIPIENT,
+      buyTokenPercentageFee: (KAIROS_FEE_BPS / 10000).toString(),
+      enableSlippageProtection: 'true',
+    });
+
+    try {
+      const response = await fetch(`${endpoint}/swap/v1/quote?${params}`, {
+        headers: { '0x-api-key': '' },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        console.warn(`[AGGREGATOR] Quote failed (${response.status}):`, error?.reason || 'Unknown');
+        return null;
+      }
+
+      const data = await response.json();
+
+      // Parse sources (which DEXes are being used)
+      const sources = (data.sources || [])
+        .filter(s => parseFloat(s.proportion) > 0)
+        .map(s => ({ name: s.name, pct: Math.round(parseFloat(s.proportion) * 100) }))
+        .sort((a, b) => b.pct - a.pct);
+
+      return {
+        buyAmount: data.buyAmount,
+        to: data.to,
+        data: data.data,
+        value: data.value || '0',
+        gasEstimate: data.estimatedGas,
+        allowanceTarget: data.allowanceTarget,
+        sources,
+        sourceSummary: sources.map(s => `${s.name} ${s.pct}%`).join(' + ') || 'Direct',
+        price: data.price,
+        guaranteedPrice: data.guaranteedPrice,
+      };
+    } catch (err) {
+      console.warn('[AGGREGATOR] Error:', err.message);
+      return null;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  AGGREGATOR: Execute Swap via 0x quote
+  // ═══════════════════════════════════════════════════════════
+
+  async _executeAggregatorSwap(wallet, chainId, tokenIn, amountInWei, quote) {
+    const ethers = await getEthers();
+    const config = CHAIN_CONFIG[chainId];
+    const isNativeIn = tokenIn.toLowerCase() === config.wrapped.toLowerCase();
+
+    // Approve if ERC20
+    if (!isNativeIn && quote.allowanceTarget) {
+      const tokenContract = new ethers.Contract(tokenIn, ERC20_ABI, wallet);
+      const allowance = await tokenContract.allowance(wallet.address, quote.allowanceTarget);
+      if (allowance < BigInt(amountInWei)) {
+        console.log(`[AGGREGATOR] Approving token for ${quote.sourceSummary}...`);
+        const approveTx = await tokenContract.approve(quote.allowanceTarget, ethers.MaxUint256);
+        await approveTx.wait();
+        console.log('[AGGREGATOR] Approval confirmed');
+      }
+    }
+
+    // Execute aggregated swap
+    const tx = await wallet.sendTransaction({
+      to: quote.to,
+      data: quote.data,
+      value: quote.value,
+      gasLimit: Math.ceil(Number(quote.gasEstimate || 300000) * 1.3),
+    });
+
+    console.log(`[AGGREGATOR] Swap tx: ${tx.hash} via ${quote.sourceSummary}`);
+    const receipt = await tx.wait();
+
+    return { tx, receipt, sources: quote.sources, sourceSummary: quote.sourceSummary };
   }
 
   // Get or create provider for chain
@@ -218,9 +344,10 @@ class WalletBrokerService {
 
       return {
         success: true,
-        message: `Conectado a ${config.name} via ${config.dexName} (${parseFloat(nativeBalance).toFixed(4)} ${config.nativeSymbol})`,
+        message: `Conectado a ${config.name} via ${this.executionMode === 'aggregator' ? 'Kairos Exchange (100+ DEXes)' : config.dexName} (${parseFloat(nativeBalance).toFixed(4)} ${config.nativeSymbol})`,
         chain: config.name,
-        dex: config.dexName,
+        dex: this.executionMode === 'aggregator' ? 'Kairos Exchange' : config.dexName,
+        executionMode: this.executionMode,
         nativeBalance,
       };
     } catch (err) {
@@ -280,6 +407,7 @@ class WalletBrokerService {
   }
 
   // ─── GET QUOTE ───
+  // Aggregator-first: gets best price across 100+ DEXes, falls back to single DEX
   async getQuote(chainId, tokenIn, tokenOut, amountIn) {
     const ethers = await getEthers();
     const provider = await this._getProvider(chainId);
@@ -289,9 +417,76 @@ class WalletBrokerService {
     const tokenOutAddr = this._resolveToken(tokenOut, chainId);
     if (!tokenInAddr || !tokenOutAddr) throw new Error(`Token not found: ${tokenIn} or ${tokenOut}`);
 
+    // Get token decimals
+    let decimalsIn = 18;
+    if (tokenInAddr.toLowerCase() !== config.wrapped.toLowerCase()) {
+      const tokenContract = new ethers.Contract(tokenInAddr, ERC20_ABI, provider);
+      decimalsIn = await tokenContract.decimals();
+    }
+    let decimalsOut = 18;
+    if (tokenOutAddr.toLowerCase() !== config.wrapped.toLowerCase()) {
+      const outContract = new ethers.Contract(tokenOutAddr, ERC20_ABI, provider);
+      decimalsOut = await outContract.decimals();
+    }
+    const amountInWei = ethers.parseUnits(amountIn.toString(), decimalsIn);
+
+    // ── STRATEGY 1: Aggregator (100+ DEXes via 0x) ──
+    if (this.executionMode === 'aggregator') {
+      try {
+        const aggQuote = await this._getAggregatorQuote(chainId, tokenInAddr, tokenOutAddr, amountInWei);
+        if (aggQuote) {
+          const formattedOut = ethers.formatUnits(aggQuote.buyAmount, decimalsOut);
+          const effectivePrice = parseFloat(formattedOut) / parseFloat(amountIn);
+          console.log(`[QUOTE] Aggregator → ${formattedOut} via ${aggQuote.sourceSummary}`);
+
+          // Also get direct DEX quote for comparison (non-blocking)
+          let directQuote = null;
+          try { directQuote = await this._getDirectQuote(chainId, tokenInAddr, tokenOutAddr, amountInWei, decimalsOut, config); } catch {}
+          const savings = directQuote
+            ? ((parseFloat(formattedOut) - directQuote.amountOutNum) / directQuote.amountOutNum * 100).toFixed(2)
+            : null;
+
+          return {
+            amountIn: amountIn.toString(),
+            amountOut: formattedOut,
+            effectivePrice,
+            dex: 'Kairos Exchange',
+            mode: 'aggregator',
+            sources: aggQuote.sources,
+            sourceSummary: aggQuote.sourceSummary,
+            priceImpact: 'optimized',
+            savingsVsDirect: savings ? `${savings > 0 ? '+' : ''}${savings}%` : null,
+            directDex: directQuote?.dex || null,
+            _aggQuoteData: aggQuote, // Internal: used by placeOrder
+          };
+        }
+      } catch (err) {
+        console.warn('[QUOTE] Aggregator failed, falling back to direct DEX:', err.message);
+      }
+    }
+
+    // ── STRATEGY 2: Direct DEX (single router, fallback) ──
+    const directResult = await this._getDirectQuote(chainId, tokenInAddr, tokenOutAddr, amountInWei, decimalsOut, config);
+    return {
+      amountIn: amountIn.toString(),
+      amountOut: directResult.formattedOut,
+      effectivePrice: directResult.effectivePrice,
+      path: directResult.path,
+      dex: config.dexName,
+      mode: 'direct',
+      sources: [{ name: config.dexName, pct: 100 }],
+      sourceSummary: config.dexName,
+      priceImpact: directResult.path.length > 2 ? 'multi-hop' : 'direct',
+      savingsVsDirect: null,
+    };
+  }
+
+  // ── Internal: Direct DEX quote via single router ──
+  async _getDirectQuote(chainId, tokenInAddr, tokenOutAddr, amountInWei, decimalsOut, config) {
+    const ethers = await getEthers();
+    const provider = await this._getProvider(chainId);
     const router = new ethers.Contract(config.router, ROUTER_ABI, provider);
 
-    // Try direct path first, then via wrapped native
     const paths = [
       [tokenInAddr, tokenOutAddr],
       [tokenInAddr, config.wrapped, tokenOutAddr],
@@ -299,42 +494,22 @@ class WalletBrokerService {
 
     for (const path of paths) {
       try {
-        // Determine input token decimals
-        let decimalsIn = 18;
-        if (tokenInAddr.toLowerCase() !== config.wrapped.toLowerCase()) {
-          const tokenContract = new ethers.Contract(tokenInAddr, ERC20_ABI, provider);
-          decimalsIn = await tokenContract.decimals();
-        }
-        const amountInWei = ethers.parseUnits(amountIn.toString(), decimalsIn);
         const amounts = await router.getAmountsOut(amountInWei, path);
         const amountOut = amounts[amounts.length - 1];
-
-        // Get output decimals
-        let decimalsOut = 18;
-        if (tokenOutAddr.toLowerCase() !== config.wrapped.toLowerCase()) {
-          const outContract = new ethers.Contract(tokenOutAddr, ERC20_ABI, provider);
-          decimalsOut = await outContract.decimals();
-        }
-
         const formattedOut = ethers.formatUnits(amountOut, decimalsOut);
-        const effectivePrice = parseFloat(formattedOut) / parseFloat(amountIn);
+        const amountOutNum = parseFloat(formattedOut);
+        const effectivePrice = amountOutNum / parseFloat(ethers.formatUnits(amountInWei, 18));
 
-        return {
-          amountIn: amountIn.toString(),
-          amountOut: formattedOut,
-          effectivePrice,
-          path: path.map(p => p),
-          dex: config.dexName,
-          priceImpact: path.length > 2 ? 'multi-hop' : 'direct',
-        };
+        return { formattedOut, effectivePrice, amountOutNum, path, dex: config.dexName };
       } catch {
         continue;
       }
     }
-    throw new Error(`No liquidity found for ${tokenIn}→${tokenOut} on ${config.dexName}`);
+    throw new Error(`No liquidity found on ${config.dexName}`);
   }
 
   // ─── PLACE ORDER (DEX SWAP) ───
+  // Aggregator-first: routes through best DEXes, falls back to single router
   async placeOrder(privateKey, chainId, order) {
     const ethers = await getEthers();
     const config = CHAIN_CONFIG[chainId];
@@ -343,13 +518,11 @@ class WalletBrokerService {
     const { symbol, side, quantity, price } = order;
 
     // Parse trading pair: BTCUSDT → buy BTC with USDT (buy side) or sell BTC for USDT (sell side)
-    // Also handle BTCKAIROS format
     let baseToken, quoteToken;
     const pairMatch = symbol.match(/^([A-Z]+)(USDT|USDC|BUSD|KAIROS|BNB|ETH|WETH|WBNB|MATIC|AVAX)$/i);
     if (pairMatch) {
       baseToken = pairMatch[1].toUpperCase();
       quoteToken = pairMatch[2].toUpperCase();
-      // Map KAIROS quote to USDT for actual trading
       if (quoteToken === 'KAIROS') quoteToken = 'USDT';
     } else {
       throw new Error(`Invalid pair format: ${symbol}. Expected e.g. BTCUSDT`);
@@ -362,17 +535,14 @@ class WalletBrokerService {
     if (!quoteAddr) throw new Error(`Token ${quoteToken} not found on chain ${chainId}`);
 
     const wallet = await this._getWallet(privateKey, chainId);
-    const router = new ethers.Contract(config.router, ROUTER_ABI, wallet);
 
     // Determine swap direction
     let tokenIn, tokenOut, amountInRaw;
     if (side.toLowerCase() === 'buy') {
-      // Buy base with quote: USDT → BTC
       tokenIn = quoteAddr;
       tokenOut = baseAddr;
       amountInRaw = (parseFloat(quantity) * parseFloat(price || 1)).toString();
     } else {
-      // Sell base for quote: BTC → USDT
       tokenIn = baseAddr;
       tokenOut = quoteAddr;
       amountInRaw = quantity.toString();
@@ -387,7 +557,6 @@ class WalletBrokerService {
       const inContract = new ethers.Contract(tokenIn, ERC20_ABI, wallet.provider);
       decimalsIn = await inContract.decimals();
     }
-
     let decimalsOut = 18;
     if (!isNativeOut) {
       const outContract = new ethers.Contract(tokenOut, ERC20_ABI, wallet.provider);
@@ -396,14 +565,50 @@ class WalletBrokerService {
 
     const amountIn = ethers.parseUnits(amountInRaw, decimalsIn);
 
+    // ── STRATEGY 1: Aggregator (100+ DEXes) ──
+    if (this.executionMode === 'aggregator') {
+      try {
+        const aggQuote = await this._getAggregatorQuote(chainId, tokenIn, tokenOut, amountIn);
+        if (aggQuote) {
+          console.log(`[ORDER] Executing via Aggregator → ${aggQuote.sourceSummary}`);
+          const result = await this._executeAggregatorSwap(wallet, chainId, tokenIn, amountIn, aggQuote);
+          const formattedOut = ethers.formatUnits(aggQuote.buyAmount, decimalsOut);
+
+          return {
+            success: true,
+            txHash: result.tx.hash,
+            symbol,
+            side: side.toLowerCase(),
+            amountIn: amountInRaw,
+            amountOut: formattedOut,
+            effectivePrice: side.toLowerCase() === 'buy'
+              ? (parseFloat(amountInRaw) / parseFloat(formattedOut))
+              : (parseFloat(formattedOut) / parseFloat(amountInRaw)),
+            chain: config.name,
+            dex: 'Kairos Exchange',
+            mode: 'aggregator',
+            sources: result.sources,
+            sourceSummary: result.sourceSummary,
+            explorer: `${config.explorer}/tx/${result.tx.hash}`,
+            gasUsed: result.receipt.gasUsed?.toString(),
+            blockNumber: result.receipt.blockNumber,
+          };
+        }
+      } catch (err) {
+        console.warn('[ORDER] Aggregator execution failed, falling back to direct DEX:', err.message);
+      }
+    }
+
+    // ── STRATEGY 2: Direct DEX (single router, fallback) ──
+    console.log(`[ORDER] Executing via Direct → ${config.dexName}`);
+    const router = new ethers.Contract(config.router, ROUTER_ABI, wallet);
+
     // Build path
     let path;
     try {
-      // Try direct path first
       await router.getAmountsOut(amountIn, [tokenIn, tokenOut]);
       path = [tokenIn, tokenOut];
     } catch {
-      // Use wrapped native as intermediate
       path = [tokenIn, config.wrapped, tokenOut];
       try {
         await router.getAmountsOut(amountIn, path);
@@ -415,11 +620,11 @@ class WalletBrokerService {
     // Get expected output
     const amounts = await router.getAmountsOut(amountIn, path);
     const expectedOut = amounts[amounts.length - 1];
-    const slippage = 0.5; // 0.5% default slippage
+    const slippage = 0.5;
     const minOut = expectedOut * BigInt(Math.floor((1 - slippage / 100) * 10000)) / 10000n;
-    const deadline = Math.floor(Date.now() / 1000) + 300; // 5 minutes
+    const deadline = Math.floor(Date.now() / 1000) + 300;
 
-    // Approve token if needed (not for native)
+    // Approve token if needed
     if (!isNativeIn) {
       const tokenContract = new ethers.Contract(tokenIn, ERC20_ABI, wallet);
       const allowance = await tokenContract.allowance(wallet.address, config.router);
@@ -434,13 +639,10 @@ class WalletBrokerService {
     // Execute swap
     let tx;
     if (isNativeIn) {
-      // Native → Token
       tx = await router.swapExactETHForTokens(minOut, path, wallet.address, deadline, { value: amountIn });
     } else if (isNativeOut) {
-      // Token → Native
       tx = await router.swapExactTokensForETH(amountIn, minOut, path, wallet.address, deadline);
     } else {
-      // Token → Token (try fee-on-transfer first, fallback to normal)
       try {
         tx = await router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
           amountIn, minOut, path, wallet.address, deadline
@@ -468,6 +670,9 @@ class WalletBrokerService {
         : effectivePrice,
       chain: config.name,
       dex: config.dexName,
+      mode: 'direct',
+      sources: [{ name: config.dexName, pct: 100 }],
+      sourceSummary: config.dexName,
       explorer: `${config.explorer}/tx/${tx.hash}`,
       gasUsed: receipt.gasUsed?.toString(),
       blockNumber: receipt.blockNumber,

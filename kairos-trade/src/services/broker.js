@@ -1219,10 +1219,14 @@ class BrokerService {
           filledQty: parseFloat(result.amountOut || quantity),
           status: 'filled',
           timestamp: new Date().toISOString(),
-          broker: 'Kairos Wallet',
+          broker: result.mode === 'aggregator' ? 'Kairos Exchange' : 'Kairos Wallet',
           real: true,
           txHash: result.txHash,
           chain: result.chain,
+          dex: result.dex,
+          mode: result.mode,
+          sources: result.sources,
+          sourceSummary: result.sourceSummary,
         };
       } catch (err) { console.error('Wallet DEX placeOrder:', err); throw err; }
     }

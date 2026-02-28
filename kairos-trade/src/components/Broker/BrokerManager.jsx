@@ -299,6 +299,42 @@ export default function BrokerManager() {
         </div>
       )}
 
+      {/* ─── Kairos Exchange — Aggregator Mode ─── */}
+      <div className="rounded-xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(59,130,246,0.02))', border: '1px solid rgba(59,130,246,0.2)' }}>
+        <div className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+              style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)' }}>
+              ⚡
+            </div>
+            <div>
+              <p className="text-sm font-bold">Kairos Exchange</p>
+              <p className="text-xs text-[var(--text-dim)]">DEX Aggregator — Mejor precio en 100+ DEXes</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] px-2 py-1 rounded-full bg-blue-500/10 text-blue-400 font-bold">AGGREGATOR</span>
+            <span className="flex items-center gap-1 text-xs text-[var(--green)] px-2 py-1 rounded-lg" style={{ background: 'rgba(0,220,130,0.1)' }}>
+              <CheckCircle size={12} /> Activo
+            </span>
+          </div>
+        </div>
+        <div className="px-4 pb-3 space-y-2" style={{ borderTop: '1px solid rgba(59,130,246,0.1)' }}>
+          <div className="flex items-center gap-2 pt-2">
+            <Zap size={12} className="text-blue-400" />
+            <p className="text-[10px] text-[var(--text-dim)]">
+              Cada operación se enruta automáticamente por <strong className="text-blue-400">PancakeSwap, SushiSwap, Uniswap, 1inch, Curve</strong> y 100+ DEXes para conseguir el mejor precio posible.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {['PancakeSwap', 'Uniswap', 'SushiSwap', 'Curve', '1inch', 'DODO', 'Balancer', 'Kyber'].map(dex => (
+              <span key={dex} className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/5 text-[var(--text-dim)]">{dex}</span>
+            ))}
+            <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-blue-500/10 text-blue-400 font-bold">+92 más</span>
+          </div>
+        </div>
+      </div>
+
       {/* ─── Security badge ─── */}
       <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: 'rgba(59,130,246,0.04)', border: '1px solid rgba(59,130,246,0.1)' }}>
         <Shield size={20} className="text-[var(--gold)] shrink-0 mt-0.5" />
@@ -766,7 +802,7 @@ export default function BrokerManager() {
                         <>
                           Tu clave privada da <strong className="text-[var(--red)]">acceso total</strong> a tu wallet. 
                           Se almacena solo en tu dispositivo, encriptada. 
-                          <strong className="text-[var(--gold)]"> Trading via PancakeSwap/Uniswap DEX.</strong>
+                          <strong className="text-[var(--gold)]"> Trading via Kairos Exchange — 100+ DEXes.</strong>
                         </>
                       ) : (
                         <>
