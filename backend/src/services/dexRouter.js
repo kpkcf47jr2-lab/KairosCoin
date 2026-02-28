@@ -359,13 +359,19 @@ function ensureAccount(wallet) {
  *
  * Flow:
  * 1. Validate inputs (pair, leverage, collateral)
- * 2. Get real price from priceOracle
+ * 2. Get real price from priceOracle (Binance live feed)
  * 3. Ensure account exists, check balance
  * 4. Calculate position size, fees, liquidation price
- * 5. Insert position into SQLite
- * 6. Try on-chain mirror if relayer has enough funds (non-blocking)
- * 7. Try KairosPerps on-chain recording (non-blocking)
+ * 5. Insert position into SQLite (CFD source of truth)
+ * 6. [Optional] On-chain hedge via 0x API / PancakeSwap if relayer funded
+ * 7. [Optional] KairosPerps on-chain recording
  * 8. Return position object
+ *
+ * Execution Model:
+ *   - CFD (default): Positions tracked in SQLite at real Binance prices.
+ *     P&L settled in KAIROS. No on-chain execution needed.
+ *   - On-chain (bonus): If relayer wallet is funded with USDT+BNB on BSC,
+ *     actual DEX swaps are executed as hedging. Fully transparent on BscScan.
  *
  * @param {string} trader - Trader's wallet address
  * @param {string} pair - Trading pair (e.g., "BTC/USD")
@@ -449,7 +455,7 @@ async function openPosition(trader, pair, side, leverage, collateralKairos) {
         db.prepare("UPDATE dex_positions SET gmx_order_key = ? WHERE id = ?").run(txHash, positionId);
         logger.info(`DEX Router: Kairos Exchange swap executed — tx: ${txHash}`);
       } else {
-        logger.warn(`DEX Router: On-chain execution skipped — relayer USDT: ${stableBalance.toFixed(2)}, BNB: ${ethers.formatEther(gasBalance)}`);
+        logger.info(`DEX Router: CFD mode — position tracked at real prices (relayer USDT: ${stableBalance.toFixed(2)}, BNB: ${ethers.formatEther(gasBalance)})`);
       }
     } catch (err) {
       logger.warn(`DEX Router: Kairos Exchange execution failed (non-fatal): ${err.message}`);
@@ -492,6 +498,7 @@ async function openPosition(trader, pair, side, leverage, collateralKairos) {
     status: "OPEN",
     openedAt: new Date().toISOString(),
     executionEngine: "kairos-exchange",
+    executionMode: exchangeOrderKey ? "on-chain" : "cfd",
     source: "sqlite",
   };
 }
@@ -614,6 +621,7 @@ async function closePosition(positionId) {
     openedAt: position.opened_at,
     closedAt: now,
     executionEngine: "kairos-exchange",
+    executionMode: (position.gmx_order_key && position.gmx_order_key !== "") ? "on-chain" : "cfd",
     source: "sqlite",
   };
 }
@@ -1193,7 +1201,11 @@ function getStatus() {
 
   return {
     initialized: isInitialized,
-    mode: "Kairos Exchange Engine (0x Aggregator + DEX routing)",
+    mode: "Kairos Exchange Engine (CFD + optional on-chain hedging)",
+    executionModel: {
+      primary: "CFD — Real Binance prices, P&L in KAIROS",
+      onchain: relayerWallet ? "Available — 0x Aggregator + PancakeSwap on BSC" : "Not funded — CFD only",
+    },
     executionChain: EXECUTION_CHAIN.name,
     chainId: EXECUTION_CHAIN_ID,
     relayer: relayerWallet?.address || null,

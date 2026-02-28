@@ -305,7 +305,7 @@ export default function KairosBroker() {
                 )}
               </h1>
               <p className="text-sm text-blue-300">
-                {execMode === 'dex' ? 'Perpetuales DEX — Órdenes en Kairos Exchange' : 'Leverage Trading con Reserva Kairos 777'}
+                {execMode === 'dex' ? 'Perpetuales — Precios reales Binance, P&L en KAIROS' : 'Leverage Trading con Reserva Kairos 777'}
               </p>
             </div>
           </div>
@@ -369,14 +369,14 @@ export default function KairosBroker() {
             <div className="bg-gradient-to-r from-green-900/30 to-emerald-900/20 border border-green-500/20 rounded-lg px-4 py-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-green-400 text-sm">🔗</span>
-                <span className="text-green-300 text-xs font-medium">DEX Mode — Órdenes ejecutadas en Kairos Exchange</span>
+                <span className="text-green-300 text-xs font-medium">Kairos Exchange — Precios reales de Binance en tiempo real</span>
               </div>
               <div className="flex items-center gap-3 text-[10px] text-green-400/60">
                 <span>Motor: Kairos Exchange</span>
                 <span>•</span>
                 <span>Colateral: KAIROS</span>
                 <span>•</span>
-                <span>Liq: On-chain</span>
+                <span>Precios: Binance Live</span>
               </div>
             </div>
           )}

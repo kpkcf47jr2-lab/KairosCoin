@@ -139,7 +139,8 @@ router.get("/account", requireWallet, async (req, res) => {
         unrealizedPnl,
         freeMargin: (account.available || 0) + unrealizedPnl,
         openPositions: positions.length,
-        execution: "Hybrid (SQLite + Kairos Exchange)",
+        execution: "Kairos Exchange (CFD + on-chain hedging)",
+        priceSource: "Binance",
       },
     });
   } catch (err) {
@@ -192,12 +193,13 @@ router.post("/open", requireWallet, async (req, res) => {
     res.json({
       success: true,
       data: position,
-      message: `${sideUpper} ${pair} ${leverageNum}x opened — routed to Kairos Exchange`,
+      message: `${sideUpper} ${pair} ${leverageNum}x opened — Kairos Exchange (${position.executionMode || 'cfd'})`,
       execution: {
-        dex: "Kairos Exchange",
-        network: "Multi-chain",
-        gmxOrderKey: position.gmxOrderKey,
-        contract: "KairosPerps",
+        engine: "Kairos Exchange",
+        mode: position.executionMode || "cfd",
+        network: "BSC",
+        txHash: position.exchangeOrderKey || null,
+        priceSource: "Binance",
       },
     });
     
