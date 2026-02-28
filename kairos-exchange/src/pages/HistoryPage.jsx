@@ -15,9 +15,9 @@ export default function HistoryPage() {
     const d = new Date(ts);
     const now = Date.now();
     const diff = now - ts;
-    if (diff < 60000) return 'Just now';
-    if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-    if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+    if (diff < 60000) return t('just_now');
+    if (diff < 3600000) return t('minutes_ago', { count: Math.floor(diff / 60000) });
+    if (diff < 86400000) return t('hours_ago', { count: Math.floor(diff / 3600000) });
     return d.toLocaleDateString();
   };
 

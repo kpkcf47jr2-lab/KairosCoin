@@ -3,6 +3,7 @@ import { useStore } from '../store';
 import { useTranslation } from 'react-i18next';
 import ChainSelector from '../components/ChainSelector';
 import SwapCard from '../components/SwapCard';
+import PriceChart from '../components/PriceChart';
 import Stats from '../components/Stats';
 
 export default function SwapPage() {
@@ -19,6 +20,7 @@ export default function SwapPage() {
         <div className="mt-5"><ChainSelector /></div>
       </div>
       <SwapCard />
+      <PriceChart />
       <Stats />
     </>
   );

@@ -53,7 +53,7 @@ export default function AnalyticsPage() {
             <div className="col-span-2 text-right">{t('price')}</div>
             <div className="col-span-2 text-right">{t('price_change')}</div>
             <div className="col-span-2 text-right">{t('volume_24h')}</div>
-            <div className="col-span-2 text-right">Liquidity</div>
+            <div className="col-span-2 text-right">{t('liquidity')}</div>
           </div>
 
           {/* Rows */}

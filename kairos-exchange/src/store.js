@@ -6,7 +6,7 @@
 import { create } from 'zustand';
 import { DEFAULT_CHAIN_ID, CHAINS } from './config/chains';
 import { TOKENS, NATIVE_ADDRESS } from './config/tokens';
-import { connectInjected, connectKairosWallet, setupWalletListeners, switchChain } from './services/wallet';
+import { connectInjected, connectKairosWallet, connectWalletConnect, setupWalletListeners, switchChain } from './services/wallet';
 import { getCustomTokens } from './services/history';
 
 const defaultTokens = TOKENS[DEFAULT_CHAIN_ID];
@@ -106,7 +106,7 @@ export const useStore = create((set, get) => ({
         result = await connectKairosWallet();
         if (!result) { set({ isConnecting: false }); return; }
       } else if (walletOption.type === 'walletconnect') {
-        result = await connectInjected();
+        result = await connectWalletConnect();
       } else {
         result = await connectInjected();
       }

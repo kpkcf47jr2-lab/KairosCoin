@@ -109,17 +109,59 @@ export default function SwapCard() {
     debounceRef.current = setTimeout(() => fetchQuote(val), 500);
   };
 
-  // Refresh quote when tokens change
+  // Refresh quote when tokens or amount change
   useEffect(() => {
     if (sellAmount && parseFloat(sellAmount) > 0) {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => fetchQuote(sellAmount), 300);
     }
-  }, [sellToken?.address, buyToken?.address, chainId]);
+  }, [sellToken?.address, buyToken?.address, chainId, sellAmount]);
+
+  // Auto-refresh quotes every 15s to prevent staleness
+  useEffect(() => {
+    if (!quote || !sellAmount || parseFloat(sellAmount) <= 0 || isSwapping) return;
+    const interval = setInterval(() => {
+      fetchQuote(sellAmount);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [quote, sellAmount, sellToken?.address, buyToken?.address, chainId, isSwapping]);
+
+  // ── Helper to re-fetch balances ──
+  const refreshBalances = useCallback(async () => {
+    if (!provider || !account) return;
+    try {
+      if (sellToken) {
+        if (sellToken.isNative) {
+          const bal = await provider.getBalance(account);
+          setSellBalance(parseFloat(ethers.formatEther(bal)));
+        } else {
+          const c = new ethers.Contract(sellToken.address, ['function balanceOf(address) view returns (uint256)'], provider);
+          const bal = await c.balanceOf(account);
+          setSellBalance(parseFloat(ethers.formatUnits(bal, sellToken.decimals || 18)));
+        }
+      }
+      if (buyToken) {
+        if (buyToken.isNative) {
+          const bal = await provider.getBalance(account);
+          setBuyBalance(parseFloat(ethers.formatEther(bal)));
+        } else {
+          const c = new ethers.Contract(buyToken.address, ['function balanceOf(address) view returns (uint256)'], provider);
+          const bal = await c.balanceOf(account);
+          setBuyBalance(parseFloat(ethers.formatUnits(bal, buyToken.decimals || 18)));
+        }
+      }
+    } catch {}
+  }, [provider, account, sellToken, buyToken]);
 
   // ── Execute Swap ──
   const handleSwap = async () => {
     if (!provider || !quote || !account) return;
+
+    // Insufficient balance check
+    if (sellBalance !== null && parseFloat(sellAmount) > sellBalance) {
+      setError(t('insufficient_balance'));
+      return;
+    }
 
     setIsSwapping(true);
     setError(null);
@@ -174,6 +216,9 @@ export default function SwapCard() {
       setSwapStep('done');
       setTxStatus('confirmed');
       updateTransaction(tx.hash, { status: 'confirmed', gasUsed: receipt.gasUsed?.toString() });
+
+      // Refresh balances after successful swap
+      refreshBalances();
     } catch (err) {
       console.error('Swap error:', err);
       setSwapStep('error');
@@ -412,6 +457,10 @@ export default function SwapCard() {
             <button disabled className="btn-primary w-full py-4 text-base opacity-40">
               {t('enter_amount')}
             </button>
+          ) : sellBalance !== null && parseFloat(sellAmount) > sellBalance ? (
+            <button disabled className="btn-primary w-full py-4 text-base opacity-40 !bg-red-500/20 !text-red-400">
+              {t('insufficient_balance')}
+            </button>
           ) : isQuoting ? (
             <button disabled className="btn-primary w-full py-4 text-base opacity-60">
               <span className="flex items-center justify-center gap-2">
@@ -454,10 +503,18 @@ export default function SwapCard() {
           </div>
         )}
 
-        {/* ── Error ── */}
+        {/* ── Error + Retry ── */}
         {error && !isQuoting && (
-          <div className="mt-3 text-center text-xs text-red-400/80 animate-fade-in">
-            {error}
+          <div className="mt-3 text-center animate-fade-in">
+            <p className="text-xs text-red-400/80 mb-2">{error}</p>
+            {swapStep === 'error' && quote && (
+              <button
+                onClick={handleSwap}
+                className="text-xs text-brand-400 hover:text-brand-300 px-3 py-1 rounded-lg bg-brand-500/10 hover:bg-brand-500/20 transition-all"
+              >
+                ↻ {t('retry')}
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -43,4 +43,7 @@
   .chain-pill-inactive {
     @apply chain-pill bg-white/5 text-white/50 border-white/10 hover:bg-white/10 hover:text-white/70;
   }
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
 }

@@ -6,6 +6,20 @@ import { CHAINS } from '../config/chains';
 import { NATIVE_ADDRESS } from '../config/tokens';
 import ChainSelector from '../components/ChainSelector';
 
+// Expiry countdown helper component
+function ExpiryCountdown({ order, t }) {
+  const expiryMs = {
+    '1h': 3600000, '24h': 86400000, '7d': 604800000, '30d': 2592000000,
+  };
+  const expiresAt = order.createdAt + (expiryMs[order.expiry] || 86400000);
+  const remaining = expiresAt - Date.now();
+  if (remaining <= 0) return <span className="text-red-400">{t('expired')}</span>;
+  const hours = Math.floor(remaining / 3600000);
+  const mins = Math.floor((remaining % 3600000) / 60000);
+  if (hours > 24) return <span>{t('expires_in')} {Math.floor(hours / 24)}d {hours % 24}h</span>;
+  return <span>{t('expires_in')} {hours}h {mins}m</span>;
+}
+
 export default function LimitPage() {
   const { t } = useTranslation();
   const { account, provider, chainId, sellToken, buyToken, setShowTokenSelector, setShowWalletModal } = useStore();
@@ -25,7 +39,7 @@ export default function LimitPage() {
     const fetchPrice = async () => {
       try {
         const decimals = sellToken.decimals || 18;
-        const amt = BigInt(10 ** decimals).toString(); // 1 unit
+        const amt = (10n ** BigInt(decimals)).toString(); // 1 unit
         const data = await getPrice({
           chainId, sellToken: sellToken.address, buyToken: buyToken.address, sellAmount: amt,
         });
@@ -87,7 +101,7 @@ export default function LimitPage() {
           <div className="rounded-xl bg-dark-300/60 border border-white/5 p-4 mb-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-white/40">{t('you_sell')}</span>
-              {currentPrice && <span className="text-xs text-white/30">Market: {currentPrice.toFixed(6)}</span>}
+              {currentPrice && <span className="text-xs text-white/30">{t('market_price')}: {currentPrice.toFixed(6)}</span>}
             </div>
             <div className="flex items-center gap-3">
               <button onClick={() => setShowTokenSelector('sell')}
@@ -106,7 +120,7 @@ export default function LimitPage() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-white/40">{t('limit_price')} ({buyToken?.symbol}/{sellToken?.symbol})</span>
               {currentPrice && (
-                <button onClick={() => setLimitPrice(currentPrice.toFixed(6))} className="text-[10px] text-brand-400 hover:underline">Market</button>
+                <button onClick={() => setLimitPrice(currentPrice.toFixed(6))} className="text-[10px] text-brand-400 hover:underline">{t('market_price')}</button>
               )}
             </div>
             <input type="text" inputMode="decimal" placeholder="0.0" value={limitPrice}
@@ -169,7 +183,7 @@ export default function LimitPage() {
                 <div key={order.id} className="flex items-center justify-between p-3 rounded-xl bg-white/3 border border-white/5">
                   <div>
                     <div className="text-xs text-white font-medium">{order.sellAmount} {order.sellToken.symbol} → {order.buyAmount} {order.buyToken.symbol}</div>
-                    <div className="text-[10px] text-white/30 mt-0.5">@ {order.limitPrice} • {order.expiry}</div>
+                    <div className="text-[10px] text-white/30 mt-0.5">@ {order.limitPrice} • <ExpiryCountdown order={order} t={t} /></div>
                   </div>
                   <button onClick={() => cancelOrder(order.id)} className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded-lg hover:bg-red-400/10 transition-all">{t('cancel')}</button>
                 </div>

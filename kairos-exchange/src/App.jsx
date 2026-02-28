@@ -1,5 +1,7 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import ErrorBoundary from './components/ErrorBoundary';
+import MobileNav from './components/MobileNav';
 import Header from './components/Header';
 import TokenSelector from './components/TokenSelector';
 import SettingsPanel from './components/SettingsPanel';
@@ -18,7 +20,8 @@ export default function App() {
   const { error, setError } = useStore();
 
   return (
-    <div className="min-h-screen bg-dark-300 relative overflow-hidden">
+    <ErrorBoundary>
+    <div className="min-h-screen bg-dark-300 relative overflow-hidden pb-16 sm:pb-0">
       {/* Background effects */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-brand-500/3 rounded-full blur-[120px]" />
@@ -46,6 +49,9 @@ export default function App() {
       <WalletModal />
       <TxModal />
 
+      {/* Mobile Bottom Nav */}
+      <MobileNav />
+
       {/* Global error toast */}
       {error && (
         <div
@@ -56,5 +62,6 @@ export default function App() {
         </div>
       )}
     </div>
+    </ErrorBoundary>
   );
 }

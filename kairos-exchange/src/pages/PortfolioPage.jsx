@@ -6,6 +6,23 @@ import { TOKENS, NATIVE_ADDRESS } from '../config/tokens';
 import { CHAINS } from '../config/chains';
 import { getCustomTokens } from '../services/history';
 
+// CoinGecko native price fetcher with 5-min cache
+const CG_IDS = { 56: 'binancecoin', 1: 'ethereum', 8453: 'ethereum', 42161: 'ethereum', 137: 'matic-network' };
+const FALLBACK = { 56: 600, 1: 3200, 8453: 3200, 42161: 3200, 137: 0.4 };
+let _npCache = { data: null, ts: 0 };
+async function getNativePrice(chainId) {
+  if (_npCache.data && Date.now() - _npCache.ts < 300000) return _npCache.data[chainId] || FALLBACK[chainId] || 0;
+  try {
+    const ids = [...new Set(Object.values(CG_IDS))].join(',');
+    const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+    const d = await r.json();
+    const prices = {};
+    for (const [cid, cgId] of Object.entries(CG_IDS)) prices[cid] = d[cgId]?.usd || FALLBACK[cid] || 0;
+    _npCache = { data: prices, ts: Date.now() };
+    return prices[chainId] || FALLBACK[chainId] || 0;
+  } catch { return FALLBACK[chainId] || 0; }
+}
+
 export default function PortfolioPage() {
   const { t } = useTranslation();
   const { account, provider, chainId, setShowWalletModal } = useStore();
@@ -37,13 +54,12 @@ export default function PortfolioPage() {
 
   useEffect(() => { fetchPortfolio(); }, [fetchPortfolio]);
 
+  const [nativePrice, setNativePrice] = useState(FALLBACK[chainId] || 0);
+  useEffect(() => { getNativePrice(chainId).then(setNativePrice); }, [chainId]);
+
   // Calculate total value
   const totalValue = balances.reduce((sum, token) => {
-    if (token.isNative) {
-      // Use rough native prices
-      const nativePrices = { 56: 600, 1: 3200, 8453: 3200, 42161: 3200, 137: 0.4 };
-      return sum + token.balance * (nativePrices[chainId] || 0);
-    }
+    if (token.isNative) return sum + token.balance * nativePrice;
     const p = prices[token.address?.toLowerCase()];
     return sum + token.balance * (p?.price || 0);
   }, 0);
@@ -86,7 +102,7 @@ export default function PortfolioPage() {
             <div className="space-y-2">
               {balances.map(token => {
                 const price = token.isNative
-                  ? { 56: 600, 1: 3200, 8453: 3200, 42161: 3200, 137: 0.4 }[chainId] || 0
+                  ? nativePrice
                   : prices[token.address?.toLowerCase()]?.price || 0;
                 const value = token.balance * price;
                 const change = prices[token.address?.toLowerCase()]?.priceChange24h;
