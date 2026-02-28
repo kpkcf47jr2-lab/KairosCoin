@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: March 2, 2026 (Session 23 — Pool Visibility & DexScreener Indexing)
+#  Last Updated: March 2, 2026 (Session 24 — GMX V2 → Kairos Exchange Engine + Real Execution)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -1785,6 +1785,59 @@ Comprehensive production hardening of the Kairos Exchange DEX:
 - **DexScreener:** PancakeSwap pair auto-indexing expected within 1-24h; KairosSwap needs manual integration request
 - **Pending manual submissions:** CoinGecko, CoinMarketCap, BscScan token info, Trust Wallet logo
 - New scripts: `scripts/trigger-dexscreener-indexing.js`, `scripts/generate-trading-activity.js`, `scripts/check-swap-events.js`
+
+---
+
+### Session 24 — GMX V2 → Kairos Exchange Engine + Real On-Chain Execution (Mar 2, 2026)
+
+Complete rebrand of perpetual/leverage trading from GMX V2 to Kairos Exchange Engine with real on-chain execution via 0x Protocol aggregator + PancakeSwap fallback on BSC.
+
+**1. Full GMX V2 → Kairos Exchange Rebrand**
+- `backend/src/server.js` — 4 GMX references → "Kairos Exchange" (route descriptions, init logs)
+- `backend/src/routes/perps.js` — All user-facing strings → "Kairos Exchange"
+- `backend/src/services/dexRouter.js` — All comments/headers → "Kairos Exchange Engine"
+- `kairos-trade/src/components/Kairos/KairosBroker.jsx` — All UI text (badge, subtitle, banner, footer)
+- `kairos-trade/src/services/broker.js` — 3 comment references fixed
+- `kairos-trade/src/services/tradingEngine.js` — 1 comment reference fixed
+- **ZERO GMX references in production build** (verified with grep)
+
+**2. Real On-Chain Execution Engine (dexRouter.js — 1296 lines)**
+- Execution strategy: `executeKairosSwap()` → `executeVia0xAPI()` → `executeViaOnChainDex()`
+- **0x Protocol Aggregator:** Quotes from 100+ DEXes on BSC via `/swap/permit2/quote` endpoint
+- **PancakeSwap V2 Fallback:** Direct `swapExactTokensForTokens` if 0x unavailable
+- **KairosSwap AMM:** Additional routing option (Factory `0xB5891c54199d539CB8afd37BFA9E17370095b9D9`)
+- BSC primary execution chain (chain 56)
+- Kairos fee: 15 BPS (0.15%) to treasury `0xCee44904A6aA94dEa28754373887E07D4B6f4968`
+- Supported pairs: BTC/USD, ETH/USD, BNB/USD, SOL/USD, DOGE/USD, LINK/USD, AVAX/USD, MATIC/USD, ARB/USD
+- Token approval + slippage protection + multi-hop routing included
+- Relayer wallet executes trades using OWNER_PRIVATE_KEY on BSC
+
+**3. Environment Configuration**
+- Added `RELAYER_PRIVATE_KEY` to `.env` (defaults to owner wallet)
+- Added `ZERO_X_API_KEY` placeholder to `.env` (PancakeSwap fallback works without it)
+- Get free 0x API key at https://0x.org/docs/introduction/getting-started
+
+**4. Internal GMX References (Kept Intentionally)**
+- 14 internal `gmx_order_key` refs in dexRouter.js + perps.js — SQL column name, cannot rename without DB migration
+- These are implementation details, not user-facing
+
+**Commit:** `4abcd44` — Deployed to:
+- Trade App: ✅ https://kairos-trade.netlify.app
+- Backend: ✅ https://kairos-api-u6k5.onrender.com (Render auto-deploy)
+
+**Files Modified:**
+- `backend/src/server.js`
+- `backend/src/routes/perps.js`
+- `backend/src/services/dexRouter.js`
+- `backend/.env` (added 2 vars)
+- `kairos-trade/src/components/Kairos/KairosBroker.jsx`
+- `kairos-trade/src/services/broker.js`
+- `kairos-trade/src/services/tradingEngine.js`
+
+**Next Steps:**
+- Fund relayer wallet with USDT + BNB on BSC for real on-chain execution
+- Get 0x API key for optimal multi-DEX routing
+- Monitor first real leveraged trades
 
 ---
 
