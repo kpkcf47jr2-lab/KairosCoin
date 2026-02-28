@@ -10,14 +10,20 @@ Before starting any work, read `PROJECT_BIBLE.md` in the project root. It contai
 
 ## Architecture Summary
 - **Smart Contract:** `contracts/KairosCoin.sol` — Solidity 0.8.24, deployed on BSC at `0x14D41707269c7D8b8DFa5095b38824a46dA05da3`
-- **Backend API:** `backend/src/server.js` — Node.js + Express + SQLite, deployed on Render at `https://kairos-api-u6k5.onrender.com`
+- **KairosSwap AMM:** `contracts/KairosSwap*.sol` — Factory `0xB5891c54199d539CB8afd37BFA9E17370095b9D9`, Router `0x4F8C99a49d04790Ea8C48CC60F88DB327e509Cd6` on BSC
+- **Backend API:** `backend/src/server.js` — Node.js + Express + Turso (cloud SQLite), deployed on Render at `https://kairos-api-u6k5.onrender.com`
 - **Website:** `website/` folder — Static HTML/CSS/JS, deployed on Netlify at `https://kairos-777.com`
 - **Wallet App:** `kairos-wallet/` — React + Vite + Tailwind, deployed at `https://kairos-wallet.netlify.app`
+- **Trade App:** `kairos-trade/` — React + Vite + Tailwind, deployed at `https://kairos-trade.netlify.app`
+- **Exchange DEX:** `kairos-exchange/` — React + Vite + Tailwind + ethers v6, deployed at `https://kairos-exchange-app.netlify.app`
+- **Browser Extension:** `kairos-extension/` — Chrome MV3 extension wallet
 
 ## Key Addresses
 - Owner wallet: `0xCee44904A6aA94dEa28754373887E07D4B6f4968`
 - Contract (BSC/Base/Arbitrum): `0x14D41707269c7D8b8DFa5095b38824a46dA05da3`
 - Contract (Polygon): `0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9`
+- KairosSwap Factory (BSC): `0xB5891c54199d539CB8afd37BFA9E17370095b9D9`
+- KairosSwap Router (BSC): `0x4F8C99a49d04790Ea8C48CC60F88DB327e509Cd6`
 - USDT (BSC): `0x55d398326f99059fF775485246999027B3197955`
 - BUSD (BSC): `0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56`
 - USDC (BSC): `0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d`
@@ -36,10 +42,14 @@ Before starting any work, read `PROJECT_BIBLE.md` in the project root. It contai
 
 ## Current Status (Update this section after each session)
 - Transak KYB submitted Feb 22, 2026 — waiting approval
-- Backend v1.1.0 with fiat webhook system built and deployed
+- Backend v1.3.0 with Turso cloud DB, auth, referrals, treasury
 - All infrastructure live and operational
-- KAIROS deployed on 4 chains: BSC, Base, Arbitrum, Polygon (Feb 22, 2026)
-- Next focus: Wallet app full features
+- KAIROS deployed on 4 chains: BSC, Base, Arbitrum, Polygon
+- KairosSwap AMM deployed on BSC (Feb 28, 2026)
+- Kairos Exchange DEX aggregator live (5 chains, 100+ DEXes)
+- iOS apps submitted to App Store (pending review)
+- Chrome extension wallet built (CWS submission pending)
+- Session 22 complete: Exchange + KairosSwap AMM
 
 ## Important Rules
 1. Always update `PROJECT_BIBLE.md` after significant changes

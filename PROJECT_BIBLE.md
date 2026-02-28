@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: February 28, 2026 (Session 22 — Chatbot v2.0 + Kairos Exchange)
+#  Last Updated: February 28, 2026 (Session 22 — Kairos Exchange DEX + KairosSwap AMM)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -99,28 +99,51 @@
   - `scripts/deploy-trade.js` — full pipeline: lint → build → deploy → verify
 - **Deploy:** `npx netlify deploy --prod --dir=kairos-trade/dist --site=b7b3fd54-863a-4e6f-a334-460b1092045b --auth=nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93`
 
-### Kairos Exchange (Netlify) — DEX Aggregator
+### Kairos Exchange (Netlify) — DEX Aggregator + Native AMM
 - **URL:** https://kairos-exchange-app.netlify.app
 - **Netlify Site ID:** `9d14d95f-3b48-47a9-bb63-b4637b77bcd4`
-- **Tech:** React 18 + Vite 6 + Tailwind 3 + Zustand + ethers v6
-- **Purpose:** Multi-chain DEX aggregator — best price across 100+ DEXes on 5 chains
+- **Tech:** React 18 + Vite 6 + Tailwind 3 + Zustand + ethers v6 + react-i18next + lightweight-charts
+- **Purpose:** Multi-chain DEX aggregator + native AMM (KairosSwap) — best price across 100+ DEXes on 5 chains
 - **Chains:** BSC, Ethereum, Polygon, Arbitrum, Base
-- **Aggregation API:** 0x Protocol Swap API (primary)
-- **Fee:** 0.15% base (0.075% with KAIROS holder discount)
-- **Smart Contracts (not yet deployed to mainnet):**
-  - `FeeModule.sol` — Fee calculation + KAIROS holder discount + treasury
-  - `KairosRouter.sol` — Multi-route swap router with adapter registry
-  - `PancakeSwapAdapter.sol` — PancakeSwap V2 adapter
-  - `SushiSwapAdapter.sol` — SushiSwap adapter
-  - `MockERC20.sol` / `MockDEXAdapter.sol` — Test mocks
-- **Features:** Safe Mode (MEV protection), route visualization, chatbot agent
+- **Routing:** On-chain DEX routing (primary, no API key) + 0x Protocol Swap API (optional)
+- **Fee:** 0.15% on 0x routes → Kairos treasury; 0.05% protocol fee on KairosSwap
+- **Wallets:** MetaMask, Trust Wallet, Rabby, Coinbase Wallet, WalletConnect v2, Kairos Wallet (recommended)
+- **i18n:** Full English/Spanish with react-i18next (~200 translations)
+
+#### KairosSwap AMM (BSC — DEPLOYED)
+- **Factory:** `0xB5891c54199d539CB8afd37BFA9E17370095b9D9` on BSC ([BscScan](https://bscscan.com/address/0xB5891c54199d539CB8afd37BFA9E17370095b9D9#code))
+- **Router:** `0x4F8C99a49d04790Ea8C48CC60F88DB327e509Cd6` on BSC ([BscScan](https://bscscan.com/address/0x4F8C99a49d04790Ea8C48CC60F88DB327e509Cd6#code))
+- **KAIROS/BNB LP Pool:** Created (via `create-kairos-bnb-pool.js`)
+- **Fee Structure:** 0.30% total swap fee — 0.25% to LPs, 0.05% to Kairos Treasury
+- **Treasury/feeTo:** `0xCee44904A6aA94dEa28754373887E07D4B6f4968`
+- **Architecture:** Uniswap V2 fork with TWAP oracle, constant product AMM
+- **Contracts Source:** `contracts/KairosSwapFactory.sol`, `contracts/KairosSwapPair.sol`, `contracts/KairosSwapRouter.sol`
+- **Deployed:** February 28, 2026
+
+#### Smart Contracts (Exchange Router — not yet deployed to mainnet):
+  - `FeeModule.sol` — Fee calculation + KAIROS holder discount (50% off) + configurable treasury
+  - `KairosRouter.sol` — Multi-route swap router with adapter registry + guardian emergency pause
+  - `PancakeSwapAdapter.sol` — PancakeSwap V2 adapter with auto path building
+  - `SushiSwapAdapter.sol` — SushiSwap adapter with factory pair detection
+  - `MockERC20.sol` / `MockDEXAdapter.sol` — Test helpers
 - **Tests:** 17/17 passing (Hardhat)
+
+#### Features:
+- 7 pages: Swap, Limit Orders, Pools (Add/Remove/Positions), Bridge (Li.Fi), Portfolio, Analytics, History
+- On-chain routing: KairosSwap (BSC primary), PancakeSwap, Uniswap V2, SushiSwap, QuickSwap, BaseSwap
+- Safe Mode (MEV protection), route visualization, price chart
+- Token selector with search + custom token import
+- Li.Fi bridge integration (cross-chain native token transfers)
+- Chatbot agent v2.0 (Levenshtein fuzzy matching)
+- Mobile bottom nav + responsive design
+- ErrorBoundary + global error toast
+
 - **Deploy:** `npx netlify deploy --prod --dir=kairos-exchange/dist --site=9d14d95f-3b48-47a9-bb63-b4637b77bcd4`
 
 ### GitHub Repository
 - **Repo:** `kpkcf47jr2-lab/KairosCoin`
 - **Branch:** main
-- **Latest Commit:** `c2ab5e8` (Feb 27, 2026)
+- **Latest Commit:** `9a37638` (Feb 28, 2026)
 - **Backup Locations:** iCloud Drive + Desktop
 
 ### PancakeSwap Liquidity
@@ -135,6 +158,10 @@
 | Owner/Deposit/Redemption Wallet | `0xCee44904A6aA94dEa28754373887E07D4B6f4968` |
 | KAIROS Contract | `0x14D41707269c7D8b8DFa5095b38824a46dA05da3` |
 | PancakeSwap Pair | `0xfCb17119D559E47803105581A28584813FAffb49` |
+| KairosSwap Factory (BSC) | `0xB5891c54199d539CB8afd37BFA9E17370095b9D9` |
+| KairosSwap Router (BSC) | `0x4F8C99a49d04790Ea8C48CC60F88DB327e509Cd6` |
+| KairosVault (BSC) | `0x15E86d52D058e7AA5373906CC790aAbE82d14de9` |
+| KairosPerps (Arbitrum) | `0x9151B8C90B2F8a8DF82426E7E65d00563A75a6C9` |
 | USDT (BSC) | `0x55d398326f99059fF775485246999027B3197955` |
 | BUSD (BSC) | `0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56` |
 | USDC (BSC) | `0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d` |
@@ -383,6 +410,65 @@ KairosCoin/
 │       │   ├── simulator.js          ← Paper trading simulator
 │       │   └── alerts.js             ← Smart alert system (price + signals)
 │       └── constants/index.js        ← BRAND, BROKERS, TIMEFRAMES, INDICATORS
+├── kairos-exchange/                  ← React DEX aggregator + AMM (Netlify)
+│   ├── hardhat.config.js             ← Hardhat config (BSC + testnet)
+│   ├── index.html                    ← Entry HTML with favicon
+│   ├── netlify.toml                  ← SPA redirect
+│   ├── package.json                  ← React 18, ethers v6, i18next, lightweight-charts, web3modal
+│   ├── contracts/
+│   │   ├── FeeModule.sol             ← Fee calculation + KAIROS holder discount
+│   │   ├── KairosRouter.sol          ← Multi-route swap router + adapter registry
+│   │   ├── adapters/PancakeSwapAdapter.sol  ← PancakeSwap V2 adapter
+│   │   ├── adapters/SushiSwapAdapter.sol    ← SushiSwap adapter
+│   │   ├── interfaces/IDEXAdapter.sol       ← Adapter interface
+│   │   ├── interfaces/IKairosRouter.sol     ← Router interface
+│   │   └── mocks/                    ← MockERC20, MockDEXAdapter
+│   ├── scripts/deploy-exchange.js    ← Deploy: FeeModule → Router → Adapters
+│   ├── test/                         ← 17 tests (all passing)
+│   └── src/
+│       ├── App.jsx                   ← React Router: 7 pages
+│       ├── main.jsx                  ← React root + BrowserRouter
+│       ├── index.css                 ← Tailwind + glass-card + brand colors
+│       ├── store.js                  ← Zustand (wallet, chain, swap, UI state)
+│       ├── i18n.js                   ← react-i18next (EN/ES, ~200 translations)
+│       ├── config/
+│       │   ├── chains.js             ← 5 chains (BSC, ETH, Base, Arbitrum, Polygon)
+│       │   └── tokens.js             ← 50+ tokens across 5 chains + KAIROS per chain
+│       ├── components/
+│       │   ├── Header.jsx            ← Nav tabs + chain badge + wallet connect
+│       │   ├── MobileNav.jsx         ← Bottom nav for mobile
+│       │   ├── SwapCard.jsx          ← Main swap interface + quote display
+│       │   ├── ChainSelector.jsx     ← Chain pills with icons
+│       │   ├── TokenSelector.jsx     ← Token picker modal + search + custom import
+│       │   ├── PriceChart.jsx        ← lightweight-charts price chart
+│       │   ├── Stats.jsx             ← Protocol stats display
+│       │   ├── SettingsPanel.jsx     ← Slippage + Safe Mode toggle
+│       │   ├── WalletModal.jsx       ← 6 wallet options (Kairos, MetaMask, Trust, etc.)
+│       │   ├── TxModal.jsx           ← Tx status modal (pending/confirmed/failed)
+│       │   ├── TokenIcon.jsx         ← Dynamic token logo resolver
+│       │   └── ErrorBoundary.jsx     ← Global error boundary
+│       ├── pages/
+│       │   ├── SwapPage.jsx          ← Hero + SwapCard + PriceChart + Stats
+│       │   ├── LimitPage.jsx         ← Limit order creation + open orders
+│       │   ├── PoolsPage.jsx         ← Add/Remove LP + positions + overview (KairosSwap)
+│       │   ├── BridgePage.jsx        ← Li.Fi cross-chain bridge
+│       │   ├── PortfolioPage.jsx     ← Multi-chain token balances + prices
+│       │   ├── AnalyticsPage.jsx     ← DEX/chain analytics
+│       │   └── HistoryPage.jsx       ← Swap history with filters
+│       └── services/
+│           ├── aggregator.js         ← DEX routing (on-chain + 0x API), quote, execute
+│           ├── wallet.js             ← WalletConnect v2 + injected + Kairos Wallet connect
+│           ├── liquidity.js          ← LP management (add/remove/positions) KairosSwap + DEXes
+│           ├── history.js            ← localStorage tx history (max 200)
+│           ├── portfolio.js          ← Token balances + DexScreener/CoinGecko prices
+│           └── tokenLogo.js          ← Dynamic token logo URL resolver
+├── contracts/
+│   ├── KairosCoin.sol                ← Main stablecoin contract
+│   ├── KairosVault.sol               ← Liquidity vault (kKAIROS)
+│   ├── KairosPerps.sol               ← Perpetual trading (GMX V2)
+│   ├── KairosSwapFactory.sol         ← AMM factory (deployed BSC)
+│   ├── KairosSwapPair.sol            ← AMM pair with TWAP oracle
+│   └── KairosSwapRouter.sol          ← AMM router (deployed BSC)
 ├── docs/WHITEPAPER.md                ← Whitepaper source
 └── assets/branding/                  ← Brand guidelines + token metadata
 ```
@@ -588,24 +674,41 @@ These can be uncommented and an Alchemy API key provided (`ALCHEMY_API_KEY`) to 
 - [x] Real-time WebSocket bot monitoring ✅ DONE Feb 24, 2026
 - [x] Position tracking + dynamic P&L ✅ DONE Feb 24, 2026
 - [x] Bot auto-restart on page reload ✅ DONE Feb 24, 2026
+- [x] Wallet integration (WalletConnect v2 + cross-app tokens) ✅ DONE Feb 26, 2026
+- [x] Real backend auth (JWT + 2FA + bcrypt) ✅ DONE Feb 25, 2026
+- [x] Mobile responsive optimization ✅ DONE Feb 26, 2026
 - [ ] Test multi-broker execution (Binance, Bybit, OKX)
 - [ ] Strategy marketplace (share/import strategies)
-- [ ] Wallet integration (connect Kairos Wallet with trading platform)
 - [ ] Advanced order types (OCO, trailing stop, iceberg)
 - [ ] Portfolio analytics dashboard with P&L charts
 - [ ] Social trading / copy trading features
-- [ ] Mobile responsive optimization
-- [ ] Real backend auth (replace localStorage simulation)
+
+### Kairos Exchange — Next Features
+- [x] DEX Aggregator MVP ✅ DONE Feb 28, 2026
+- [x] Multi-chain routing (5 chains) ✅ DONE Feb 28, 2026
+- [x] KairosSwap AMM deployed to BSC ✅ DONE Feb 28, 2026
+- [x] Liquidity pool management UI ✅ DONE Feb 28, 2026
+- [x] On-chain DEX routing (no API key) ✅ DONE Feb 28, 2026
+- [x] Li.Fi bridge integration ✅ DONE Feb 28, 2026
+- [ ] Deploy FeeModule + KairosRouter smart contracts to BSC mainnet
+- [ ] Deploy KairosSwap to other chains (Arbitrum, Base, Polygon)
+- [ ] TVL tracking + analytics dashboard
+- [ ] Farming/staking rewards for LP providers
+- [ ] Cross-chain swap (swap + bridge in one tx)
 
 ### Short-term
 - [x] Multi-chain deployment (Base, Arbitrum, Polygon) ✅ DONE Feb 22, 2026
 - [x] Kairos Wallet complete (6 sprints) ✅ DONE Feb 22, 2026
 - [x] Kairos Trade v1.0 built and deployed ✅ DONE Feb 22, 2026
 - [x] Kairos Trade Premium UI v2 ✅ DONE Feb 23, 2026
+- [x] Kairos Exchange DEX Aggregator ✅ DONE Feb 28, 2026
+- [x] KairosSwap native AMM on BSC ✅ DONE Feb 28, 2026
+- [x] iOS apps submitted to App Store ✅ DONE Feb 27, 2026
+- [x] Chrome Extension wallet built ✅ DONE Feb 27, 2026
 - [ ] Ethereum mainnet deployment (waiting — gas expensive ~$30+)
-- [ ] Cross-chain bridge integration
 - [ ] CoinGecko / CoinMarketCap listing
 - [ ] Token logo submission to Trust Wallet / MetaMask token lists
+- [ ] Fund KairosSwap KAIROS/BNB pool with deep liquidity
 
 ### Medium-term
 - [ ] Governance token / DAO
@@ -1411,12 +1514,14 @@ Full Chrome-compatible browser extension (also works on Brave, Edge, Opera):
 **Commits:** `d33ec0b`
 
 ### Next Priorities
-1. **Chrome Web Store submission** — ZIP ready, need $5 developer account
-2. **App Store submission** — Both apps compile on iOS, need Apple Developer account ($99/yr)
-3. **Add PancakeSwap liquidity** — Need $5K+ per side for CoinGecko listing
-4. **CoinGecko/CoinMarketCap listing** — Submit once liquidity is sufficient
-5. **Ethereum mainnet deploy** — Need ETH for gas
-6. **Multi-broker live test** — Connect exchange API keys
+1. **Add liquidity to KairosSwap** — KAIROS/BNB pool created, needs funded
+2. **Add PancakeSwap liquidity** — Need $5K+ per side for CoinGecko listing
+3. **Deploy FeeModule + KairosRouter to BSC** — Exchange smart contracts (Phase 2)
+4. **Chrome Web Store submission** — ZIP ready, need $5 developer account
+5. **App Store review** — Both apps submitted to Apple (pending 24-48h review)
+6. **CoinGecko/CoinMarketCap listing** — Submit once liquidity is sufficient
+7. **Ethereum mainnet deploy** — Need ETH for gas
+8. **Multi-broker live test** — Connect exchange API keys
 
 ### Session 21 — Chrome Web Store Package + iOS Native Build (Feb 27, 2026)
 
@@ -1484,7 +1589,7 @@ Full Chrome-compatible browser extension (also works on Brave, Edge, Opera):
 
 ---
 
-### Session 22 — Chatbot v2.0 + Kairos Exchange DEX Aggregator (Feb 28, 2026)
+### Session 22 — Chatbot v2.0 + Kairos Exchange DEX Aggregator + KairosSwap AMM (Feb 28, 2026)
 
 **Chatbot v2.0 — All 3 Platforms Upgraded:**
 - Built new intelligent chatbot engine v2.0 with Levenshtein fuzzy matching, multi-signal scoring, conversation memory, response variations
@@ -1494,28 +1599,125 @@ Full Chrome-compatible browser extension (also works on Brave, Edge, Opera):
 - All deployed to Netlify
 - **Commit:** `b07a518`
 
-**Kairos Exchange — DEX Aggregator MVP (NEW PLATFORM):**
-- Full React + Vite + Tailwind + Zustand + ethers.js frontend
-- Multi-chain support: BSC, Ethereum, Polygon, Arbitrum, Base
-- Aggregation via 0x Protocol Swap API (100+ DEXes)
-- Fee: 0.15% base (0.075% with KAIROS holder discount)
-- Features: Smart Order Routing visualization, Safe Mode (MEV protection), slippage settings, chatbot agent
-- Blue/black branding consistent with Kairos 777
+**Kairos Exchange — DEX Aggregator (NEW PLATFORM — 12 commits):**
 
-**Smart Contracts (Solidity 0.8.24, OpenZeppelin v5):**
-- `FeeModule.sol` — Fee calculation, KAIROS holder discount (50% off), configurable treasury, fee-exempt addresses
-- `KairosRouter.sol` — Multi-route swap router, adapter registry, guardian emergency pause, emergency withdraw
-- `PancakeSwapAdapter.sol` — PancakeSwap V2 adapter with auto path building
-- `SushiSwapAdapter.sol` — SushiSwap adapter with factory pair detection
-- `MockERC20.sol` / `MockDEXAdapter.sol` — Test helpers
-- **17/17 tests passing** (Hardhat)
-- Deploy script: `kairos-exchange/scripts/deploy-exchange.js` (FeeModule → Router → Adapters → Register)
-- Contracts NOT deployed to mainnet yet (Phase 2)
+Built a complete multi-chain DEX aggregator from scratch in a single session. The platform finds the best swap price across 100+ DEXes on 5 blockchains, plus includes a native AMM (KairosSwap) deployed on BSC.
 
-**Kairos Exchange — Netlify:**
-- URL: https://kairos-exchange-app.netlify.app
-- Site ID: `9d14d95f-3b48-47a9-bb63-b4637b77bcd4`
-- Deploy: `npx netlify deploy --prod --dir=kairos-exchange/dist --site=9d14d95f-3b48-47a9-bb63-b4637b77bcd4`
+**Phase 1: MVP (commits `a079db5` → `aa7a48f`)**
+- Created React 18 + Vite 6 + Tailwind 3 + Zustand project
+- Smart contracts: FeeModule.sol, KairosRouter.sol, adapters, 17/17 tests passing
+- Initial aggregation via 0x Protocol Swap API
+- Blue/black branding, chatbot agent v2.0
+
+**Phase 2: Full Feature Build (commit `afb0fe8`)**
+- 7 pages: Swap, Limit Orders, Pools, Bridge, Portfolio, Analytics, History
+- Multi-wallet support: MetaMask, Trust, Rabby, Coinbase, WalletConnect v2, Kairos Wallet
+- Full i18n (EN/ES) with react-i18next (~200 translations)
+- Token selector with search + custom token import via on-chain ERC20 lookup
+- Transaction history in localStorage (max 200)
+- Portfolio page with real-time balances + DexScreener/CoinGecko prices
+- Limit order UI with expiry countdown
+
+**Phase 3: Polish & Fixes (commits `dbbf8e0` → `cdf5a90`)**
+- v1.1: Precision fix, balance + MAX button, gold brand, live prices, token logos
+- v1.2: 20 fixes — balance check, auto-refresh quotes, retry button, price chart (lightweight-charts)
+  - Live pool stats from on-chain reserves
+  - Li.Fi bridge integration (cross-chain native transfers)
+  - WalletConnect v2 via @web3modal/ethers
+  - Mobile bottom nav + responsive design
+  - ErrorBoundary + blue theme restored
+  - OG meta tags, BigInt fix, expiry countdown
+
+**Phase 4: Internal Liquidity Pools (commit `fa527bb`)**
+- Internal Add/Remove Liquidity UI with 3 tabs (Add, Positions, Overview)
+- On-chain router integration: PancakeSwap (BSC), Uniswap V2 (ETH), SushiSwap (Arbitrum), QuickSwap (Polygon), BaseSwap (Base)
+- Auto-ratio calculation from pool reserves
+- User LP positions with withdraw functionality
+- i18n complete for all liquidity features
+
+**Phase 5: KairosSwap Native AMM (commit `f70c336`)**
+- **KairosSwapFactory.sol** deployed to BSC: `0xB5891c54199d539CB8afd37BFA9E17370095b9D9` ✅ Verified
+- **KairosSwapRouter.sol** deployed to BSC: `0x4F8C99a49d04790Ea8C48CC60F88DB327e509Cd6` ✅ Verified
+- **KairosSwapPair.sol** — Uniswap V2 style AMM with TWAP oracle
+- Swap fee: 0.30% total (0.25% to LPs, 0.05% to Kairos Treasury)
+- Protocol fee recipient: `0xCee44904A6aA94dEa28754373887E07D4B6f4968`
+- Root contracts in `/contracts/`: `KairosSwapFactory.sol`, `KairosSwapPair.sol`, `KairosSwapRouter.sol`
+- Exchange frontend uses KairosSwap as **primary DEX on BSC** for all KAIROS pairs
+- Branded KairosSwap UI in Pools page with contract links
+
+**Phase 6: On-Chain DEX Routing v2 (commits `c648e9f` → `9a37638`)**
+- **aggregator.js rewritten (512 lines):** Dual-mode routing system
+  - Primary: On-chain DEX routing (no API key needed, works always)
+  - Optional: 0x Protocol Swap API (better multi-DEX routing when configured)
+  - Smart router selection: KairosSwap for KAIROS pairs on BSC, PancakeSwap for others
+  - Optimal path building: direct path vs via WETH, picks best output
+  - Gas estimation with CoinGecko native price cache + fallback prices
+- **wallet.js (272 lines):** Multi-wallet connection service
+  - WalletConnect v2 via @web3modal/ethers (project ID: `a0ef07fe48de9c6d8fb8a68e4eb9d960`)
+  - 6 wallet options: Kairos Wallet (recommended), MetaMask, Trust, Rabby, Coinbase, WalletConnect
+  - Deep link for Kairos Wallet on mobile, postMessage popup on desktop
+  - Auto-detect installed wallets, install URL redirect if not found
+- **liquidity.js (317 lines):** Full LP management service
+  - KairosSwap as primary AMM on BSC, established DEXes on other chains
+  - Functions: getPairInfo, getUserPositions, addLiquidity, removeLiquidity, calculatePairedAmount, getPoolPrice
+  - ERC20 approval handling, auto-decimals, slippage calculation
+- **portfolio.js (229 lines):** Token balance + price service
+  - Batch ERC20 balance reads, native balance
+  - DexScreener API for token prices (free, no key)
+  - CoinGecko fallback
+- **history.js (182 lines):** localStorage swap history with chain filtering
+- **tokenLogo.js:** Dynamic token logo URL resolver (PancakeSwap, CoinGecko, TrustWallet assets)
+- Fixed KAIROS token logo — uses correct gold logo + dynamic logo service
+- Fixed wallet connection — MetaMask error handling
+- Created KAIROS/BNB liquidity pool on KairosSwap
+
+**Token Configuration (config/tokens.js):**
+- 50+ tokens across 5 chains with real contract addresses and logo URIs
+- BSC: BNB, KAIROS, USDT, USDC, BUSD, WBNB, BTCB, ETH, CAKE, XRP, DOGE, SOL
+- Ethereum: ETH, USDT, USDC, WBTC, WETH, DAI, UNI, LINK, AAVE, SHIB
+- Base: ETH, KAIROS, USDC, USDbC, WETH, DAI
+- Arbitrum: ETH, KAIROS, USDC, USDT, WETH, WBTC, ARB, GMX
+- Polygon: POL, KAIROS, USDC, USDT, WETH, WBTC, WMATIC, AAVE
+
+**Chain Configuration (config/chains.js):**
+- 5 chains with RPC URLs, explorers, wrapped native addresses, 0x chain names
+- BSC (56), Ethereum (1), Base (8453), Arbitrum (42161), Polygon (137)
+
+**Zustand Store (store.js):**
+- Wallet state: account, provider, chainId, isConnecting, walletId
+- Swap state: sellToken, buyToken, amounts, quote, slippage, safeMode, txHash/txStatus
+- UI state: showTokenSelector, showSettings, showWalletModal, showTxModal
+- Actions: connectWallet (unified for all wallet types), disconnectWallet, flipTokens, setChainId (auto-switch)
+- Language persistence: localStorage `kairos-lang`
+
+**Exchange Build Config:**
+- `vite.config.mjs` — React plugin, Vite 6
+- `tailwind.config.mjs` — Custom brand colors, glass-card utilities
+- `hardhat.config.js` — BSC + testnet, etherscan verification
+- `netlify.toml` — SPA redirect `/* → /index.html`
+
+**Deployments for this session:**
+- Exchange: https://kairos-exchange-app.netlify.app ✅
+- Trade: https://kairos-trade.netlify.app ✅
+- Wallet: https://kairos-wallet.netlify.app ✅
+- KairosSwap Factory: BSC `0xB5891c54199d539CB8afd37BFA9E17370095b9D9` ✅ Verified
+- KairosSwap Router: BSC `0x4F8C99a49d04790Ea8C48CC60F88DB327e509Cd6` ✅ Verified
+
+**Commits (chronological):**
+- `b07a518` — Chatbot v2.0 (fuzzy matching, memory, variations)
+- `a079db5` — Kairos Exchange DEX Aggregator MVP
+- `8bf92d3` — Integrate exchange aggregator into Kairos Trade
+- `51ec882` — Bot leveraged trading (2-50x)
+- `afb0fe8` — Full feature build: 7 pages, multi-wallet, i18n, TX history, portfolio, analytics, bridge, pools, limit orders
+- `aa7a48f` — Trade: resilient multi-aggregator v2.0 (0x + 1inch + Paraswap, circuit breaker)
+- `dbbf8e0` — Exchange v1.1: precision, balance+MAX, gold brand, i18n, live prices
+- `cdf5a90` — Exchange v1.2: 20 fixes, bridge, WalletConnect v2, mobile nav, error boundary
+- `fa527bb` — Exchange v1.3: KAIROS logo + internal liquidity pools
+- `f70c336` — KairosSwap AMM deployed to BSC (Factory + Router verified)
+- `c648e9f` — Fix KAIROS token logo + dynamic logo service
+- `481acd6` — Fix wallet connection + redeploy Wallet
+- `138c53c` — Exchange v2: on-chain DEX routing + Wallet dApp connect
+- `9a37638` — Create KAIROS/BNB liquidity pool on KairosSwap
 
 ---
 
