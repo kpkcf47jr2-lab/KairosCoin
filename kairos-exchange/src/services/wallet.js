@@ -98,9 +98,17 @@ export const WALLET_OPTIONS = [
 
 /**
  * Connect via injected provider (MetaMask, Trust, Rabby, etc.)
+ * @param {object} walletOption - Optional wallet option with installUrl
  */
-export async function connectInjected() {
-  if (!window.ethereum) throw new Error('No wallet detected');
+export async function connectInjected(walletOption) {
+  if (!window.ethereum) {
+    // If wallet has an install URL, open it
+    if (walletOption?.installUrl) {
+      window.open(walletOption.installUrl, '_blank');
+      throw new Error(`${walletOption.name || 'Wallet'} no está instalado. Se abrió la página de descarga.`);
+    }
+    throw new Error('No se detectó ninguna wallet. Instala MetaMask u otra wallet compatible.');
+  }
   const { ethers } = await import('ethers');
   const provider = new ethers.BrowserProvider(window.ethereum);
   const accounts = await provider.send('eth_requestAccounts', []);

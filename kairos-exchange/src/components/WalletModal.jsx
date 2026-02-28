@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 export default function WalletModal() {
   const { t } = useTranslation();
-  const { showWalletModal, setShowWalletModal, connectWallet, isConnecting } = useStore();
+  const { showWalletModal, setShowWalletModal, connectWallet, isConnecting, error } = useStore();
   if (!showWalletModal) return null;
 
   const recommended = WALLET_OPTIONS.filter(w => w.recommended);
@@ -67,6 +67,12 @@ export default function WalletModal() {
 
         {isConnecting && (
           <div className="mt-4 text-center text-sm text-brand-400 animate-pulse">{t('connecting')}</div>
+        )}
+
+        {error && !isConnecting && (
+          <div className="mt-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400 text-center">
+            {error}
+          </div>
         )}
       </div>
     </div>

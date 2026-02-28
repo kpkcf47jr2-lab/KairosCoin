@@ -101,7 +101,7 @@ export const useStore = create((set, get) => ({
     try {
       let result;
       if (!walletOption || walletOption.type === 'injected') {
-        result = await connectInjected();
+        result = await connectInjected(walletOption);
       } else if (walletOption.id === 'kairos') {
         result = await connectKairosWallet();
         if (!result) { set({ isConnecting: false }); return; }
