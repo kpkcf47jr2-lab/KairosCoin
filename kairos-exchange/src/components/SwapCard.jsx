@@ -3,14 +3,19 @@ import { useStore } from '../store';
 import { getQuote, checkAndApprove, executeSwap, DEX_SOURCES } from '../services/aggregator';
 import { NATIVE_ADDRESS } from '../config/tokens';
 import { CHAINS } from '../config/chains';
+import { addTransaction, updateTransaction, addRecentToken } from '../services/history';
+import { calculatePriceImpact, getPriceImpactSeverity } from '../services/portfolio';
+import { useTranslation } from 'react-i18next';
 
 export default function SwapCard() {
+  const { t } = useTranslation();
   const {
-    account, provider, chainId, connectWallet,
+    account, provider, chainId,
     sellToken, buyToken, sellAmount, buyAmount, slippage, safeMode,
     quote, isQuoting, isSwapping, txHash, error,
     setSellAmount, setBuyAmount, setQuote, setIsQuoting, setIsSwapping, setTxHash, setError,
     setShowTokenSelector, setShowSettings, flipTokens,
+    setShowWalletModal, setTxStatus, setShowTxModal,
   } = useStore();
 
   const debounceRef = useRef(null);
@@ -81,6 +86,8 @@ export default function SwapCard() {
     setIsSwapping(true);
     setError(null);
     setTxHash(null);
+    setTxStatus('pending');
+    setShowTxModal(true);
 
     try {
       // Step 1: Approve if ERC20 (not native token)
@@ -98,24 +105,54 @@ export default function SwapCard() {
 
       // Step 2: Execute swap
       setSwapStep('swapping');
+      setTxStatus('confirming');
       const tx = await executeSwap({ provider, quoteData: quote });
       setTxHash(tx.hash);
-      setSwapStep('done');
+
+      // Record in history
+      addTransaction({
+        hash: tx.hash,
+        type: 'swap',
+        status: 'pending',
+        chainId,
+        sellToken: sellToken.address,
+        buyToken: buyToken.address,
+        sellAmount,
+        buyAmount,
+        sellSymbol: sellToken.symbol,
+        buySymbol: buyToken.symbol,
+        route: quote.sources?.map(s => s.name) || [],
+        gasCostUsd: quote.estimatedGasUsd,
+        explorerUrl: `${CHAINS[chainId]?.explorerUrl}/tx/${tx.hash}`,
+        account,
+      });
+
+      // Track recent tokens
+      addRecentToken(chainId, sellToken);
+      addRecentToken(chainId, buyToken);
 
       // Wait for confirmation
-      await tx.wait();
+      const receipt = await tx.wait();
+      setSwapStep('done');
+      setTxStatus('confirmed');
+      updateTransaction(tx.hash, { status: 'confirmed', gasUsed: receipt.gasUsed?.toString() });
     } catch (err) {
       console.error('Swap error:', err);
       setSwapStep('error');
+      setTxStatus('failed');
       if (err.code === 'ACTION_REJECTED') {
-        setError('Transaction rejected by user');
+        setError(t('tx_rejected'));
       } else {
-        setError(err.reason || err.message || 'Swap failed');
+        setError(err.reason || err.message || t('swap_failed'));
       }
     } finally {
       setIsSwapping(false);
     }
   };
+
+  // ── Price Impact ──
+  const priceImpact = calculatePriceImpact(quote);
+  const impactSeverity = getPriceImpactSeverity(priceImpact);
 
   // ── Rate display ──
   const rate = quote && sellToken && buyToken
@@ -130,7 +167,7 @@ export default function SwapCard() {
       <div className="glass-card p-4 sm:p-5 animate-fade-in">
         {/* Card Header */}
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-white">Swap</h2>
+          <h2 className="text-base font-semibold text-white">{t('swap')}</h2>
           <button
             onClick={() => setShowSettings(true)}
             className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-all"
@@ -143,7 +180,7 @@ export default function SwapCard() {
         {/* ── SELL Token ── */}
         <div className="rounded-xl bg-dark-300/60 border border-white/5 p-4 mb-1.5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-white/40">You sell</span>
+            <span className="text-xs text-white/40">{t('you_sell')}</span>
             <span className="text-xs text-white/30">Slippage: {slippage}%</span>
           </div>
           <div className="flex items-center gap-3">
@@ -188,7 +225,7 @@ export default function SwapCard() {
         {/* ── BUY Token ── */}
         <div className="rounded-xl bg-dark-300/60 border border-white/5 p-4 mt-1.5">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-white/40">You receive</span>
+            <span className="text-xs text-white/40">{t('you_receive')}</span>
             {isQuoting && (
               <span className="text-xs text-brand-400 animate-pulse">Finding best price...</span>
             )}
@@ -265,15 +302,34 @@ export default function SwapCard() {
               <span className="font-mono">{quote.estimatedGasUsd ? `~$${quote.estimatedGasUsd}` : '—'}</span>
             </div>
             <div className="flex items-center justify-between px-1 text-xs text-white/40">
-              <span>Kairos Fee</span>
+              <span>{t('kairos_fee')}</span>
               <span className="text-brand-400">0.15%</span>
             </div>
+
+            {/* Price Impact Warning */}
+            {priceImpact !== null && priceImpact > 1 && (
+              <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border ${
+                impactSeverity === 'critical' ? 'bg-red-500/10 border-red-500/20' :
+                impactSeverity === 'high' ? 'bg-orange-500/10 border-orange-500/20' :
+                'bg-yellow-500/10 border-yellow-500/20'
+              }`}>
+                <span className="text-[10px]">⚠️</span>
+                <span className={`text-[10px] ${
+                  impactSeverity === 'critical' ? 'text-red-400/80' :
+                  impactSeverity === 'high' ? 'text-orange-400/80' :
+                  'text-yellow-400/80'
+                }`}>
+                  {t('price_impact')}: ~{priceImpact.toFixed(2)}%
+                  {impactSeverity === 'critical' ? ' — High risk!' : ''}
+                </span>
+              </div>
+            )}
 
             {/* Safe Mode indicator */}
             {safeMode && (
               <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
                 <span className="text-[10px]">🛡️</span>
-                <span className="text-[10px] text-emerald-400/80">MEV Protection Active</span>
+                <span className="text-[10px] text-emerald-400/80">{t('mev_protection')}</span>
               </div>
             )}
           </div>
@@ -283,27 +339,27 @@ export default function SwapCard() {
         <div className="mt-4">
           {!account ? (
             <button
-              onClick={connectWallet}
+              onClick={() => setShowWalletModal(true)}
               className="btn-primary w-full py-4 text-base"
             >
-              Connect Wallet
+              {t('connect_wallet')}
             </button>
           ) : !sellAmount || parseFloat(sellAmount) <= 0 ? (
             <button disabled className="btn-primary w-full py-4 text-base opacity-40">
-              Enter Amount
+              {t('enter_amount')}
             </button>
           ) : isQuoting ? (
             <button disabled className="btn-primary w-full py-4 text-base opacity-60">
               <span className="flex items-center justify-center gap-2">
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                Finding Best Price...
+                {t('finding_best_price')}
               </span>
             </button>
           ) : isSwapping ? (
             <button disabled className="btn-primary w-full py-4 text-base opacity-70">
               <span className="flex items-center justify-center gap-2">
                 <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                {swapStep === 'approving' ? 'Approving...' : 'Swapping...'}
+                {swapStep === 'approving' ? t('approving') : t('swapping')}
               </span>
             </button>
           ) : quote ? (
@@ -315,7 +371,7 @@ export default function SwapCard() {
             </button>
           ) : (
             <button disabled className="btn-primary w-full py-4 text-base opacity-40">
-              {error || 'Enter Amount'}
+              {error || t('enter_amount')}
             </button>
           )}
         </div>
@@ -329,7 +385,7 @@ export default function SwapCard() {
               rel="noopener noreferrer"
               className="text-xs text-brand-400 hover:underline"
             >
-              ✓ View transaction on {chain?.shortName} Explorer →
+              ✓ {t('view_tx')} {chain?.shortName} →
             </a>
           </div>
         )}

@@ -1,11 +1,13 @@
 /* ═══════════════════════════════════════════════════════════
-   Kairos Exchange — Zustand Store
-   Global state: wallet, chain, swap parameters
+   Kairos Exchange — Zustand Store (Full)
+   Global state: wallet, chain, swap, history, portfolio, i18n
    ═══════════════════════════════════════════════════════════ */
 
 import { create } from 'zustand';
-import { DEFAULT_CHAIN_ID } from './config/chains';
+import { DEFAULT_CHAIN_ID, CHAINS } from './config/chains';
 import { TOKENS, NATIVE_ADDRESS } from './config/tokens';
+import { connectInjected, connectKairosWallet, setupWalletListeners, switchChain } from './services/wallet';
+import { getCustomTokens } from './services/history';
 
 const defaultTokens = TOKENS[DEFAULT_CHAIN_ID];
 const defaultSell = defaultTokens?.find(t => t.isNative) || defaultTokens?.[0];
@@ -17,15 +19,21 @@ export const useStore = create((set, get) => ({
   provider: null,
   chainId: DEFAULT_CHAIN_ID,
   isConnecting: false,
+  walletId: null,
   error: null,
 
   setAccount: (account) => set({ account }),
   setProvider: (provider) => set({ provider }),
-  setChainId: (chainId) => {
-    const tokens = TOKENS[chainId] || [];
+  setChainId: async (chainId) => {
+    const tokens = [...(TOKENS[chainId] || []), ...getCustomTokens(chainId)];
     const sell = tokens.find(t => t.isNative) || tokens[0];
     const buy = tokens.find(t => t.isKairos) || tokens.find(t => t.symbol === 'USDT') || tokens[1];
     set({ chainId, sellToken: sell, buyToken: buy, sellAmount: '', buyAmount: '', quote: null });
+    // Auto switch chain on wallet
+    const chain = CHAINS[chainId];
+    if (get().account && chain) {
+      try { await switchChain(chainId, chain); } catch {}
+    }
   },
   setConnecting: (isConnecting) => set({ isConnecting }),
   setError: (error) => set({ error }),
@@ -39,8 +47,9 @@ export const useStore = create((set, get) => ({
   isQuoting: false,
   isSwapping: false,
   slippage: 0.5,
-  safeMode: true,       // MEV protection (routes through private mempool)
+  safeMode: true,
   txHash: null,
+  txStatus: null, // null | 'pending' | 'confirming' | 'confirmed' | 'failed'
 
   setSellToken: (token) => {
     const { buyToken } = get();
@@ -66,42 +75,45 @@ export const useStore = create((set, get) => ({
   setSlippage: (slippage) => set({ slippage }),
   setSafeMode: (safeMode) => set({ safeMode }),
   setTxHash: (txHash) => set({ txHash }),
+  setTxStatus: (txStatus) => set({ txStatus }),
 
-  // ── Flip tokens ──
   flipTokens: () => {
     const { sellToken, buyToken, buyAmount } = get();
     set({
-      sellToken: buyToken,
-      buyToken: sellToken,
-      sellAmount: buyAmount || '',
-      buyAmount: '',
-      quote: null,
+      sellToken: buyToken, buyToken: sellToken,
+      sellAmount: buyAmount || '', buyAmount: '', quote: null,
     });
   },
 
   // ── UI State ──
-  showTokenSelector: null, // 'sell' | 'buy' | null
+  showTokenSelector: null,
   showSettings: false,
+  showWalletModal: false,
+  showTxModal: false,
   setShowTokenSelector: (side) => set({ showTokenSelector: side }),
   setShowSettings: (show) => set({ showSettings: show }),
+  setShowWalletModal: (show) => set({ showWalletModal: show }),
+  setShowTxModal: (show) => set({ showTxModal: show }),
 
-  // ── Connect Wallet ──
-  connectWallet: async () => {
-    if (!window.ethereum) {
-      set({ error: 'No wallet detected. Install MetaMask or another EVM wallet.' });
-      return;
-    }
+  // ── Connect Wallet (unified) ──
+  connectWallet: async (walletOption) => {
     set({ isConnecting: true, error: null });
     try {
-      const { ethers } = await import('ethers');
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await provider.send('eth_requestAccounts', []);
-      const network = await provider.getNetwork();
-      const chainId = Number(network.chainId);
+      let result;
+      if (!walletOption || walletOption.type === 'injected') {
+        result = await connectInjected();
+      } else if (walletOption.id === 'kairos') {
+        result = await connectKairosWallet();
+        if (!result) { set({ isConnecting: false }); return; }
+      } else if (walletOption.type === 'walletconnect') {
+        result = await connectInjected();
+      } else {
+        result = await connectInjected();
+      }
 
-      set({ account: accounts[0], provider, chainId, isConnecting: false });
+      const { account, provider, chainId, walletId } = result;
+      set({ account, provider, chainId, walletId: walletId || walletOption?.id, isConnecting: false, showWalletModal: false });
 
-      // Set tokens for detected chain
       const tokens = TOKENS[chainId];
       if (tokens) {
         const sell = tokens.find(t => t.isNative) || tokens[0];
@@ -109,21 +121,25 @@ export const useStore = create((set, get) => ({
         set({ sellToken: sell, buyToken: buy });
       }
 
-      // Listen for changes
-      window.ethereum.on('accountsChanged', (accs) => {
-        if (accs.length === 0) set({ account: null, provider: null });
-        else set({ account: accs[0] });
-      });
-      window.ethereum.on('chainChanged', (hex) => {
-        const newChain = parseInt(hex, 16);
-        get().setChainId(newChain);
-      });
+      setupWalletListeners(
+        (account) => set({ account }),
+        (newChainId) => get().setChainId(newChainId),
+        () => set({ account: null, provider: null, walletId: null }),
+      );
     } catch (err) {
       set({ error: err.message, isConnecting: false });
     }
   },
 
   disconnectWallet: () => set({
-    account: null, provider: null, sellAmount: '', buyAmount: '', quote: null, txHash: null,
+    account: null, provider: null, walletId: null,
+    sellAmount: '', buyAmount: '', quote: null, txHash: null, txStatus: null,
   }),
+
+  // ── Language ──
+  language: localStorage.getItem('kairos-lang') || 'es',
+  setLanguage: (lang) => {
+    localStorage.setItem('kairos-lang', lang);
+    set({ language: lang });
+  },
 }));

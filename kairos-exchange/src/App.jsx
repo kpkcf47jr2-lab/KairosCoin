@@ -1,10 +1,17 @@
 import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
-import ChainSelector from './components/ChainSelector';
-import SwapCard from './components/SwapCard';
 import TokenSelector from './components/TokenSelector';
 import SettingsPanel from './components/SettingsPanel';
-import Stats from './components/Stats';
+import WalletModal from './components/WalletModal';
+import TxModal from './components/TxModal';
+import SwapPage from './pages/SwapPage';
+import LimitPage from './pages/LimitPage';
+import PoolsPage from './pages/PoolsPage';
+import BridgePage from './pages/BridgePage';
+import PortfolioPage from './pages/PortfolioPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import HistoryPage from './pages/HistoryPage';
 import { useStore } from './store';
 
 export default function App() {
@@ -22,31 +29,22 @@ export default function App() {
       <div className="relative z-10">
         <Header />
 
-        {/* Hero section */}
-        <div className="text-center px-4 mt-4 sm:mt-8 mb-6">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">
-            Best Price. <span className="text-brand-400">Every Swap.</span>
-          </h2>
-          <p className="text-sm text-white/40 max-w-md mx-auto">
-            Trade any token at the best price across 100+ DEXes on 5 blockchains. One click, zero hassle.
-          </p>
-
-          {/* Chain Selector */}
-          <div className="mt-5">
-            <ChainSelector />
-          </div>
-        </div>
-
-        {/* Swap Card */}
-        <SwapCard />
-
-        {/* Stats & Info */}
-        <Stats />
+        <Routes>
+          <Route path="/" element={<SwapPage />} />
+          <Route path="/limit" element={<LimitPage />} />
+          <Route path="/pools" element={<PoolsPage />} />
+          <Route path="/bridge" element={<BridgePage />} />
+          <Route path="/portfolio" element={<PortfolioPage />} />
+          <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/history" element={<HistoryPage />} />
+        </Routes>
       </div>
 
-      {/* Modals */}
+      {/* Global Modals */}
       <TokenSelector />
       <SettingsPanel />
+      <WalletModal />
+      <TxModal />
 
       {/* Global error toast */}
       {error && (
