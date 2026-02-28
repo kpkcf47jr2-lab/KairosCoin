@@ -1,28 +1,31 @@
 import React from 'react';
-
-const STATS = [
-  { label: 'Supported DEXes', value: '100+', icon: '🔄' },
-  { label: 'Blockchains', value: '5', icon: '⛓️' },
-  { label: 'Tokens', value: '1000s', icon: '🪙' },
-  { label: 'Fee', value: '0.15%', icon: '💎' },
-];
-
-const DEXES = [
-  { name: 'PancakeSwap', icon: '🥞' },
-  { name: 'Uniswap', icon: '🦄' },
-  { name: 'SushiSwap', icon: '🍣' },
-  { name: 'Curve', icon: '🔴' },
-  { name: 'Balancer', icon: '⚖️' },
-  { name: 'DODO', icon: '🐤' },
-  { name: 'TraderJoe', icon: '🎩' },
-  { name: 'Camelot', icon: '⚔️' },
-  { name: 'Velodrome', icon: '🚴' },
-  { name: 'Aerodrome', icon: '✈️' },
-  { name: 'KyberSwap', icon: '💎' },
-  { name: 'Bancor', icon: '🔷' },
-];
+import { useTranslation } from 'react-i18next';
 
 export default function Stats() {
+  const { t } = useTranslation();
+
+  const STATS = [
+    { label: t('supported_dexes'), value: '100+', icon: '🔄' },
+    { label: t('blockchains'), value: '5', icon: '⛓️' },
+    { label: t('tokens'), value: '1000s', icon: '🪙' },
+    { label: t('fee'), value: '0.15%', icon: '💎' },
+  ];
+
+  const DEXES = [
+    { name: 'PancakeSwap', icon: '🥞' },
+    { name: 'Uniswap', icon: '🦄' },
+    { name: 'SushiSwap', icon: '🍣' },
+    { name: 'Curve', icon: '🔴' },
+    { name: 'Balancer', icon: '⚖️' },
+    { name: 'DODO', icon: '🐤' },
+    { name: 'TraderJoe', icon: '🎩' },
+    { name: 'Camelot', icon: '⚔️' },
+    { name: 'Velodrome', icon: '🚴' },
+    { name: 'Aerodrome', icon: '✈️' },
+    { name: 'KyberSwap', icon: '💎' },
+    { name: 'Bancor', icon: '🔷' },
+  ];
+
   return (
     <div className="w-full max-w-4xl mx-auto mt-12 px-4 animate-fade-in">
       {/* Stats grid */}
@@ -38,7 +41,7 @@ export default function Stats() {
 
       {/* Connected DEXes */}
       <div className="text-center mb-4">
-        <h3 className="text-sm font-semibold text-white/40 uppercase tracking-widest">Aggregating From</h3>
+        <h3 className="text-sm font-semibold text-white/40 uppercase tracking-widest">{t('aggregating_from')}</h3>
       </div>
       <div className="flex flex-wrap justify-center gap-2">
         {DEXES.map(d => (
@@ -54,22 +57,22 @@ export default function Stats() {
 
       {/* How it works */}
       <div className="mt-12 text-center max-w-2xl mx-auto">
-        <h3 className="text-lg font-bold text-white mb-6">How It Works</h3>
+        <h3 className="text-lg font-bold text-white mb-6">{t('how_it_works')}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="glass-card p-5">
             <div className="text-3xl mb-3">🔍</div>
-            <h4 className="text-sm font-semibold text-white mb-1">1. Find Best Price</h4>
-            <p className="text-xs text-white/40">We scan 100+ DEXes across 5 chains to find you the optimal swap route.</p>
+            <h4 className="text-sm font-semibold text-white mb-1">1. {t('find_best_price')}</h4>
+            <p className="text-xs text-white/40">{t('find_best_price_desc')}</p>
           </div>
           <div className="glass-card p-5">
             <div className="text-3xl mb-3">🔀</div>
-            <h4 className="text-sm font-semibold text-white mb-1">2. Smart Routing</h4>
-            <p className="text-xs text-white/40">Orders are split across multiple sources to minimize slippage and get more tokens.</p>
+            <h4 className="text-sm font-semibold text-white mb-1">2. {t('smart_routing')}</h4>
+            <p className="text-xs text-white/40">{t('smart_routing_desc')}</p>
           </div>
           <div className="glass-card p-5">
             <div className="text-3xl mb-3">✅</div>
-            <h4 className="text-sm font-semibold text-white mb-1">3. Execute</h4>
-            <p className="text-xs text-white/40">One click to swap. Your transaction is executed directly on-chain, fully decentralized.</p>
+            <h4 className="text-sm font-semibold text-white mb-1">3. {t('execute')}</h4>
+            <p className="text-xs text-white/40">{t('execute_desc')}</p>
           </div>
         </div>
       </div>

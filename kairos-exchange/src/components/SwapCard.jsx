@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ethers } from 'ethers';
 import { useStore } from '../store';
 import { getQuote, checkAndApprove, executeSwap, DEX_SOURCES } from '../services/aggregator';
 import { NATIVE_ADDRESS } from '../config/tokens';
 import { CHAINS } from '../config/chains';
 import { addTransaction, updateTransaction, addRecentToken } from '../services/history';
 import { calculatePriceImpact, getPriceImpactSeverity } from '../services/portfolio';
+import { getTokenBalances } from '../services/portfolio';
+import { TOKENS } from '../config/tokens';
 import { useTranslation } from 'react-i18next';
 
 export default function SwapCard() {
@@ -21,6 +24,41 @@ export default function SwapCard() {
   const debounceRef = useRef(null);
   const [approving, setApproving] = useState(false);
   const [swapStep, setSwapStep] = useState(''); // idle | quoting | approving | swapping | done | error
+  const [sellBalance, setSellBalance] = useState(null);
+  const [buyBalance, setBuyBalance] = useState(null);
+
+  // ── Fetch balances when token/account changes ──
+  useEffect(() => {
+    if (!provider || !account || !sellToken) { setSellBalance(null); return; }
+    (async () => {
+      try {
+        if (sellToken.isNative) {
+          const bal = await provider.getBalance(account);
+          setSellBalance(parseFloat(ethers.formatEther(bal)));
+        } else {
+          const c = new ethers.Contract(sellToken.address, ['function balanceOf(address) view returns (uint256)'], provider);
+          const bal = await c.balanceOf(account);
+          setSellBalance(parseFloat(ethers.formatUnits(bal, sellToken.decimals || 18)));
+        }
+      } catch { setSellBalance(null); }
+    })();
+  }, [provider, account, sellToken?.address, chainId]);
+
+  useEffect(() => {
+    if (!provider || !account || !buyToken) { setBuyBalance(null); return; }
+    (async () => {
+      try {
+        if (buyToken.isNative) {
+          const bal = await provider.getBalance(account);
+          setBuyBalance(parseFloat(ethers.formatEther(bal)));
+        } else {
+          const c = new ethers.Contract(buyToken.address, ['function balanceOf(address) view returns (uint256)'], provider);
+          const bal = await c.balanceOf(account);
+          setBuyBalance(parseFloat(ethers.formatUnits(bal, buyToken.decimals || 18)));
+        }
+      } catch { setBuyBalance(null); }
+    })();
+  }, [provider, account, buyToken?.address, chainId]);
 
   // ── Fetch Quote with debounce ──
   const fetchQuote = useCallback(async (amount) => {
@@ -34,7 +72,7 @@ export default function SwapCard() {
     setError(null);
     try {
       const decimals = sellToken.decimals || 18;
-      const sellAmountWei = BigInt(Math.floor(parseFloat(amount) * 10 ** decimals)).toString();
+      const sellAmountWei = ethers.parseUnits(amount, decimals).toString();
 
       const q = await getQuote({
         chainId,
@@ -48,7 +86,7 @@ export default function SwapCard() {
 
       // Format buy amount
       const buyDecimals = buyToken.decimals || 18;
-      const buyFloat = Number(BigInt(q.buyAmount)) / 10 ** buyDecimals;
+      const buyFloat = parseFloat(ethers.formatUnits(q.buyAmount, buyDecimals));
       setBuyAmount(buyFloat > 0.001 ? buyFloat.toFixed(6) : buyFloat.toFixed(10));
     } catch (err) {
       console.warn('Quote error:', err);
@@ -94,7 +132,7 @@ export default function SwapCard() {
       if (sellToken.address !== NATIVE_ADDRESS && quote.allowanceTarget) {
         setSwapStep('approving');
         const decimals = sellToken.decimals || 18;
-        const sellAmountWei = BigInt(Math.floor(parseFloat(sellAmount) * 10 ** decimals)).toString();
+        const sellAmountWei = ethers.parseUnits(sellAmount, decimals).toString();
         await checkAndApprove({
           provider,
           tokenAddress: sellToken.address,
@@ -181,7 +219,26 @@ export default function SwapCard() {
         <div className="rounded-xl bg-dark-300/60 border border-white/5 p-4 mb-1.5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-white/40">{t('you_sell')}</span>
-            <span className="text-xs text-white/30">Slippage: {slippage}%</span>
+            <div className="flex items-center gap-2">
+              {account && sellBalance !== null && (
+                <span className="text-xs text-white/30">
+                  {t('balance')}: {sellBalance > 0.0001 ? sellBalance.toFixed(4) : sellBalance.toFixed(8)}
+                </span>
+              )}
+              {account && sellBalance !== null && sellBalance > 0 && (
+                <button
+                  onClick={() => {
+                    // Leave small amount for gas if native token
+                    const max = sellToken?.isNative ? Math.max(0, sellBalance - 0.005) : sellBalance;
+                    const val = max > 0.0001 ? max.toFixed(6) : max.toFixed(10);
+                    handleAmountChange(val);
+                  }}
+                  className="text-[10px] font-bold text-brand-400 hover:text-brand-300 px-1.5 py-0.5 rounded bg-brand-500/10 hover:bg-brand-500/20 transition-all"
+                >
+                  MAX
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -226,9 +283,16 @@ export default function SwapCard() {
         <div className="rounded-xl bg-dark-300/60 border border-white/5 p-4 mt-1.5">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-white/40">{t('you_receive')}</span>
-            {isQuoting && (
-              <span className="text-xs text-brand-400 animate-pulse">Finding best price...</span>
-            )}
+            <div className="flex items-center gap-2">
+              {account && buyBalance !== null && (
+                <span className="text-xs text-white/30">
+                  {t('balance')}: {buyBalance > 0.0001 ? buyBalance.toFixed(4) : buyBalance.toFixed(8)}
+                </span>
+              )}
+              {isQuoting && (
+                <span className="text-xs text-brand-400 animate-pulse">{t('finding_best_price')}</span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -261,7 +325,7 @@ export default function SwapCard() {
             {/* Rate */}
             {rate && (
               <div className="flex items-center justify-between px-1 text-xs text-white/40">
-                <span>Rate</span>
+                <span>{t('rate')}</span>
                 <span className="font-mono">{rate}</span>
               </div>
             )}
@@ -270,8 +334,8 @@ export default function SwapCard() {
             {quote.sources?.length > 0 && (
               <div className="px-1">
                 <div className="flex items-center justify-between text-xs text-white/40 mb-1.5">
-                  <span>Route</span>
-                  <span className="text-[10px] text-white/25">{quote.sources.length} source{quote.sources.length > 1 ? 's' : ''}</span>
+                  <span>{t('route')}</span>
+                  <span className="text-[10px] text-white/25">{quote.sources.length} {t('sources')}</span>
                 </div>
                 <div className="rounded-lg bg-dark-300/50 border border-white/5 p-2 space-y-1">
                   {quote.sources.slice(0, 4).map((s, i) => (
@@ -290,7 +354,7 @@ export default function SwapCard() {
                     </div>
                   ))}
                   {quote.sources.length > 4 && (
-                    <div className="text-[10px] text-white/25 text-center">+{quote.sources.length - 4} more sources</div>
+                    <div className="text-[10px] text-white/25 text-center">{t('more_sources', { count: quote.sources.length - 4 })}</div>
                   )}
                 </div>
               </div>
@@ -367,7 +431,7 @@ export default function SwapCard() {
               onClick={handleSwap}
               className="btn-primary w-full py-4 text-base"
             >
-              Swap {sellToken?.symbol} → {buyToken?.symbol}
+              {t('swap_button', { from: sellToken?.symbol, to: buyToken?.symbol })}
             </button>
           ) : (
             <button disabled className="btn-primary w-full py-4 text-base opacity-40">
@@ -401,10 +465,10 @@ export default function SwapCard() {
       {/* Footer info */}
       <div className="text-center mt-4 space-y-1">
         <p className="text-[11px] text-white/20">
-          Best price aggregated from PancakeSwap, Uniswap, SushiSwap, Curve, and 100+ DEXes
+          {t('best_price_footer')}
         </p>
         <p className="text-[10px] text-white/15">
-          Powered by Kairos 777 • In God We Trust
+          {t('powered_by')}
         </p>
       </div>
     </div>

@@ -17,7 +17,10 @@ const ZERO_X_ENDPOINTS = {
   137: 'https://polygon.api.0x.org',
 };
 
-// Kairos fee: 0.15% on each swap → goes to Kairos treasury
+// 0x API key from environment (set VITE_0X_API_KEY in .env)
+const ZERO_X_API_KEY = import.meta.env.VITE_0X_API_KEY || '';
+
+// Kairos fee: 0.15% on each swap -> goes to Kairos treasury
 const KAIROS_FEE_BPS = 15; // 0.15% = 15 basis points
 const KAIROS_FEE_RECIPIENT = '0xCee44904A6aA94dEa28754373887E07D4B6f4968'; // Owner wallet
 
@@ -39,7 +42,7 @@ export async function getQuote({ chainId, sellToken, buyToken, sellAmount, slipp
   });
 
   const response = await fetch(`${endpoint}/swap/v1/quote?${params}`, {
-    headers: { '0x-api-key': '' }, // works without key for basic usage
+    headers: ZERO_X_API_KEY ? { '0x-api-key': ZERO_X_API_KEY } : {},
   });
 
   if (!response.ok) {
@@ -68,7 +71,7 @@ export async function getPrice({ chainId, sellToken, buyToken, sellAmount }) {
   });
 
   const response = await fetch(`${endpoint}/swap/v1/price?${params}`, {
-    headers: { '0x-api-key': '' },
+    headers: ZERO_X_API_KEY ? { '0x-api-key': ZERO_X_API_KEY } : {},
   });
 
   if (!response.ok) {
@@ -82,7 +85,7 @@ export async function getPrice({ chainId, sellToken, buyToken, sellAmount }) {
 /**
  * Parse 0x API response into our standard format
  */
-function parseQuoteResponse(data, chainId) {
+async function parseQuoteResponse(data, chainId) {
   const sources = (data.sources || [])
     .filter(s => parseFloat(s.proportion) > 0)
     .map(s => ({
@@ -91,6 +94,8 @@ function parseQuoteResponse(data, chainId) {
       percentage: Math.round(parseFloat(s.proportion) * 100),
     }))
     .sort((a, b) => b.proportion - a.proportion);
+
+  const gasUsd = await estimateGasUsd(data.estimatedGas, data.gasPrice, chainId);
 
   return {
     // Amounts
@@ -101,7 +106,7 @@ function parseQuoteResponse(data, chainId) {
     // Gas
     estimatedGas: data.estimatedGas,
     gasPrice: data.gasPrice,
-    estimatedGasUsd: estimateGasUsd(data.estimatedGas, data.gasPrice, chainId),
+    estimatedGasUsd: gasUsd,
     // Sources (which DEXes are used)
     sources,
     sourceSummary: sources.map(s => `${s.name} ${s.percentage}%`).join(' + ') || 'Direct',
@@ -118,15 +123,37 @@ function parseQuoteResponse(data, chainId) {
 }
 
 /**
- * Estimate gas cost in USD (rough)
+ * Estimate gas cost in USD using live prices
  */
-function estimateGasUsd(gas, gasPrice, chainId) {
+// Cache native prices for 5 minutes
+let _nativePriceCache = { data: null, ts: 0 };
+const COINGECKO_IDS = { 56: 'binancecoin', 1: 'ethereum', 8453: 'ethereum', 42161: 'ethereum', 137: 'matic-network' };
+const FALLBACK_PRICES = { 56: 600, 1: 3200, 8453: 3200, 42161: 3200, 137: 0.4 };
+
+async function fetchNativePrices() {
+  if (_nativePriceCache.data && Date.now() - _nativePriceCache.ts < 300000) return _nativePriceCache.data;
+  try {
+    const ids = [...new Set(Object.values(COINGECKO_IDS))].join(',');
+    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+    if (!res.ok) throw new Error('CoinGecko fetch failed');
+    const data = await res.json();
+    const prices = {};
+    for (const [chainId, cgId] of Object.entries(COINGECKO_IDS)) {
+      prices[chainId] = data[cgId]?.usd || FALLBACK_PRICES[chainId] || 1;
+    }
+    _nativePriceCache = { data: prices, ts: Date.now() };
+    return prices;
+  } catch {
+    return FALLBACK_PRICES;
+  }
+}
+
+async function estimateGasUsd(gas, gasPrice, chainId) {
   if (!gas || !gasPrice) return null;
   const gasCostWei = BigInt(gas) * BigInt(gasPrice);
   const gasCostEth = Number(gasCostWei) / 1e18;
-  // Rough native token prices
-  const nativePrices = { 56: 600, 1: 3200, 8453: 3200, 42161: 3200, 137: 0.4 };
-  const nativePrice = nativePrices[chainId] || 1;
+  const prices = await fetchNativePrices();
+  const nativePrice = prices[chainId] || FALLBACK_PRICES[chainId] || 1;
   return (gasCostEth * nativePrice).toFixed(2);
 }
 

@@ -5,16 +5,16 @@ export default {
     extend: {
       colors: {
         brand: {
-          50: '#EBF2FF',
-          100: '#DBEAFE',
-          200: '#BFDBFE',
-          300: '#93C5FD',
-          400: '#60A5FA',
-          500: '#3B82F6',
-          600: '#2563EB',
-          700: '#1D4ED8',
-          800: '#1E40AF',
-          900: '#1E3A8A',
+          50: '#FDF8E8',
+          100: '#FAF0CC',
+          200: '#F5E199',
+          300: '#EFD166',
+          400: '#D4AF37',
+          500: '#D4AF37',
+          600: '#B8962E',
+          700: '#9A7D25',
+          800: '#7C641D',
+          900: '#5E4B15',
         },
         dark: {
           50: '#1A1D26',
@@ -40,8 +40,8 @@ export default {
       },
       keyframes: {
         'pulse-glow': {
-          '0%, 100%': { boxShadow: '0 0 20px rgba(59,130,246,0.1)' },
-          '50%': { boxShadow: '0 0 40px rgba(59,130,246,0.2)' },
+          '0%, 100%': { boxShadow: '0 0 20px rgba(212,175,55,0.1)' },
+          '50%': { boxShadow: '0 0 40px rgba(212,175,55,0.2)' },
         },
         'slide-up': {
           '0%': { transform: 'translateY(10px)', opacity: '0' },

@@ -4,15 +4,16 @@ import { useStore } from '../store';
 import { CHAINS } from '../config/chains';
 import { WALLET_OPTIONS } from '../services/wallet';
 import { useTranslation } from 'react-i18next';
+import { ArrowLeftRight, BarChart3, ScrollText, Briefcase, TrendingUp, Droplets, ArrowRightLeft, Globe } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { path: '/', label: 'nav_swap', icon: '🔄' },
-  { path: '/limit', label: 'nav_limit', icon: '📊' },
-  { path: '/history', label: 'nav_history', icon: '📜' },
-  { path: '/portfolio', label: 'nav_portfolio', icon: '💼' },
-  { path: '/analytics', label: 'nav_analytics', icon: '📈' },
-  { path: '/pools', label: 'nav_pools', icon: '💧' },
-  { path: '/bridge', label: 'nav_bridge', icon: '🌉' },
+  { path: '/', label: 'nav_swap', Icon: ArrowLeftRight },
+  { path: '/limit', label: 'nav_limit', Icon: BarChart3 },
+  { path: '/history', label: 'nav_history', Icon: ScrollText },
+  { path: '/portfolio', label: 'nav_portfolio', Icon: Briefcase },
+  { path: '/analytics', label: 'nav_analytics', Icon: TrendingUp },
+  { path: '/pools', label: 'nav_pools', Icon: Droplets },
+  { path: '/bridge', label: 'nav_bridge', Icon: ArrowRightLeft },
 ];
 
 export default function Header() {
@@ -43,7 +44,7 @@ export default function Header() {
 
           <div className="flex items-center gap-2">
             <button onClick={toggleLang} className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:text-white hover:bg-white/10 transition-all" title={t('language')}>
-              {language === 'es' ? '🇪🇸' : '🇺🇸'}
+              <Globe className="w-3.5 h-3.5 inline mr-1" />{language === 'es' ? 'ES' : 'EN'}
             </button>
 
             {account && chain && (
@@ -79,7 +80,7 @@ export default function Header() {
               className={({ isActive }) => `flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium whitespace-nowrap transition-all ${
                 isActive ? 'bg-brand-500/15 text-brand-400 border border-brand-500/20' : 'text-white/40 hover:text-white/70 hover:bg-white/5 border border-transparent'
               }`}>
-              <span className="text-sm">{item.icon}</span>
+              <item.Icon className="w-3.5 h-3.5" />
               {t(item.label)}
             </NavLink>
           ))}
