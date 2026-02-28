@@ -4,6 +4,10 @@
 import { BROKERS } from '../constants';
 import { decryptKey } from '../utils/keyVault';
 import useStore from '../store/useStore';
+import { walletBroker } from './walletBroker';
+
+// Kairos API for leveraged (margin/perps) execution
+const KAIROS_API = 'https://kairos-api-u6k5.onrender.com';
 
 class BrokerService {
   constructor() {
@@ -1243,6 +1247,127 @@ class BrokerService {
       broker: conn.config.name,
       simulated: true,
     };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  LEVERAGED ORDER — Open/Close positions via Kairos Margin/Perps API
+  //  Routes bot signals to the backend margin engine or DEX perps (GMX V2)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async placeLeveragedOrder(brokerId, order) {
+    const conn = this.connections.get(brokerId);
+    const { symbol, side, quantity, price, leverage, action, positionId, stopLoss, takeProfit, execRoute } = order;
+
+    // Get wallet address from Kairos account
+    const walletAddress = useStore.getState().user?.walletAddress;
+    if (!walletAddress) throw new Error('Wallet address required for leveraged trading');
+
+    // Choose API route: 'dex' → GMX V2 on Arbitrum, 'internal' → Kairos margin engine
+    const apiBase = execRoute === 'dex' ? `${KAIROS_API}/api/perps` : `${KAIROS_API}/api/margin`;
+
+    // ── CLOSE position ──
+    if (action === 'close' && positionId) {
+      try {
+        const res = await fetch(`${apiBase}/close`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wallet: walletAddress, positionId }),
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || 'Close position failed');
+
+        const position = data.data || data;
+        return {
+          id: positionId,
+          symbol,
+          side: side.toLowerCase(),
+          type: 'market',
+          quantity: parseFloat(position.collateral || quantity),
+          price: parseFloat(position.exitPrice || price || 0),
+          filledPrice: parseFloat(position.exitPrice || price || 0),
+          filledQty: parseFloat(position.positionSize || quantity),
+          profit: parseFloat(position.realizedPnl || position.pnl || 0),
+          status: 'filled',
+          timestamp: new Date().toISOString(),
+          broker: 'Kairos Perps',
+          real: true,
+          leveraged: true,
+          leverage,
+          action: 'close',
+        };
+      } catch (err) {
+        console.error('[LEVERAGED] Close error:', err.message);
+        throw err;
+      }
+    }
+
+    // ── OPEN position ──
+    try {
+      // Map signal side to leveraged side
+      const leveragedSide = side.toLowerCase() === 'buy' ? 'LONG' : 'SHORT';
+
+      // Calculate collateral from quantity * price / leverage
+      const collateral = parseFloat(quantity) * parseFloat(price || 1);
+
+      // Parse pair: BTCKAIROS → BTC/KAIROS, BTCUSDT → BTC/USD
+      let pair = symbol;
+      const pairMatch = symbol.match(/^([A-Z]+)(KAIROS|USDT|USDC|USD)$/i);
+      if (pairMatch) {
+        pair = `${pairMatch[1]}/${pairMatch[2] === 'KAIROS' ? 'KAIROS' : 'USD'}`;
+      }
+
+      const res = await fetch(`${apiBase}/open`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          wallet: walletAddress,
+          pair,
+          side: leveragedSide,
+          leverage: parseInt(leverage) || 3,
+          collateral,
+          stopLoss: stopLoss || undefined,
+          takeProfit: takeProfit || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) throw new Error(data.error || 'Open position failed');
+
+      const position = data.data || data;
+      return {
+        id: position.id || position.positionId || Date.now().toString(36),
+        symbol,
+        side: side.toLowerCase(),
+        type: 'market',
+        quantity: parseFloat(position.collateral || collateral),
+        price: parseFloat(position.entryPrice || price || 0),
+        filledPrice: parseFloat(position.entryPrice || price || 0),
+        filledQty: parseFloat(position.positionSize || collateral * leverage),
+        status: 'filled',
+        timestamp: new Date().toISOString(),
+        broker: 'Kairos Perps',
+        real: true,
+        leveraged: true,
+        leverage: parseInt(leverage),
+        positionId: position.id || position.positionId,
+        liquidationPrice: position.liquidationPrice,
+        marginRatio: position.marginRatio,
+        action: 'open',
+      };
+    } catch (err) {
+      console.error('[LEVERAGED] Open error:', err.message);
+      throw err;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  CLOSE LEVERAGED — convenience for closing a leveraged position
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async closeLeveragedPosition(brokerId, { positionId, symbol, side, price, leverage }) {
+    return this.placeLeveragedOrder(brokerId, {
+      symbol, side: side === 'buy' ? 'sell' : 'buy', // Opposite side to close
+      quantity: 0, price, leverage, action: 'close', positionId,
+    });
   }
 
   // ─── Cancel order ───

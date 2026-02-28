@@ -412,6 +412,32 @@ class TradingEngine {
       price: currentPrice,
     };
 
+    // ── LEVERAGED close: route to Kairos Perps/Margin API ──
+    if (position.leveraged && position.positionId && bot.brokerId && brokerService.connections.has(bot.brokerId)) {
+      try {
+        const lev = bot.leverage || position.leverage || 1;
+        this._log(bot.id, `🔄 Cerrando posición APALANCADA ${lev}x en Kairos Perps...`);
+        const result = await brokerService.closeLeveragedPosition(bot.brokerId, {
+          positionId: position.positionId,
+          symbol: toApiPair(bot.pair),
+          side: position.side,
+          price: currentPrice,
+          leverage: lev,
+        });
+        const realProfit = result.profit || profit;
+        this._log(bot.id, `✅ Posición ${lev}x cerrada: P&L ${realProfit >= 0 ? '+' : ''}$${realProfit.toFixed(4)} [${result.status}]`);
+        this._onTrade(bot.id, { ...closeOrder, ...result, profit: realProfit, real: true, confirmed: true, action: 'close', reason, leveraged: true, leverage: lev });
+        telegramService.notifyTradeClose(bot.name, position.side, bot.pair, entryPrice, currentPrice, realProfit, reason);
+        this._refreshBotBalance(bot);
+      } catch (err) {
+        this._log(bot.id, `❌ Error cerrando posición apalancada: ${err.message}`);
+        this._onTrade(bot.id, { ...closeOrder, profit, status: 'error', error: err.message, action: 'close', leveraged: true });
+      }
+      this.positions.delete(bot.id);
+      this._removePositionFromStore(bot.id);
+      return;
+    }
+
     if (bot.brokerId && brokerService.connections.has(bot.brokerId)) {
       try {
         this._log(bot.id, `🔄 Cerrando posición REAL en broker...`);
@@ -488,6 +514,55 @@ class TradingEngine {
     };
 
     if (bot.brokerId && brokerService.connections.has(bot.brokerId)) {
+      // ── LEVERAGED execution: route to Kairos Perps/Margin API ──
+      if (bot.executionMode === 'leveraged' && (bot.leverage || 1) > 1) {
+        try {
+          const lev = bot.leverage || 3;
+          this._log(bot.id, `🔄 Abriendo posición APALANCADA ${lev}x en Kairos Perps...`);
+          const result = await brokerService.placeLeveragedOrder(bot.brokerId, {
+            ...order,
+            leverage: lev,
+            execRoute: 'dex', // Use DEX perps (GMX V2) by default
+          });
+          const fillPrice = result.filledPrice || currentPrice;
+          this._log(bot.id, `✅ APALANCADO: ${signal.type.toUpperCase()} ${lev}x | Colateral: $${result.quantity?.toFixed(2)} | Posición: $${result.filledQty?.toFixed(2)} @ $${fillPrice.toFixed(2)}`);
+          if (result.liquidationPrice) {
+            this._log(bot.id, `⚠️ Precio de liquidación: $${result.liquidationPrice}`);
+          }
+
+          this._lastOrderFail?.delete(bot.id);
+          this._lastFailPermanent?.delete(bot.id);
+
+          this.positions.set(bot.id, {
+            side: signal.type,
+            entryPrice: fillPrice,
+            quantity: result.filledQty || positionSize,
+            entryTime: Date.now(),
+            orderId: result.id,
+            leveraged: true,
+            leverage: lev,
+            positionId: result.positionId,
+            liquidationPrice: result.liquidationPrice,
+            collateral: result.quantity,
+          });
+          this._syncPositionToStore(bot, fillPrice, signal.type, result.filledQty || positionSize, order);
+          this._onTrade(bot.id, { ...order, ...result, real: true, action: 'open', leveraged: true, leverage: lev });
+          telegramService.notifyTradeOpen(bot.name, signal.type, bot.pair, fillPrice, result.filledQty || positionSize, `Kairos Perps ${lev}x`);
+          this._refreshBotBalance(bot);
+          return;
+        } catch (err) {
+          this._log(bot.id, `❌ Error orden apalancada: ${err.message}`);
+          this._lastOrderFail = this._lastOrderFail || new Map();
+          this._lastOrderFail.set(bot.id, Date.now());
+          const msg = err.message.toLowerCase();
+          const isPermanent = msg.includes('insufficient') || msg.includes('collateral') || msg.includes('balance') || msg.includes('minimum');
+          this._lastFailPermanent = this._lastFailPermanent || new Map();
+          this._lastFailPermanent.set(bot.id, isPermanent);
+          return;
+        }
+      }
+
+      // ── SPOT execution: original broker order flow ──
       try {
         this._log(bot.id, `🔄 Ejecutando orden REAL en broker...`);
         const result = await brokerService.placeOrder(bot.brokerId, order);

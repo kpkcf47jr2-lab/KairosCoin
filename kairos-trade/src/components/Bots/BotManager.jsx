@@ -32,6 +32,7 @@ export default function BotManager() {
   const [form, setForm] = useState({
     name: '', pair: 'BTCKAIROS', timeframe: '1h', strategyId: '', brokerId: '',
     balance: '1000', riskPercent: '2', maxTrades: '10',
+    leverage: '1', executionMode: 'spot', // 'spot' or 'leveraged'
     trailingStop: false, trailingStopPct: '1.5', trailingActivation: '0.5',
     // Grid bot fields
     upperPrice: '', lowerPrice: '', gridLines: '10',
@@ -177,6 +178,8 @@ export default function BotManager() {
         timeframe: form.timeframe, strategy,
         balance: parseFloat(form.balance), riskPercent: parseFloat(form.riskPercent),
         maxTrades: parseInt(form.maxTrades),
+        leverage: parseInt(form.leverage) || 1,
+        executionMode: form.executionMode,
         trailingStop: form.trailingStop,
         trailingStopPct: form.trailingStop ? parseFloat(form.trailingStopPct) : undefined,
         trailingActivation: form.trailingStop ? parseFloat(form.trailingActivation) : undefined,
@@ -197,6 +200,8 @@ export default function BotManager() {
         strategy: { type: 'custom_script', code: customStrategy.code, name: customStrategy.name },
         balance: parseFloat(form.balance), riskPercent: parseFloat(form.riskPercent),
         maxTrades: parseInt(form.maxTrades),
+        leverage: parseInt(form.leverage) || 1,
+        executionMode: form.executionMode,
         scriptName: customStrategy.name,
         trailingStop: form.trailingStop,
         trailingStopPct: form.trailingStop ? parseFloat(form.trailingStopPct) : undefined,
@@ -393,6 +398,55 @@ export default function BotManager() {
                       <input type="number" value={form.riskPercent} onChange={(e) => setForm({ ...form, riskPercent: e.target.value })} className="w-full" />
                     </div>
                   </div>
+
+                  {/* ── Leverage / Execution Mode ── */}
+                  <div className="bg-[var(--dark)] rounded-lg p-3 border border-[var(--border)]">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-xs font-bold flex items-center gap-1">⚡ Modo de Ejecución</p>
+                        <p className="text-[10px] text-[var(--text-dim)]">{form.executionMode === 'leveraged' ? 'Apalancado (LONG/SHORT con margen)' : 'Spot (compra/venta directa)'}</p>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setForm({ ...form, executionMode: 'spot', leverage: '1' })}
+                          className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${form.executionMode === 'spot' ? 'bg-[var(--gold)] text-black' : 'bg-[var(--surface-2)] text-[var(--text-dim)]'}`}>
+                          Spot
+                        </button>
+                        <button
+                          onClick={() => setForm({ ...form, executionMode: 'leveraged', leverage: '3' })}
+                          className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${form.executionMode === 'leveraged' ? 'bg-[#F7931A] text-black' : 'bg-[var(--surface-2)] text-[var(--text-dim)]'}`}>
+                          Apalancado
+                        </button>
+                      </div>
+                    </div>
+                    {form.executionMode === 'leveraged' && (
+                      <div className="mt-2 space-y-2">
+                        <div>
+                          <label className="text-[10px] text-[var(--text-dim)] mb-1 block">Apalancamiento</label>
+                          <div className="flex gap-1.5">
+                            {[2, 3, 5, 10, 20, 50].map(lev => (
+                              <button key={lev}
+                                onClick={() => setForm({ ...form, leverage: lev.toString() })}
+                                className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${parseInt(form.leverage) === lev ? 'bg-[#F7931A] text-black' : 'bg-[var(--surface-2)] text-[var(--text-dim)] hover:bg-[var(--surface-2)]/80'}`}>
+                                {lev}x
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <AlertCircle size={12} className="text-[#F7931A] shrink-0" />
+                          <p className="text-[10px] text-[var(--text-dim)]">
+                            Colateral: <strong className="text-[var(--gold)]">${form.balance}</strong> KAIROS → Posición: <strong className="text-[var(--gold)]">${(parseFloat(form.balance || 0) * parseInt(form.leverage || 1)).toLocaleString()}</strong> USD ({form.leverage}x)
+                          </p>
+                        </div>
+                        {parseInt(form.leverage) >= 10 && (
+                          <p className="text-[10px] text-[var(--red)] flex items-center gap-1">
+                            <AlertCircle size={10} /> Leverage alto: mayor riesgo de liquidación
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   {/* Trailing Stop */}
                   <div className="bg-[var(--dark)] rounded-lg p-3 border border-[var(--border)]">
                     <div className="flex items-center justify-between mb-2">
@@ -441,6 +495,50 @@ export default function BotManager() {
                       <label className="text-[10px] text-[var(--text-dim)] mb-1 block font-semibold uppercase tracking-wider">Riesgo (%)</label>
                       <input type="number" value={form.riskPercent} onChange={(e) => setForm({ ...form, riskPercent: e.target.value })} className="w-full" />
                     </div>
+                  </div>
+
+                  {/* ── Leverage / Execution Mode ── */}
+                  <div className="bg-[var(--dark)] rounded-lg p-3 border border-[var(--border)]">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="text-xs font-bold flex items-center gap-1">⚡ Modo de Ejecución</p>
+                        <p className="text-[10px] text-[var(--text-dim)]">{form.executionMode === 'leveraged' ? 'Apalancado (LONG/SHORT con margen)' : 'Spot (compra/venta directa)'}</p>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setForm({ ...form, executionMode: 'spot', leverage: '1' })}
+                          className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${form.executionMode === 'spot' ? 'bg-[var(--gold)] text-black' : 'bg-[var(--surface-2)] text-[var(--text-dim)]'}`}>
+                          Spot
+                        </button>
+                        <button
+                          onClick={() => setForm({ ...form, executionMode: 'leveraged', leverage: '3' })}
+                          className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-all ${form.executionMode === 'leveraged' ? 'bg-[#F7931A] text-black' : 'bg-[var(--surface-2)] text-[var(--text-dim)]'}`}>
+                          Apalancado
+                        </button>
+                      </div>
+                    </div>
+                    {form.executionMode === 'leveraged' && (
+                      <div className="mt-2 space-y-2">
+                        <div>
+                          <label className="text-[10px] text-[var(--text-dim)] mb-1 block">Apalancamiento</label>
+                          <div className="flex gap-1.5">
+                            {[2, 3, 5, 10, 20, 50].map(lev => (
+                              <button key={lev}
+                                onClick={() => setForm({ ...form, leverage: lev.toString() })}
+                                className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${parseInt(form.leverage) === lev ? 'bg-[#F7931A] text-black' : 'bg-[var(--surface-2)] text-[var(--text-dim)]'}`}>
+                                {lev}x
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <AlertCircle size={12} className="text-[#F7931A] shrink-0" />
+                          <p className="text-[10px] text-[var(--text-dim)]">
+                            Colateral: <strong className="text-[var(--gold)]">${form.balance}</strong> → Posición: <strong className="text-[var(--gold)]">${(parseFloat(form.balance || 0) * parseInt(form.leverage || 1)).toLocaleString()}</strong> ({form.leverage}x)
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   {/* Trailing Stop */}
                   <div className="bg-[var(--dark)] rounded-lg p-3 border border-[var(--border)]">
@@ -624,6 +722,12 @@ export default function BotManager() {
                         style={{ color: getStatusColor(bot.status), background: `${getStatusColor(bot.status)}15`, border: `1px solid ${getStatusColor(bot.status)}20` }}>
                         {bot.status === 'active' ? '● Activo' : bot.status === 'paused' ? '❚❚ Pausado' : '■ Detenido'}
                       </span>
+                      {bot.executionMode === 'leveraged' && bot.leverage > 1 && (
+                        <span className="px-2.5 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"
+                          style={{ color: '#f59e0b', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                          ⚡ {bot.leverage}x
+                        </span>
+                      )}
                       <ArrowRight size={16} className="text-[var(--text-dim)]" />
                     </div>
                   </div>
