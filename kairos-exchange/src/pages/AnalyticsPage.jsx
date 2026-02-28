@@ -5,32 +5,106 @@ import { getTopTokens } from '../services/portfolio';
 import { CHAINS } from '../config/chains';
 import ChainSelector from '../components/ChainSelector';
 
+const API_BASE = 'https://kairos-api-u6k5.onrender.com/api';
+
+function StatCard({ label, value, sub, icon }) {
+  return (
+    <div className="glass-card p-4 text-center">
+      <div className="text-2xl mb-1">{icon}</div>
+      <div className="text-lg font-bold text-white font-mono">{value}</div>
+      <div className="text-[11px] text-white/40">{label}</div>
+      {sub && <div className="text-[10px] text-brand-400 mt-1">{sub}</div>}
+    </div>
+  );
+}
+
 export default function AnalyticsPage() {
   const { t } = useTranslation();
   const { chainId } = useStore();
   const [tokens, setTokens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [kairosStats, setKairosStats] = useState(null);
+  const [limitStats, setLimitStats] = useState(null);
 
   useEffect(() => {
     setLoading(true);
     getTopTokens(chainId).then(setTokens).catch(() => setTokens([])).finally(() => setLoading(false));
   }, [chainId]);
 
+  // Fetch Kairos-specific stats
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const [supplyRes, reservesRes, limitRes] = await Promise.allSettled([
+          fetch(`${API_BASE}/supply`).then(r => r.json()),
+          fetch(`${API_BASE}/reserves`).then(r => r.json()),
+          fetch(`${API_BASE}/limit-orders/stats/summary`).then(r => r.json()),
+        ]);
+        if (supplyRes.status === 'fulfilled' && supplyRes.value?.data) {
+          setKairosStats(prev => ({ ...prev, ...supplyRes.value.data }));
+        }
+        if (reservesRes.status === 'fulfilled' && reservesRes.value?.data) {
+          setKairosStats(prev => ({ ...prev, reserves: reservesRes.value.data }));
+        }
+        if (limitRes.status === 'fulfilled' && limitRes.value?.stats) {
+          setLimitStats(limitRes.value.stats);
+        }
+      } catch {}
+    }
+    fetchStats();
+  }, []);
+
   const filtered = search.trim()
     ? tokens.filter(t => t.symbol?.toLowerCase().includes(search.toLowerCase()) || t.name?.toLowerCase().includes(search.toLowerCase()))
     : tokens;
 
   const fmt = (n) => {
+    if (!n && n !== 0) return '$0';
     if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;
     if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
     if (n >= 1e3) return `$${(n / 1e3).toFixed(1)}K`;
-    return `$${n.toFixed(2)}`;
+    return `$${Number(n).toFixed(2)}`;
+  };
+
+  const fmtNum = (n) => {
+    if (!n && n !== 0) return '0';
+    return Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
   };
 
   return (
     <div className="max-w-4xl mx-auto px-4 mt-6 animate-fade-in">
       <h2 className="text-xl font-bold text-white mb-4">📈 {t('token_analytics')}</h2>
+
+      {/* Kairos Protocol Stats */}
+      {kairosStats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <StatCard
+            icon="◆"
+            label="KAIROS Supply"
+            value={fmtNum(kairosStats.totalSupply || kairosStats.total_supply)}
+            sub="1 KAIROS = 1 USD"
+          />
+          <StatCard
+            icon="🏦"
+            label={t('reserves') || 'Reserves'}
+            value={fmt(kairosStats.reserves?.totalReserves || kairosStats.reserves?.total_reserves || 0)}
+            sub={`${(kairosStats.reserves?.backingRatio || kairosStats.reserves?.backing_ratio || 100)}% backed`}
+          />
+          <StatCard
+            icon="📊"
+            label={t('limit_orders') || 'Limit Orders'}
+            value={limitStats?.open || 0}
+            sub={`${limitStats?.filled || 0} filled total`}
+          />
+          <StatCard
+            icon="🔗"
+            label={t('chains') || 'Chains'}
+            value="5"
+            sub="BSC • ETH • Base • Arb • Polygon"
+          />
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row gap-3 mb-5">
         <div className="flex-1"><ChainSelector /></div>

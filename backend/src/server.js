@@ -85,6 +85,8 @@ const treasuryRoutes = require("./routes/treasury");
 const walletBackupRoutes = require("./routes/walletBackup");
 const pushRoutes = require("./routes/push");
 const dexRouter = require("./services/dexRouter");
+const limitOrderRoutes = require("./routes/limitOrders");
+const limitOrderKeeper = require("./services/limitOrderKeeper");
 
 // ── Express App ──────────────────────────────────────────────────────────────
 const app = express();
@@ -121,7 +123,8 @@ app.use(
       "https://global.transak.com",
       "https://staging.transak.com",
       "https://kairos-trade.netlify.app",
-      ...(process.env.NODE_ENV !== "production" ? ["http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175"] : []),
+      "https://kairos-exchange-app.netlify.app",
+      ...(process.env.NODE_ENV !== "production" ? ["http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176"] : []),
     ],
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization", "X-API-Key", "X-Transak-Signature", "Webhook-Secret"],
@@ -232,6 +235,7 @@ app.use("/api/referral", referralRoutes);
 app.use("/api/treasury", treasuryRoutes.router);
 app.use("/api/wallet", walletBackupRoutes.router);
 app.use("/api/push", pushRoutes.router);
+app.use("/api/limit-orders", limitOrderRoutes.router);
 // Note: Stripe webhook is mounted earlier (before express.json) for raw body
 
 // Fee endpoint (defined as /fees in supply router, so mount at /api)
@@ -374,6 +378,12 @@ async function start() {
     dexRouter.initialize();
     logger.info("DEX Router started ✓");
 
+    logger.info("Initializing Limit Order Keeper...");
+    limitOrderRoutes.initialize(db.getDb());
+    limitOrderKeeper.initialize(db.getDb());
+    limitOrderKeeper.start();
+    logger.info("Limit Order Keeper started ✓");
+
     // 8. Start HTTP server
     const server = app.listen(config.port, () => {
       logger.info(`Server running on port ${config.port}`);
@@ -395,6 +405,7 @@ async function start() {
       redemptionMonitor.stop();
       priceOracle.stop();
       marginEngine.stopLiquidationEngine();
+      limitOrderKeeper.stop();
       server.close(() => {
         logger.info("HTTP server closed");
         process.exit(0);

@@ -1,3 +1,24 @@
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+# ═══════════════════════════════════════════════════════════
+#  Kairos Exchange — Security Headers
+#  Kairos 777 Inc. — "In God We Trust"
+# ═══════════════════════════════════════════════════════════
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=(self)"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://kairos-api-u6k5.onrender.com https://bsc-dataseed1.binance.org https://bsc-dataseed2.binance.org https://bsc-dataseed3.binance.org https://bsc-dataseed4.binance.org https://eth.llamarpc.com https://polygon-rpc.com https://arb1.arbitrum.io https://mainnet.base.org https://api.coingecko.com https://api.dexscreener.com https://li.quest https://bsc.api.0x.org https://api.0x.org https://base.api.0x.org https://arbitrum.api.0x.org https://polygon.api.0x.org https://api.binance.com wss://stream.binance.com:9443 https://rpc.walletconnect.com https://explorer-api.walletconnect.com https://relay.walletconnect.com wss://relay.walletconnect.com https://pulse.walletconnect.org https://api.web3modal.com; frame-src 'self' https://verify.walletconnect.com https://verify.walletconnect.org;"
+
+# SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
