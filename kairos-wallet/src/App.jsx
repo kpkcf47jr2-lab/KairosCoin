@@ -45,6 +45,7 @@ const MultiSendScreen = lazy(() => import('./components/Send/MultiSendScreen'));
 const PortfolioAllocation = lazy(() => import('./components/Dashboard/PortfolioAllocation'));
 const NotificationCenter = lazy(() => import('./components/Common/NotificationCenter'));
 const RPCHealthScreen = lazy(() => import('./components/Settings/RPCHealthScreen'));
+const DAppConnectScreen = lazy(() => import('./components/Connect/DAppConnectScreen'));
 
 const pageVariants = {
   initial: { opacity: 0, x: 20 },
@@ -62,6 +63,25 @@ export default function App() {
   const { currentScreen, navigate, isUnlocked, lock, showToast } = useStore();
 
   useEffect(() => {
+    // Handle /connect path from Kairos Exchange (dApp connection)
+    if (window.location.pathname === '/connect') {
+      if (hasWallet()) {
+        navigate('unlock');
+        // After unlock, the dappconnect screen will be shown
+        const checkUnlock = setInterval(() => {
+          if (useStore.getState().isUnlocked) {
+            clearInterval(checkUnlock);
+            useStore.getState().navigate('dappconnect');
+          }
+        }, 500);
+        // Timeout after 5 min
+        setTimeout(() => clearInterval(checkUnlock), 300000);
+      } else {
+        navigate('welcome');
+      }
+      return;
+    }
+
     // Determine initial screen
     if (hasWallet()) {
       navigate('unlock');
@@ -195,6 +215,8 @@ export default function App() {
         return <NotificationCenter key="notifications" />;
       case 'rpchealth':
         return <RPCHealthScreen key="rpchealth" />;
+      case 'dappconnect':
+        return <DAppConnectScreen key="dappconnect" />;
       default:
         return <LoadingScreen key="loading" />;
     }
