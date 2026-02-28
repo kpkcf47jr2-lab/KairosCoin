@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: March 2, 2026 (Session 23 — Exchange Audit Fixes)
+#  Last Updated: March 2, 2026 (Session 23 — Pool Visibility & DexScreener Indexing)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -1773,6 +1773,18 @@ Comprehensive production hardening of the Kairos Exchange DEX:
 - Fixed `ErrorBoundary.jsx`: Hardcoded English text → i18n (imports `i18n.t()` directly for class component)
 - Fixed `SwapCard.jsx`: Fee display now shows "0.15%" only for 0x routes, "0%" for on-chain routes
 - Added 4 new i18n keys to both EN and ES translations in `i18n.js`
+
+**8. Pool Visibility & DexScreener Indexing**
+- Problem: Both KAIROS pools (PancakeSwap + KairosSwap) had ZERO swap events → invisible to all aggregators
+- Verified all contracts on BscScan: Token, Factory, Router, Pair (all 4 verified ✅)
+- Executed 5 swaps to generate trading activity:
+  - PancakeSwap: 3 swaps (BNB→KAIROS, KAIROS→BNB, BNB→KAIROS)
+  - KairosSwap: 2 swaps (BNB→KAIROS, KAIROS→BNB)
+  - TX examples: `0x63ad7cd7...`, `0x8363433e...`, `0xdc56aff3...`, `0x10fcdf67...`, `0xcb136a6e...`
+- Created listing guide: `docs/TOKEN-LISTING-GUIDE.md`
+- **DexScreener:** PancakeSwap pair auto-indexing expected within 1-24h; KairosSwap needs manual integration request
+- **Pending manual submissions:** CoinGecko, CoinMarketCap, BscScan token info, Trust Wallet logo
+- New scripts: `scripts/trigger-dexscreener-indexing.js`, `scripts/generate-trading-activity.js`, `scripts/check-swap-events.js`
 
 ---
 
