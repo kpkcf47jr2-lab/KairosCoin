@@ -8,7 +8,7 @@
 import { execSync } from 'child_process';
 
 const SITE_ID = 'b7b3fd54-863a-4e6f-a334-460b1092045b';
-const AUTH_TOKEN = 'nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93';
+const AUTH_TOKEN = 'nfp_iSeKAZP4UYALcgFUzENCx79hgKKEFtbue963';
 const PROD_URL = 'https://kairos-trade.netlify.app';
 
 const run = (cmd, label) => {

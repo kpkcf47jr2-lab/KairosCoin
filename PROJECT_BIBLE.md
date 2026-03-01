@@ -63,8 +63,8 @@
 ### Website (Netlify)
 - **URL:** https://kairos-777.com
 - **Netlify Site ID:** `8d880818-7126-4645-8367-e49163a1afaf`
-- **Netlify Auth Token:** `nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93`
-- **Deploy command:** `npx netlify deploy --prod --dir=website --site=8d880818-7126-4645-8367-e49163a1afaf --auth=nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93`
+- **Netlify Auth Token:** `nfp_iSeKAZP4UYALcgFUzENCx79hgKKEFtbue963`
+- **Deploy command:** `npx netlify deploy --prod --dir=website --site=8d880818-7126-4645-8367-e49163a1afaf --auth=nfp_iSeKAZP4UYALcgFUzENCx79hgKKEFtbue963`
 
 ### Backend API (Render)
 - **URL:** https://kairos-api-u6k5.onrender.com
@@ -83,7 +83,7 @@
 - **Tech:** React 18 + Vite 6 + Tailwind 3.4 + Zustand 5 + ethers.js 6
 - **Purpose:** Multi-chain crypto wallet with DApp browser, NFT support, WalletConnect
 - **Status:** Complete (6 sprints, commit `60e2b49`)
-- **Deploy:** `npx netlify deploy --prod --dir=kairos-wallet/dist --site=e448f1a8-f480-4811-84ae-8a15df30477e --auth=nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93`
+- **Deploy:** `npx netlify deploy --prod --dir=kairos-wallet/dist --site=e448f1a8-f480-4811-84ae-8a15df30477e --auth=nfp_iSeKAZP4UYALcgFUzENCx79hgKKEFtbue963`
 
 ### Kairos Trade (Netlify)
 - **URL:** https://kairos-trade.netlify.app
@@ -99,7 +99,7 @@
   - `prebuild` script auto-runs `lint:hooks` before every `npm run build`
   - GlobalErrorBoundary with auto-retry (3 attempts, 500ms delay, 10s stability reset)
   - `scripts/deploy-trade.js` — full pipeline: lint → build → deploy → verify
-- **Deploy:** `npx netlify deploy --prod --dir=kairos-trade/dist --site=b7b3fd54-863a-4e6f-a334-460b1092045b --auth=nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93`
+- **Deploy:** `npx netlify deploy --prod --dir=kairos-trade/dist --site=b7b3fd54-863a-4e6f-a334-460b1092045b --auth=nfp_iSeKAZP4UYALcgFUzENCx79hgKKEFtbue963`
 
 ### Kairos Exchange (Netlify) — DEX Aggregator + Native AMM
 - **URL:** https://kairos-exchange-app.netlify.app
@@ -509,7 +509,7 @@ TRANSAK_ENV=STAGING
 
 ### Website → Netlify
 ```bash
-npx netlify deploy --prod --dir=website --site=8d880818-7126-4645-8367-e49163a1afaf --auth=nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93
+npx netlify deploy --prod --dir=website --site=8d880818-7126-4645-8367-e49163a1afaf --auth=nfp_iSeKAZP4UYALcgFUzENCx79hgKKEFtbue963
 ```
 
 ### Backend → Render (auto-deploys on git push)

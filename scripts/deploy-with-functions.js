@@ -6,7 +6,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
-const TOKEN = "nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93";
+const TOKEN = "nfp_iSeKAZP4UYALcgFUzENCx79hgKKEFtbue963";
 const SITE_ID = "resilient-strudel-41074c.netlify.app";
 const DEPLOY_DIR = path.join(process.env.HOME, "Desktop", "website");
 const FN_DIR = path.join(DEPLOY_DIR, "netlify", "functions");

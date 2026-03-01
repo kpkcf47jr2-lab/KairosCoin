@@ -36,7 +36,7 @@ Before starting any work, read `PROJECT_BIBLE.md` in the project root. It contai
 - Brand colors: Gold `#D4AF37`, Dark `#0D0D0D`, Fonts: Playfair Display + Inter
 
 ## Deploy Commands
-- Website: `npx netlify deploy --prod --dir=website --site=8d880818-7126-4645-8367-e49163a1afaf --auth=nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93`
+- Website: `npx netlify deploy --prod --dir=website --site=8d880818-7126-4645-8367-e49163a1afaf --auth=nfp_iSeKAZP4UYALcgFUzENCx79hgKKEFtbue963`
 - Backend: `git push origin main` (Render auto-deploys)
 - Contract: `npx hardhat run scripts/deploy.js --network bsc`
 

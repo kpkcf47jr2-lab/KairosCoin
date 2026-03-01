@@ -8,7 +8,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const DEPLOY_DIR = path.join(__dirname, '..', 'kairos-wallet', 'dist');
-const TOKEN = 'nfp_pU5vLFxKCEuZS7mnPW2zn7YSYVHbrXjX0c93';
+const TOKEN = 'nfp_iSeKAZP4UYALcgFUzENCx79hgKKEFtbue963';
 
 // We'll create a new site or use an existing one
 let SITE_ID = process.env.WALLET_SITE_ID || '';
