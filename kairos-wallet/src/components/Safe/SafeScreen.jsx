@@ -547,6 +547,29 @@ export default function SafeScreen() {
               </motion.div>
             )}
 
+            {/* Admin Panel Button */}
+            {isOwner && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.24 }}
+              >
+                <button
+                  onClick={() => navigate('admin')}
+                  className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-kairos-500/20 to-purple-500/20 border border-kairos-500/30 hover:from-kairos-500/30 hover:to-purple-500/30 transition"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-kairos-500/20 flex items-center justify-center">
+                    <Shield size={20} className="text-kairos-400" />
+                  </div>
+                  <div className="text-left flex-1">
+                    <p className="text-sm font-semibold text-kairos-400">Admin Panel</p>
+                    <p className="text-[10px] text-dark-400">Mint, Burn, Pausar, Blacklist, Fees y más</p>
+                  </div>
+                  <ChevronRight size={16} className="text-kairos-400" />
+                </button>
+              </motion.div>
+            )}
+
             {/* Security Info */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}

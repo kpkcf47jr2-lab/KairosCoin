@@ -47,6 +47,7 @@ const NotificationCenter = lazy(() => import('./components/Common/NotificationCe
 const RPCHealthScreen = lazy(() => import('./components/Settings/RPCHealthScreen'));
 const DAppConnectScreen = lazy(() => import('./components/Connect/DAppConnectScreen'));
 const SafeScreen = lazy(() => import('./components/Safe/SafeScreen'));
+const AdminPanel = lazy(() => import('./components/Admin/AdminPanel'));
 
 const pageVariants = {
   initial: { opacity: 0, x: 20 },
@@ -220,6 +221,8 @@ export default function App() {
         return <DAppConnectScreen key="dappconnect" />;
       case 'safe':
         return <SafeScreen key="safe" />;
+      case 'admin':
+        return <AdminPanel key="admin" />;
       default:
         return <LoadingScreen key="loading" />;
     }
