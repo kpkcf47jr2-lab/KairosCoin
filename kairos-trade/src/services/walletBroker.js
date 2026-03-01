@@ -3,6 +3,8 @@
 // Zero-downtime design: if ALL aggregators fail → direct DEX router fallback
 // Uses ethers.js for blockchain interaction
 
+import { devLog, devWarn } from '../utils/devLog';
+
 // ═══════════════════════════════════════════════════════════
 //  MULTI-AGGREGATOR CONFIG — Redundant price sources
 // ═══════════════════════════════════════════════════════════
@@ -86,7 +88,7 @@ function _recordFailure(aggName) {
   state.lastFail = Date.now();
   if (state.failures >= RESILIENCE.CIRCUIT_BREAKER_THRESHOLD) {
     state.open = true;
-    console.warn(`[CIRCUIT-BREAKER] ${aggName} marked DOWN (${state.failures} consecutive failures)`);
+    devWarn(`[CIRCUIT-BREAKER] ${aggName} marked DOWN (${state.failures} consecutive failures)`);
   }
 }
 
@@ -97,7 +99,7 @@ function _isCircuitOpen(aggName) {
   if (Date.now() - state.lastFail > RESILIENCE.CIRCUIT_BREAKER_RESET_MS) {
     state.open = false;
     state.failures = 0;
-    console.log(`[CIRCUIT-BREAKER] ${aggName} circuit RESET (cooldown elapsed)`);
+    devLog(`[CIRCUIT-BREAKER] ${aggName} circuit RESET (cooldown elapsed)`);
     return false;
   }
   return true;
@@ -122,7 +124,7 @@ async function _withRetry(fn, maxRetries, delayMs, label) {
     } catch (err) {
       lastError = err;
       if (attempt < maxRetries) {
-        console.warn(`[RETRY] ${label} attempt ${attempt + 1}/${maxRetries} failed: ${err.message}. Retrying in ${delayMs}ms...`);
+        devWarn(`[RETRY] ${label} attempt ${attempt + 1}/${maxRetries} failed: ${err.message}. Retrying in ${delayMs}ms...`);
         await new Promise(r => setTimeout(r, delayMs));
       }
     }
@@ -287,7 +289,7 @@ class WalletBrokerService {
     if (!['aggregator', 'direct'].includes(mode)) throw new Error('Invalid mode. Use "aggregator" or "direct"');
     this.executionMode = mode;
     EXECUTION_MODE = mode;
-    console.log(`[BROKER] Execution mode → ${mode === 'aggregator' ? '🔄 Aggregator (100+ DEXes)' : '📍 Direct (single DEX)'}`);
+    devLog(`[BROKER] Execution mode → ${mode === 'aggregator' ? '🔄 Aggregator (100+ DEXes)' : '📍 Direct (single DEX)'}`);
   }
 
   getExecutionMode() {
@@ -310,7 +312,7 @@ class WalletBrokerService {
       // Race all available aggregators in parallel — fastest wins
       const available = aggregators.filter(a => !_isCircuitOpen(a.name) && a.endpoints[chainId]);
       if (available.length === 0) {
-        console.warn('[AGGREGATOR] All aggregators circuit-broken, will try direct DEX');
+        devWarn('[AGGREGATOR] All aggregators circuit-broken, will try direct DEX');
         return null;
       }
 
@@ -346,14 +348,14 @@ class WalletBrokerService {
 
       if (validQuotes.length > 0) {
         const best = validQuotes[0];
-        console.log(`[AGGREGATOR] Best quote from ${best.aggregator} (${validQuotes.length} sources responded)`);
+        devLog(`[AGGREGATOR] Best quote from ${best.aggregator} (${validQuotes.length} sources responded)`);
         if (validQuotes.length > 1) {
-          console.log(`[AGGREGATOR] Compared: ${validQuotes.map(q => `${q.aggregator}=${q.buyAmount}`).join(' vs ')}`);
+          devLog(`[AGGREGATOR] Compared: ${validQuotes.map(q => `${q.aggregator}=${q.buyAmount}`).join(' vs ')}`);
         }
         return best;
       }
 
-      console.warn('[AGGREGATOR] All parallel quotes failed');
+      devWarn('[AGGREGATOR] All parallel quotes failed');
       return null;
     }
 
@@ -375,7 +377,7 @@ class WalletBrokerService {
         }
       } catch (err) {
         _recordFailure(agg.name);
-        console.warn(`[AGGREGATOR] ${agg.name} failed: ${err.message}`);
+        devWarn(`[AGGREGATOR] ${agg.name} failed: ${err.message}`);
       }
     }
 
@@ -533,13 +535,13 @@ class WalletBrokerService {
     // Re-quote if quote is stale (>15s old)
     let activeQuote = quote;
     if (Date.now() - (quote.quotedAt || 0) > RESILIENCE.QUOTE_MAX_AGE_MS) {
-      console.log('[AGGREGATOR] Quote is stale, refreshing...');
+      devLog('[AGGREGATOR] Quote is stale, refreshing...');
       const freshQuote = await this._getAggregatorQuote(chainId, tokenIn, quote._tokenOut || tokenIn, amountInWei);
       if (freshQuote && freshQuote.data) {
         activeQuote = freshQuote;
-        console.log('[AGGREGATOR] Using fresh quote');
+        devLog('[AGGREGATOR] Using fresh quote');
       } else {
-        console.warn('[AGGREGATOR] Re-quote failed, proceeding with original');
+        devWarn('[AGGREGATOR] Re-quote failed, proceeding with original');
       }
     }
 
@@ -573,7 +575,7 @@ class WalletBrokerService {
           throw new Error('Paraswap TX build failed');
         }
       } catch (err) {
-        console.warn('[PARASWAP] TX build failed:', err.message);
+        devWarn('[PARASWAP] TX build failed:', err.message);
         throw err; // Will trigger fallback to direct DEX
       }
     }
@@ -587,10 +589,10 @@ class WalletBrokerService {
       const tokenContract = new ethers.Contract(tokenIn, ERC20_ABI, wallet);
       const allowance = await tokenContract.allowance(wallet.address, activeQuote.allowanceTarget);
       if (allowance < BigInt(amountInWei)) {
-        console.log(`[AGGREGATOR] Approving token for ${activeQuote.sourceSummary}...`);
+        devLog(`[AGGREGATOR] Approving token for ${activeQuote.sourceSummary}...`);
         const approveTx = await tokenContract.approve(activeQuote.allowanceTarget, ethers.MaxUint256);
         await approveTx.wait();
-        console.log('[AGGREGATOR] Approval confirmed');
+        devLog('[AGGREGATOR] Approval confirmed');
       }
     }
 
@@ -603,7 +605,7 @@ class WalletBrokerService {
       gasLimit,
     });
 
-    console.log(`[AGGREGATOR] Swap tx: ${tx.hash} via ${activeQuote.sourceSummary} (gas limit: ${gasLimit})`);
+    devLog(`[AGGREGATOR] Swap tx: ${tx.hash} via ${activeQuote.sourceSummary} (gas limit: ${gasLimit})`);
     const receipt = await tx.wait();
 
     if (receipt.status === 0) {
@@ -717,7 +719,7 @@ class WalletBrokerService {
         });
       }
     } catch (err) {
-      console.warn('Native balance error:', err.message);
+      devWarn('Native balance error:', err.message);
     }
 
     // ERC20 token balances
@@ -739,7 +741,7 @@ class WalletBrokerService {
           });
         }
       } catch (err) {
-        console.warn(`Token ${symbol} balance error:`, err.message);
+        devWarn(`Token ${symbol} balance error:`, err.message);
       }
     }
 
@@ -778,7 +780,7 @@ class WalletBrokerService {
           aggQuote._tokenOut = tokenOutAddr; // Store for potential re-quote
           const formattedOut = ethers.formatUnits(aggQuote.buyAmount, decimalsOut);
           const effectivePrice = parseFloat(formattedOut) / parseFloat(amountIn);
-          console.log(`[QUOTE] Aggregator → ${formattedOut} via ${aggQuote.sourceSummary}`);
+          devLog(`[QUOTE] Aggregator → ${formattedOut} via ${aggQuote.sourceSummary}`);
 
           // Also get direct DEX quote for comparison (non-blocking)
           let directQuote = null;
@@ -802,7 +804,7 @@ class WalletBrokerService {
           };
         }
       } catch (err) {
-        console.warn('[QUOTE] Aggregator failed, falling back to direct DEX:', err.message);
+        devWarn('[QUOTE] Aggregator failed, falling back to direct DEX:', err.message);
       }
     }
 
@@ -912,7 +914,7 @@ class WalletBrokerService {
         const aggQuote = await this._getAggregatorQuote(chainId, tokenIn, tokenOut, amountIn);
         if (aggQuote) {
           aggQuote._tokenOut = tokenOut; // Store for potential re-quote
-          console.log(`[ORDER] Executing via ${aggQuote.aggregator || 'Aggregator'} → ${aggQuote.sourceSummary}`);
+          devLog(`[ORDER] Executing via ${aggQuote.aggregator || 'Aggregator'} → ${aggQuote.sourceSummary}`);
           const result = await this._executeAggregatorSwap(wallet, chainId, tokenIn, amountIn, aggQuote);
           const formattedOut = ethers.formatUnits(aggQuote.buyAmount, decimalsOut);
 
@@ -938,12 +940,12 @@ class WalletBrokerService {
           };
         }
       } catch (err) {
-        console.warn('[ORDER] Aggregator execution failed, falling back to direct DEX:', err.message);
+        devWarn('[ORDER] Aggregator execution failed, falling back to direct DEX:', err.message);
       }
     }
 
     // ── STRATEGY 2: Direct DEX (single router, fallback) ──
-    console.log(`[ORDER] Executing via Direct → ${config.dexName}`);
+    devLog(`[ORDER] Executing via Direct → ${config.dexName}`);
     const router = new ethers.Contract(config.router, ROUTER_ABI, wallet);
 
     // Build path
@@ -972,10 +974,10 @@ class WalletBrokerService {
       const tokenContract = new ethers.Contract(tokenIn, ERC20_ABI, wallet);
       const allowance = await tokenContract.allowance(wallet.address, config.router);
       if (allowance < amountIn) {
-        console.log(`[WALLET] Approving ${baseToken} for ${config.dexName}...`);
+        devLog(`[WALLET] Approving ${baseToken} for ${config.dexName}...`);
         const approveTx = await tokenContract.approve(config.router, ethers.MaxUint256);
         await approveTx.wait();
-        console.log('[WALLET] Approval confirmed');
+        devLog('[WALLET] Approval confirmed');
       }
     }
 
@@ -995,7 +997,7 @@ class WalletBrokerService {
       }
     }
 
-    console.log(`[WALLET] Swap tx: ${tx.hash}`);
+    devLog(`[WALLET] Swap tx: ${tx.hash}`);
     const receipt = await tx.wait();
 
     const formattedOut = ethers.formatUnits(expectedOut, decimalsOut);

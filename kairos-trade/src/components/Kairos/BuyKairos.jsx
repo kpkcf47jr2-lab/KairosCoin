@@ -11,8 +11,9 @@ import {
   TrendingUp, Star
 } from 'lucide-react';
 import useStore from '../../store/useStore';
+import { API_HOST } from '../../constants';
 
-const API_BASE = 'https://kairos-api-u6k5.onrender.com';
+const API_BASE = API_HOST;
 const QUICK_AMOUNTS = [25, 50, 100, 250, 500, 1000];
 const MIN_AMOUNT = 10;
 const MAX_AMOUNT = 50000;

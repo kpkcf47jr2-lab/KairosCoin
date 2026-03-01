@@ -16,7 +16,7 @@ class TelegramService {
     this.botToken = botToken;
     this.chatId = chatId;
     this.enabled = !!(botToken && chatId);
-    if (this.enabled) {
+    if (this.enabled && import.meta.env.DEV) {
       console.log('[Telegram] Configured:', chatId);
     }
   }

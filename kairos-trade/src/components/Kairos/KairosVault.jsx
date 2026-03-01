@@ -11,8 +11,9 @@ import {
   RefreshCw, Info, Zap, PieChart, History, Star
 } from 'lucide-react';
 import useStore from '../../store/useStore';
+import { API_HOST } from '../../constants';
 
-const API_BASE = 'https://kairos-api-u6k5.onrender.com/api/vault';
+const API_BASE = `${API_HOST}/api/vault`;
 
 async function api(path, opts = {}) {
   const res = await fetch(`${API_BASE}${path}`, {

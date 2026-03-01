@@ -21,7 +21,7 @@ function safe(val) {
   if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') return val;
   if (React.isValidElement(val)) return val;
   if (Array.isArray(val)) return val;
-  console.error('[SAFE] Object caught as React child:', JSON.stringify(val).slice(0, 200), val);
+  if (import.meta.env.DEV) console.error('[SAFE] Object caught as React child:', JSON.stringify(val).slice(0, 200));
   return String(val);
 }
 

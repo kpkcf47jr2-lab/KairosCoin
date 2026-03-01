@@ -93,7 +93,7 @@ export default function OnboardingWizard({ onComplete }) {
 
   const currentStep = STEPS[step];
   const isLast = step === STEPS.length - 1;
-  const referralCode = user?.referralCode || 'KAI-XXXXXXXX';
+  const referralCode = user?.referralCode || `KAI-${(user?.id || 'new').slice(0, 8).toUpperCase()}`;
   const referralLink = `https://kairos-trade.netlify.app?ref=${referralCode}`;
 
   const handleNext = useCallback(() => {

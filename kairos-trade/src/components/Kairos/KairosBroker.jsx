@@ -17,9 +17,9 @@ import {
 import { createChart, ColorType, CrosshairMode } from 'lightweight-charts';
 import { ethers } from 'ethers';
 import useStore from '../../store/useStore';
+import { API_HOST } from '../../constants';
 
 // ── Config ───────────────────────────────────────────────────────────────────
-const API_HOST = 'https://kairos-api-u6k5.onrender.com';
 const API_MARGIN = `${API_HOST}/api/margin`;  // Internal margin engine
 const API_PERPS  = `${API_HOST}/api/perps`;   // DEX route → Kairos Exchange
 const PRICE_POLL_MS = 3000;

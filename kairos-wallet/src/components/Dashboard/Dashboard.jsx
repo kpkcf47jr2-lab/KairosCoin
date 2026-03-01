@@ -39,6 +39,7 @@ export default function Dashboard() {
   const [showChainPicker, setShowChainPicker] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [alertCount, setAlertCount] = useState(getActiveAlertCount());
+  const [loadError, setLoadError] = useState(false);
 
   // Check for linked Trade account
   const linkedTrade = JSON.parse(localStorage.getItem('kairos_linked_trade') || 'null');
@@ -83,6 +84,7 @@ export default function Dashboard() {
   const loadBalances = useCallback(async () => {
     if (!activeAddress) return;
     setIsRefreshing(true);
+    setLoadError(false);
     
     try {
       const [balanceData, nativeP] = await Promise.all([
@@ -196,6 +198,10 @@ export default function Dashboard() {
         } catch (e2) {
           console.error('Emergency KAIROS fetch also failed:', e2);
         }
+      }
+      // Show error state if we have no data at all
+      if (!balances.native && (!balances.tokens || balances.tokens.length === 0)) {
+        setLoadError(true);
       }
     }
     setIsRefreshing(false);
@@ -334,7 +340,7 @@ export default function Dashboard() {
         <h2 className="balance-text text-white">
           {hideBalance ? '••••••' : formatUSD(portfolioValue)}
         </h2>
-        <p className="text-dark-600 text-[10px] mt-0.5">Toca para ver asignación</p>
+        <p className="text-dark-600 text-[10px] mt-0.5">{t('dashboard.tap_portfolio')}</p>
       </div>
 
       {/* ── Portfolio Chart ── */}
@@ -371,19 +377,19 @@ export default function Dashboard() {
             { icon: Download, label: t('action.receive'), screen: 'receive', color: 'bg-green-500/10 text-green-400' },
             { icon: CreditCard, label: t('action.buy', 'Comprar'), screen: 'buy', color: 'bg-emerald-500/10 text-emerald-400' },
             { icon: ArrowLeftRight, label: t('action.swap'), screen: 'swap', color: 'bg-purple-500/10 text-purple-400' },
-            { icon: Layers, label: 'Bridge', screen: 'bridge', color: 'bg-indigo-500/10 text-indigo-400' },
-            { icon: Users, label: 'Multi-Send', screen: 'multisend', color: 'bg-cyan-500/10 text-cyan-400' },
+            { icon: Layers, label: t('action.bridge'), screen: 'bridge', color: 'bg-indigo-500/10 text-indigo-400' },
+            { icon: Users, label: t('action.multisend'), screen: 'multisend', color: 'bg-cyan-500/10 text-cyan-400' },
             { icon: Globe, label: t('action.dapps'), screen: 'dapps', color: 'bg-orange-500/10 text-orange-400' },
             { icon: Image, label: t('action.nfts'), screen: 'nft', color: 'bg-pink-500/10 text-pink-400' },
-            { icon: Lock, label: 'Staking', screen: 'staking', color: 'bg-teal-500/10 text-teal-400' },
-            { icon: Landmark, label: 'Vault', screen: 'vault', color: 'bg-emerald-500/10 text-emerald-400' },
-            { icon: PieChart, label: 'Portfolio', screen: 'portfolio', color: 'bg-violet-500/10 text-violet-400' },
-            { icon: Bell, label: 'Alertas', screen: 'alerts', color: 'bg-kairos-500/10 text-kairos-400', badge: alertCount },
-            { icon: Shield, label: 'Safe', screen: 'safe', color: 'bg-green-500/10 text-green-400' },
-            { icon: Shield, label: 'Auditoría', screen: 'tokenaudit', color: 'bg-red-500/10 text-red-400' },
-            { icon: TrendingUp, label: 'Gas', screen: 'gas', color: 'bg-amber-500/10 text-amber-400' },
+            { icon: Lock, label: t('action.staking'), screen: 'staking', color: 'bg-teal-500/10 text-teal-400' },
+            { icon: Landmark, label: t('action.vault'), screen: 'vault', color: 'bg-emerald-500/10 text-emerald-400' },
+            { icon: PieChart, label: t('action.portfolio'), screen: 'portfolio', color: 'bg-violet-500/10 text-violet-400' },
+            { icon: Bell, label: t('action.alerts'), screen: 'alerts', color: 'bg-kairos-500/10 text-kairos-400', badge: alertCount },
+            { icon: Shield, label: t('action.safe'), screen: 'safe', color: 'bg-green-500/10 text-green-400' },
+            { icon: Shield, label: t('action.audit'), screen: 'tokenaudit', color: 'bg-red-500/10 text-red-400' },
+            { icon: TrendingUp, label: t('action.gas'), screen: 'gas', color: 'bg-amber-500/10 text-amber-400' },
             { icon: Clock, label: t('action.history'), screen: 'history', color: 'bg-kairos-500/10 text-kairos-400' },
-            { icon: BookOpen, label: 'Contactos', screen: 'contacts', color: 'bg-sky-500/10 text-sky-400' },
+            { icon: BookOpen, label: t('action.contacts'), screen: 'contacts', color: 'bg-sky-500/10 text-sky-400' },
             { icon: Settings, label: t('action.settings'), screen: 'settings', color: 'bg-white/5 text-dark-300' },
           ].map(action => (
             <button
@@ -433,6 +439,20 @@ export default function Dashboard() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : loadError && tokensWithBalance.length === 0 ? (
+          <div className="text-center py-10">
+            <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-3">
+              <RefreshCw size={22} className="text-red-400" />
+            </div>
+            <p className="text-dark-300 text-sm font-medium mb-1">{t('dashboard.error_title')}</p>
+            <p className="text-dark-500 text-xs mb-4">{t('dashboard.error_desc')}</p>
+            <button
+              onClick={loadBalances}
+              className="px-5 py-2 rounded-xl bg-kairos-500/15 text-kairos-400 text-sm font-semibold hover:bg-kairos-500/25 transition-all active:scale-95"
+            >
+              {t('dashboard.retry')}
+            </button>
           </div>
         ) : (
           <div className="space-y-1">

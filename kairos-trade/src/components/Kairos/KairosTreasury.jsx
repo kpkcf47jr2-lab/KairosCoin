@@ -12,10 +12,8 @@ import {
   Zap, Shield, AlertTriangle
 } from 'lucide-react';
 import useStore from '../../store/useStore';
-import { isAdmin, ADMIN_CONFIG } from '../../constants';
+import { isAdmin, ADMIN_CONFIG, API_HOST } from '../../constants';
 import { feeService } from '../../services/feeService';
-
-const API_HOST = 'https://kairos-api-u6k5.onrender.com';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n, d = 2) => (n || 0).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });

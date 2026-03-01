@@ -88,7 +88,7 @@ class MarketDataService {
       clearTimeout(timer);
       if (res.ok) {
         this._useCoinGecko = true;
-        console.log('Kairos MarketData: using CoinGecko fallback');
+        if (import.meta.env.DEV) console.log('Kairos MarketData: using CoinGecko fallback');
         return 'coingecko';
       }
     } catch { /* all failed */ }

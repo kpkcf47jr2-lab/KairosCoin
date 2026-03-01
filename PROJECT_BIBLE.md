@@ -2124,5 +2124,49 @@ User reported Kairos Wallet showing $0.00 despite 9.9M KAIROS on-chain. Multi-la
 
 ---
 
+### Session 24 — Wallet & Trade App Improvements (Production Polish)
+
+**Date:** 2025-07-11
+
+**Stripe Account Status:**
+- Account `acct_1T3mCiRqBM6dtNaA` **REJECTED** — `disabled_reason: under_review`, error `verification_supportability` (cryptocurrency restricted category)
+- Applied to **Stripe Crypto Onramp program** via https://stripe.com/use-cases/crypto — awaiting response
+
+**Wallet App Improvements:**
+1. **i18n expansion** — Added 14 new keys (ES/EN) in `kairos-wallet/src/services/i18n.js`: action.multisend, action.alerts, action.audit, action.staking, action.vault, action.portfolio, action.safe, action.gas, action.bridge, dashboard.tap_portfolio, dashboard.error_title, dashboard.error_desc, dashboard.retry
+2. **Dashboard hardcoded Spanish → i18n** — All 18 quick action labels now use i18n keys
+3. **Error/Retry UI** — Dashboard shows error state with retry button when all balance fetches fail
+
+**Trade App Improvements:**
+1. **Production console cleanup** — Created `kairos-trade/src/utils/devLog.js` (devLog, devWarn, devError); replaced 17 console.log/warn calls across walletBroker.js, marketData.js, telegram.js, Dashboard.jsx with dev-only logging
+2. **Real QR Code** — Created `kairos-trade/src/utils/qrCode.jsx` (QRCodeImage component via api.qrserver.com); replaced fake 8x8 grid placeholder in WalletPage.jsx
+3. **Referral ID fix** — OnboardingWizard.jsx now shows dynamic user ID instead of `KAI-XXXXXXXX`
+4. **API URL centralization** — Added `API_HOST` to `kairos-trade/src/constants/index.js`; updated KairosBroker.jsx, KairosVault.jsx, BuyKairos.jsx, KairosTreasury.jsx to import from constants
+
+**Files Created:**
+- `kairos-trade/src/utils/devLog.js` — Dev-only logging utility
+- `kairos-trade/src/utils/qrCode.jsx` — QR code component
+
+**Files Modified:**
+- `kairos-wallet/src/services/i18n.js` — 14 new i18n keys
+- `kairos-wallet/src/components/Dashboard/Dashboard.jsx` — i18n + error/retry UI
+- `kairos-trade/src/constants/index.js` — Added API_HOST
+- `kairos-trade/src/services/walletBroker.js` — devLog replacement
+- `kairos-trade/src/services/marketData.js` — DEV-only logging
+- `kairos-trade/src/services/telegram.js` — DEV-only logging
+- `kairos-trade/src/components/Dashboard/Dashboard.jsx` — safe() silent in prod
+- `kairos-trade/src/components/Wallet/WalletPage.jsx` — Real QR code
+- `kairos-trade/src/components/Onboarding/OnboardingWizard.jsx` — Dynamic referral ID
+- `kairos-trade/src/components/Kairos/KairosBroker.jsx` — Import API_HOST
+- `kairos-trade/src/components/Kairos/KairosVault.jsx` — Import API_HOST
+- `kairos-trade/src/components/Kairos/BuyKairos.jsx` — Import API_HOST
+- `kairos-trade/src/components/Kairos/KairosTreasury.jsx` — Import API_HOST
+
+**Build Status:** Both apps compile successfully. Netlify token expired — needs renewal for deploy.
+
+**Note:** Stripe Crypto program application submitted — watch for email response.
+
+---
+
 *This file should be updated after every significant work session.*
 *To onboard a new Copilot chat: "Read PROJECT_BIBLE.md and continue from where we left off."*

@@ -14,6 +14,7 @@ import { getSessionKey, setSessionKey } from '../../utils/sessionVault';
 import { KAIROS_COIN } from '../../constants';
 import ConnectExternalWallet from './ConnectExternalWallet';
 import { getConnectedAccount, isConnected as isWCConnected, disconnect as wcDisconnect, initWCClient } from '../../services/walletConnectDApp';
+import { QRCodeImage } from '../../utils/qrCode';
 
 /* ─── Chain Configurations ─── */
 const CHAINS = [
@@ -1038,26 +1039,9 @@ function ReceiveModal({ walletAddress, onClose }) {
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5"><X size={16} /></button>
         </div>
 
-        {/* QR Code placeholder — using address visual */}
-        <div className="w-48 h-48 rounded-2xl mx-auto mb-4 flex items-center justify-center relative overflow-hidden"
-          style={{ background: 'white' }}>
-          {/* Simple QR visual representation */}
-          <div className="absolute inset-2 grid grid-cols-8 gap-[2px]">
-            {Array.from({ length: 64 }).map((_, i) => {
-              // Generate deterministic pattern from address
-              const charCode = walletAddress.charCodeAt((i * 3) % walletAddress.length) || 0;
-              const filled = (charCode + i) % 3 !== 0;
-              return (
-                <div key={i} className="rounded-[1px]"
-                  style={{ background: filled ? '#000' : '#fff' }} />
-              );
-            })}
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-md">
-              <span className="text-sm font-black text-blue-600">K</span>
-            </div>
-          </div>
+        {/* QR Code */}
+        <div className="flex justify-center mb-4">
+          <QRCodeImage value={walletAddress} size={192} className="shadow-lg" />
         </div>
 
         <p className="text-[10px] text-[var(--text-dim)] mb-3">

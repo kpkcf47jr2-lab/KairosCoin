@@ -1,6 +1,7 @@
 // Kairos Trade — Constants
 export const APP_VERSION = '2.0.0';
 export const APP_NAME = 'Kairos 777';
+export const API_HOST = import.meta.env.DEV ? '' : 'https://kairos-api-u6k5.onrender.com';
 
 // Supported brokers
 export const BROKERS = {
