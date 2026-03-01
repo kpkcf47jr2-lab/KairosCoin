@@ -16,6 +16,16 @@ const logger = require("../utils/logger");
 const path = require("path");
 const fs = require("fs");
 
+// ── Gnosis Safe v1.4.1 — Minimal ABI for execTransaction ────────────────────
+const SAFE_ADDRESS = "0xC84f261c7e7Cffdf3e9972faD88cE59400d5E5A8";
+const SAFE_ABI = [
+  "function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures) payable returns (bool success)",
+  "function nonce() view returns (uint256)",
+  "function getTransactionHash(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, uint256 _nonce) view returns (bytes32)",
+  "function getOwners() view returns (address[])",
+  "function getThreshold() view returns (uint256)",
+];
+
 // ── Load ABI from compiled contract ──────────────────────────────────────────
 // Try local abi/ first (for deployment), then fall back to root artifacts/
 const abiPaths = [
@@ -41,6 +51,7 @@ let provider = null;
 let wallet = null;
 let contract = null;
 let readOnlyContract = null;
+let safeContract = null;
 let isInitialized = false;
 
 // ── Nonce Manager (Mutex-based) ──────────────────────────────────────────────
@@ -109,11 +120,13 @@ async function initialize() {
     throw new Error("All BSC RPC endpoints failed");
   }
 
-  // Wallet (owner)
+  // Wallet (deployer / Safe owner)
   if (config.ownerPrivateKey && config.ownerPrivateKey !== "0xCHANGE_ME") {
     wallet = new ethers.Wallet(config.ownerPrivateKey, provider);
     contract = new ethers.Contract(config.contractAddress, CONTRACT_ABI, wallet);
-    logger.info(`Owner wallet loaded: ${wallet.address}`);
+    safeContract = new ethers.Contract(SAFE_ADDRESS, SAFE_ABI, wallet);
+    logger.info(`Deployer wallet loaded: ${wallet.address}`);
+    logger.info(`Safe contract: ${SAFE_ADDRESS} (mint/burn routed through Safe)`);
   } else {
     logger.warn("No owner private key — running in READ-ONLY mode");
   }
@@ -133,19 +146,109 @@ async function initialize() {
 //                        MINT — Create KAIROS
 // ═════════════════════════════════════════════════════════════════════════════
 
+// ═════════════════════════════════════════════════════════════════════════════
+//                   SAFE EXECUTION HELPER
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Execute a function call through the Gnosis Safe.
+ * The deployer signs the Safe TX hash and calls execTransaction.
+ * @param {string} to - Target contract address
+ * @param {string} data - Encoded function call data
+ * @param {string} label - Human-readable label for logging (e.g. "MINT")
+ * @returns {Object} Transaction receipt
+ */
+async function executeSafeTransaction(to, data, label) {
+  if (!safeContract || !wallet) {
+    throw new Error("Safe not initialized or read-only mode");
+  }
+
+  // Get Safe nonce
+  const safeNonce = await safeContract.nonce();
+
+  // Parameters for execTransaction (no ETH value, CALL operation, no gas refund)
+  const txParams = {
+    to,
+    value: 0n,
+    data,
+    operation: 0, // CALL
+    safeTxGas: 0n,
+    baseGas: 0n,
+    gasPrice: 0n,
+    gasToken: ethers.ZeroAddress,
+    refundReceiver: ethers.ZeroAddress,
+  };
+
+  // Get the Safe transaction hash
+  const safeTxHash = await safeContract.getTransactionHash(
+    txParams.to,
+    txParams.value,
+    txParams.data,
+    txParams.operation,
+    txParams.safeTxGas,
+    txParams.baseGas,
+    txParams.gasPrice,
+    txParams.gasToken,
+    txParams.refundReceiver,
+    safeNonce
+  );
+
+  // Sign with eth_sign (pre-image) — need to add 4 to v for Safe
+  const rawSig = await wallet.signMessage(ethers.getBytes(safeTxHash));
+  const sigBytes = ethers.getBytes(rawSig);
+  // Adjust v: Safe expects v += 4 for eth_sign
+  sigBytes[64] += 4;
+  const signature = ethers.hexlify(sigBytes);
+
+  logger.info(`${label} Safe TX prepared`, {
+    safeNonce: safeNonce.toString(),
+    safeTxHash,
+    signer: wallet.address,
+  });
+
+  // Get deployer nonce for the outer transaction
+  const deployerNonce = await getNextNonce();
+
+  // Execute through Safe
+  const tx = await safeContract.execTransaction(
+    txParams.to,
+    txParams.value,
+    txParams.data,
+    txParams.operation,
+    txParams.safeTxGas,
+    txParams.baseGas,
+    txParams.gasPrice,
+    txParams.gasToken,
+    txParams.refundReceiver,
+    signature,
+    {
+      nonce: deployerNonce,
+      gasLimit: 500000n,
+      gasPrice: ethers.parseUnits("3", "gwei"),
+    }
+  );
+
+  logger.info(`${label} Safe TX submitted`, { txHash: tx.hash });
+
+  // Wait for 2-block confirmation
+  const receipt = await tx.wait(2);
+  return receipt;
+}
+
 /**
  * Mint new KAIROS tokens when USD deposit is confirmed.
+ * Routes through Gnosis Safe (Safe is the contract owner).
  * @param {string} to - Recipient wallet address
  * @param {string} amount - Amount in KAIROS (human readable, e.g. "1000")
  * @returns {Object} Transaction result
  */
 async function mint(to, amount) {
-  if (!contract) throw new Error("Blockchain not initialized or read-only mode");
+  if (!safeContract) throw new Error("Blockchain not initialized or read-only mode");
   if (!ethers.isAddress(to)) throw new Error(`Invalid address: ${to}`);
 
   const amountWei = ethers.parseUnits(amount, 18);
 
-  logger.info("MINT initiated", {
+  logger.info("MINT initiated (via Safe)", {
     type: "MINT",
     to,
     amount,
@@ -153,26 +256,16 @@ async function mint(to, amount) {
   });
 
   try {
-    const nonce = await getNextNonce();
-    const gasEstimate = await contract.mint.estimateGas(to, amountWei);
-    const gasLimit = (gasEstimate * 120n) / 100n; // 20% buffer
+    // Encode the mint call for the KairosCoin contract
+    const iface = new ethers.Interface(CONTRACT_ABI);
+    const mintData = iface.encodeFunctionData("mint", [to, amountWei]);
 
-    const tx = await contract.mint(to, amountWei, {
-      nonce,
-      gasLimit,
-      gasPrice: ethers.parseUnits("3", "gwei"),
-    });
-
-    logger.info("MINT tx submitted", {
-      type: "MINT",
-      txHash: tx.hash,
-      to,
-      amount,
-      nonce,
-    });
-
-    // Wait for confirmation (2 blocks for safety)
-    const receipt = await tx.wait(2);
+    // Execute through Safe
+    const receipt = await executeSafeTransaction(
+      config.contractAddress,
+      mintData,
+      "MINT"
+    );
 
     const result = {
       success: true,
@@ -184,7 +277,7 @@ async function mint(to, amount) {
       timestamp: new Date().toISOString(),
     };
 
-    logger.info("MINT confirmed", { type: "MINT_CONFIRMED", ...result });
+    logger.info("MINT confirmed (via Safe)", { type: "MINT_CONFIRMED", ...result });
     return result;
   } catch (err) {
     resetNonce();
@@ -205,17 +298,18 @@ async function mint(to, amount) {
 
 /**
  * Burn KAIROS tokens when USD withdrawal is processed.
+ * Routes through Gnosis Safe (Safe is the contract owner).
  * @param {string} from - Address whose tokens will be burned
  * @param {string} amount - Amount in KAIROS (human readable)
  * @returns {Object} Transaction result
  */
 async function burn(from, amount) {
-  if (!contract) throw new Error("Blockchain not initialized or read-only mode");
+  if (!safeContract) throw new Error("Blockchain not initialized or read-only mode");
   if (!ethers.isAddress(from)) throw new Error(`Invalid address: ${from}`);
 
   const amountWei = ethers.parseUnits(amount, 18);
 
-  logger.info("BURN initiated", {
+  logger.info("BURN initiated (via Safe)", {
     type: "BURN",
     from,
     amount,
@@ -223,25 +317,16 @@ async function burn(from, amount) {
   });
 
   try {
-    const nonce = await getNextNonce();
-    const gasEstimate = await contract.burn.estimateGas(from, amountWei);
-    const gasLimit = (gasEstimate * 120n) / 100n;
+    // Encode the burn call for the KairosCoin contract
+    const iface = new ethers.Interface(CONTRACT_ABI);
+    const burnData = iface.encodeFunctionData("burn", [from, amountWei]);
 
-    const tx = await contract.burn(from, amountWei, {
-      nonce,
-      gasLimit,
-      gasPrice: ethers.parseUnits("3", "gwei"),
-    });
-
-    logger.info("BURN tx submitted", {
-      type: "BURN",
-      txHash: tx.hash,
-      from,
-      amount,
-      nonce,
-    });
-
-    const receipt = await tx.wait(2);
+    // Execute through Safe
+    const receipt = await executeSafeTransaction(
+      config.contractAddress,
+      burnData,
+      "BURN"
+    );
 
     const result = {
       success: true,
@@ -253,7 +338,7 @@ async function burn(from, amount) {
       timestamp: new Date().toISOString(),
     };
 
-    logger.info("BURN confirmed", { type: "BURN_CONFIRMED", ...result });
+    logger.info("BURN confirmed (via Safe)", { type: "BURN_CONFIRMED", ...result });
     return result;
   } catch (err) {
     resetNonce();
@@ -507,6 +592,7 @@ module.exports = {
   initialize,
   mint,
   burn,
+  executeSafeTransaction,
   getNextNonce,
   resetNonce,
   getSupplyInfo,
@@ -518,4 +604,5 @@ module.exports = {
   getProvider: () => provider,
   getWallet: () => wallet,
   getContract: () => contract,
+  getSafeContract: () => safeContract,
 };
