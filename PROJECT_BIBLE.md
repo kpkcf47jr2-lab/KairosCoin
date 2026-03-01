@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: March 2, 2026 (Session 24 — KAIROS Prominence + Launchpad + List Token + CFD Model)
+#  Last Updated: March 2, 2026 (Session 24d — Deep Production Audit + Critical Fixes)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -1944,6 +1944,52 @@ Added cross-app toggle switches so users can seamlessly switch between Kairos Ex
 - Fund relayer wallet for on-chain execution
 - Get 0x API key for optimal multi-DEX routing
 - CoinGecko listing when liquidity reaches requirement
+
+---
+
+### Session 24d — Deep Production Audit + Critical Fixes (Mar 2, 2026)
+
+Comprehensive live production audit as a normal user across all apps. Found and fixed 7 issues.
+
+**Audit Findings (7 issues found):**
+
+| # | Severity | Bug | Status |
+|---|----------|-----|--------|
+| 1 | **CRITICAL** | Website showed "0 KAIROS" for supply/circulating — accessed `supplyRes.totalSupply` instead of `supplyRes.data.totalSupply` | ✅ FIXED |
+| 2 | **CRITICAL** | Reserves backing ratio showed false "100%" — fallback masking UNDER_BACKED status | ✅ FIXED |
+| 3 | **ALTO** | Trade app had no URL routing — deep links and back button didn't work | ✅ FIXED |
+| 4 | **MEDIO** | 5 backend endpoints returned 404 (vault/stats, referral/info, fiat/providers, margin/leverage-tiers, engine/info) | ✅ FIXED |
+| 5 | **MEDIO** | Pair discrepancy — heatmap had 3 pairs (FTM, INJ, JUP) not in priceOracle | ✅ FIXED |
+| 6 | **MEDIO** | Backend health DEGRADED — owner wallet has only 0.019 BNB (threshold: 0.05) | ⚠️ NEEDS BNB |
+| 7 | **BAJO** | Fee "0.15%" hardcoded in 5+ Exchange UI locations | 📋 NOTED |
+
+**Fixes Applied:**
+1. **Website** — `website/index.html`: Fixed `supplyRes.data.totalSupply` unwrapping. Now correctly shows 10B supply, 18M circulating.
+2. **Backend** — Added 5 missing endpoints + updated root API documentation with trading/referral/fiat sections.
+3. **Trade URL routing** — pushState/popstate sync in `App.jsx`. Deep links and back button now work.
+4. **Pair sync** — priceOracle 32→36 pairs (added MATIC, FTM, INJ, JUP). POPULAR_PAIRS 15→20. Heatmap fully synced.
+
+**Ecosystem Inventory:**
+| Component | Count |
+|-----------|-------|
+| Trading Pairs (oracle) | 36 |
+| Popular Pairs (Trade UI) | 20 |
+| Heatmap Pairs | 24 |
+| On-chain DEX Router | 9 (BSC only) |
+| Exchange Tokens | 44 across 5 chains |
+| Backend Endpoints | ~55+ |
+| Wallet Screens | 27 |
+| Supported Brokers | 10 CEXes |
+| Blockchains | 5 |
+
+**Commit:** `ed5287d`
+
+**Next Steps:**
+- Fund relayer wallet (need ≥ 0.031 BNB more to clear DEGRADED)
+- Get 0x API key for multi-DEX routing
+- Deploy KAIROS on Ethereum (only chain without it)
+- Chrome Web Store submission
+- CoinGecko listing when liquidity is sufficient
 
 ---
 
