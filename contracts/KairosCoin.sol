@@ -28,6 +28,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
@@ -51,11 +52,14 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  *      - Supply Tracking: On-chain totalMinted / totalBurned for full audit trail
  *      - Timelock-ready: Owner can be a timelock contract for governance
  *      - Reentrancy Protection: Guard on all state-changing operations
+ *      - Role-Based Access: MINTER_ROLE for automated mint/burn (like USDC)
+ *        Owner retains governance; minters handle day-to-day operations.
  */
 contract KairosCoin is
     ERC20,
     ERC20Permit,
     Ownable,
+    AccessControl,
     Pausable,
     ReentrancyGuard
 {
@@ -65,6 +69,10 @@ contract KairosCoin is
 
     /// @notice Initial supply: 10,000,000,000 KAIROS (10 billion)
     uint256 public constant INITIAL_SUPPLY = 10_000_000_000 * 10 ** 18;
+
+    /// @notice Role identifier for automated minters (backend relayer)
+    /// @dev Minters can only mint() and burn() — cannot pause, change fees, etc.
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
 
     // ═════════════════════════════════════════════════════════════════════════
     //                            STATE VARIABLES
@@ -145,6 +153,12 @@ contract KairosCoin is
     /// @notice Emitted when fee exemption status changes
     event FeeExemptionUpdated(address indexed account, bool exempt);
 
+    /// @notice Emitted when a minter role is granted
+    event MinterAdded(address indexed account);
+
+    /// @notice Emitted when a minter role is revoked
+    event MinterRemoved(address indexed account);
+
     // ═════════════════════════════════════════════════════════════════════════
     //                              ERRORS
     // ═════════════════════════════════════════════════════════════════════════
@@ -157,6 +171,7 @@ contract KairosCoin is
     error ArrayLengthMismatch();
     error InsufficientBalance(uint256 requested, uint256 available);
     error FeeExceedsMax(uint256 feeBps, uint256 maxBps);
+    error NotOwnerOrMinter();
 
     // ═════════════════════════════════════════════════════════════════════════
     //                             MODIFIERS
@@ -165,6 +180,14 @@ contract KairosCoin is
     /// @dev Reverts if the account is blacklisted
     modifier notBlacklisted(address account) {
         if (blacklisted[account]) revert AccountBlacklisted(account);
+        _;
+    }
+
+    /// @dev Reverts if caller is neither the owner nor a minter
+    modifier onlyOwnerOrMinter() {
+        if (msg.sender != owner() && !hasRole(MINTER_ROLE, msg.sender)) {
+            revert NotOwnerOrMinter();
+        }
         _;
     }
 
@@ -210,6 +233,9 @@ contract KairosCoin is
         feeExempt[adminWallet] = true;
         feeExempt[_reserveWallet] = true;
 
+        // Grant admin role to deployer (can manage all roles)
+        _grantRole(DEFAULT_ADMIN_ROLE, adminWallet);
+
         _mint(adminWallet, INITIAL_SUPPLY);
     }
 
@@ -222,7 +248,7 @@ contract KairosCoin is
      * @param to     Recipient of the newly minted tokens.
      * @param amount Number of tokens to mint (18 decimals).
      *
-     * @dev Only the owner (admin) can call this.
+     * @dev Owner or MINTER_ROLE can call this.
      *      Respects mintCap if set (> 0).
      *      Emits {Mint} and {Transfer} events.
      */
@@ -231,7 +257,7 @@ contract KairosCoin is
         uint256 amount
     )
         external
-        onlyOwner
+        onlyOwnerOrMinter
         whenNotPaused
         nonReentrant
         nonZeroAddress(to)
@@ -253,7 +279,7 @@ contract KairosCoin is
      * @param from   Address whose tokens will be burned.
      * @param amount Number of tokens to burn (18 decimals).
      *
-     * @dev Only the owner (admin) can call this.
+     * @dev Owner or MINTER_ROLE can call this.
      *      Respects burnCap if set (> 0).
      *      Emits {Burn} and {Transfer} events.
      */
@@ -262,7 +288,7 @@ contract KairosCoin is
         uint256 amount
     )
         external
-        onlyOwner
+        onlyOwnerOrMinter
         whenNotPaused
         nonReentrant
         nonZeroAddress(from)
@@ -391,6 +417,44 @@ contract KairosCoin is
      */
     function unpause() external onlyOwner {
         _unpause();
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    //                      ADMIN: MINTER MANAGEMENT
+    // ═════════════════════════════════════════════════════════════════════════
+
+    /**
+     * @notice Grant MINTER_ROLE to an address (e.g., backend relayer).
+     * @param account The address to authorize for automated mint/burn.
+     *
+     * @dev Only the owner can grant minter roles.
+     *      Minters can ONLY call mint() and burn() — nothing else.
+     *      The owner can revoke this at any time.
+     */
+    function addMinter(address account) external onlyOwner nonZeroAddress(account) {
+        _grantRole(MINTER_ROLE, account);
+        feeExempt[account] = true;
+        emit MinterAdded(account);
+    }
+
+    /**
+     * @notice Revoke MINTER_ROLE from an address.
+     * @param account The address to de-authorize.
+     *
+     * @dev Emergency: if a minter key is compromised, call this immediately.
+     */
+    function removeMinter(address account) external onlyOwner nonZeroAddress(account) {
+        _revokeRole(MINTER_ROLE, account);
+        feeExempt[account] = false;
+        emit MinterRemoved(account);
+    }
+
+    /**
+     * @notice Check if an address has the MINTER_ROLE.
+     * @param account The address to check.
+     */
+    function isMinter(address account) external view returns (bool) {
+        return hasRole(MINTER_ROLE, account);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -537,5 +601,18 @@ contract KairosCoin is
         }
 
         super._update(from, to, amount);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    //                      ACCESS CONTROL OVERRIDES
+    // ═════════════════════════════════════════════════════════════════════════
+
+    /**
+     * @dev Required override: AccessControl + ERC20 both define supportsInterface.
+     */
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override(AccessControl) returns (bool) {
+        return super.supportsInterface(interfaceId);
     }
 }

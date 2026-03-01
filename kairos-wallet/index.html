@@ -34,7 +34,14 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js').catch(function() {});
+        // updateViaCache: 'none' forces browser to ALWAYS check server for new SW
+        // This prevents the old bug where stale SW served cached JS forever
+        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+          .then(function(reg) {
+            // Auto-check for updates every 60 seconds
+            setInterval(function() { reg.update(); }, 60000);
+          })
+          .catch(function() {});
       });
     }
   </script>

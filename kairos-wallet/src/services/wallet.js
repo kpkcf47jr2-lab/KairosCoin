@@ -233,10 +233,21 @@ export function getSigner(privateKey, provider) {
 }
 
 /**
- * Check if wallet exists
+ * Check if wallet exists (verifies both flag AND encrypted vault)
+ * Fixes: phone reinstall leaves flag but deletes vault data
  */
 export function hasWallet() {
-  return localStorage.getItem(STORAGE_KEYS.HAS_WALLET) === 'true';
+  const hasFlag = localStorage.getItem(STORAGE_KEYS.HAS_WALLET) === 'true';
+  const hasVault = !!localStorage.getItem(STORAGE_KEYS.ENCRYPTED_VAULT);
+  
+  // If flag says yes but vault is gone, clean up the stale flag
+  if (hasFlag && !hasVault) {
+    localStorage.removeItem(STORAGE_KEYS.HAS_WALLET);
+    localStorage.removeItem(STORAGE_KEYS.ACTIVE_WALLET);
+    return false;
+  }
+  
+  return hasFlag && hasVault;
 }
 
 /**

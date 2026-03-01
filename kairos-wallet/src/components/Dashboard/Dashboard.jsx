@@ -47,6 +47,38 @@ export default function Dashboard() {
   const account = getActiveAccount();
   const portfolioValue = getTotalPortfolioValue();
 
+  // ── Emergency KAIROS balance via raw fetch (bypasses ethers.js entirely) ──
+  const fetchKairosBalanceDirect = async (address) => {
+    const KAIROS_ADDR = '0x14D41707269c7D8b8DFa5095b38824a46dA05da3';
+    const paddedAddr = '0x70a08231000000000000000000000000' + address.slice(2).toLowerCase();
+    const rpcs = [
+      'https://bsc-dataseed1.binance.org',
+      'https://bsc-dataseed2.binance.org',
+      'https://bsc-rpc.publicnode.com',
+      'https://rpc.ankr.com/bsc',
+    ];
+    for (const rpc of rpcs) {
+      try {
+        const resp = await fetch(rpc, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0', method: 'eth_call',
+            params: [{ to: KAIROS_ADDR, data: paddedAddr }, 'latest'],
+            id: 1,
+          }),
+        });
+        const json = await resp.json();
+        if (json.result && json.result !== '0x' && json.result !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
+          const raw = BigInt(json.result);
+          const formatted = Number(raw) / 1e18;
+          return { raw: raw.toString(), formatted: formatted.toString(), hasBalance: raw > 0n };
+        }
+      } catch (e) { continue; }
+    }
+    return null;
+  };
+
   // Load balances
   const loadBalances = useCallback(async () => {
     if (!activeAddress) return;
@@ -57,6 +89,20 @@ export default function Dashboard() {
         getAllBalances(activeChainId, activeAddress),
         getNativePrice(activeChainId),
       ]);
+
+      // ── Emergency: check if KAIROS balance came back 0 on BSC ──
+      const kairosToken = balanceData.tokens?.find(
+        t => t.address.toLowerCase() === KAIROS_TOKEN.address.toLowerCase()
+      );
+      // If KAIROS shows 0 on BSC, try direct RPC fetch as safety net
+      if (activeChainId === 56 && kairosToken && !kairosToken.hasBalance) {
+        const directResult = await fetchKairosBalanceDirect(activeAddress);
+        if (directResult && directResult.hasBalance) {
+          kairosToken.balance = directResult.formatted;
+          kairosToken.balanceRaw = directResult.raw;
+          kairosToken.hasBalance = true;
+        }
+      }
 
       setBalances(balanceData);
       setNativePrice(nativeP);
@@ -73,10 +119,10 @@ export default function Dashboard() {
         pricePromises.push(getTokenPrices(activeChainId, nonKairosAddresses));
       }
       
-      // Fetch real KAIROS price from PancakeSwap DEX
+      // KAIROS = $1.00 stablecoin — always inject price
       const hasKairos = tokensWithBalance.some(t => t.address.toLowerCase() === KAIROS_TOKEN.address.toLowerCase());
       if (hasKairos) {
-        pricePromises.push(getKairosPrice());
+        pricePromises.push(getKairosPrice().catch(() => ({ usd: 1.00, change24h: 0 })));
       }
 
       const results = await Promise.all(pricePromises);
@@ -88,14 +134,26 @@ export default function Dashboard() {
         kairosIdx++;
       }
       
-      if (hasKairos && results[kairosIdx]) {
-        const kairosPrice = results[kairosIdx];
+      if (hasKairos) {
+        const kairosPrice = results[kairosIdx] || { usd: 1.00, change24h: 0 };
         tokenPricesResult[KAIROS_TOKEN.address.toLowerCase()] = {
-          usd: kairosPrice.usd,
+          usd: kairosPrice.usd || 1.00,
           change24h: kairosPrice.change24h || 0,
         };
       }
       
+      // ALWAYS ensure KAIROS has $1.00 price on every chain where it exists
+      // KAIROS is a USD-pegged stablecoin — its price is always $1.00
+      const kairosOnThisChain = balanceData.tokens?.find(
+        t => t.symbol === 'KAIROS' && t.hasBalance
+      );
+      if (kairosOnThisChain) {
+        const ka = kairosOnThisChain.address.toLowerCase();
+        if (!tokenPricesResult[ka] || !tokenPricesResult[ka].usd) {
+          tokenPricesResult[ka] = { usd: 1.00, change24h: 0 };
+        }
+      }
+
       setTokenPrices(tokenPricesResult);
 
       // Run token auto-discovery in background (non-blocking)
@@ -116,13 +174,42 @@ export default function Dashboard() {
       } catch {}
     } catch (err) {
       console.error('Failed to load balances:', err);
+
+      // ── LAST RESORT: if everything failed on BSC, inject KAIROS directly ──
+      if (activeChainId === 56) {
+        try {
+          const directResult = await fetchKairosBalanceDirect(activeAddress);
+          if (directResult && directResult.hasBalance) {
+            const kairosAddr = KAIROS_TOKEN.address.toLowerCase();
+            setBalances({
+              native: { name: 'BNB', symbol: 'BNB', decimals: 18, balance: '0', balanceRaw: '0', hasBalance: false, isNative: true },
+              tokens: [{
+                ...KAIROS_TOKEN,
+                balance: directResult.formatted,
+                balanceRaw: directResult.raw,
+                hasBalance: true,
+              }],
+            });
+            setTokenPrices({ [kairosAddr]: { usd: 1.00, change24h: 0 } });
+            setNativePrice(0);
+          }
+        } catch (e2) {
+          console.error('Emergency KAIROS fetch also failed:', e2);
+        }
+      }
     }
     setIsRefreshing(false);
   }, [activeAddress, activeChainId]);
 
   useEffect(() => {
+    // Force SW update on mount
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg) reg.update();
+      });
+    }
     loadBalances();
-    const interval = setInterval(loadBalances, 30000); // Refresh every 30s
+    const interval = setInterval(loadBalances, 30000);
     return () => clearInterval(interval);
   }, [loadBalances]);
 

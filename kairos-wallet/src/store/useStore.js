@@ -4,7 +4,10 @@
 // ═══════════════════════════════════════════════════════
 
 import { create } from 'zustand';
-import { STORAGE_KEYS, DEFAULT_CHAIN_ID } from '../constants/chains';
+import { STORAGE_KEYS, DEFAULT_CHAIN_ID, KAIROS_TOKEN } from '../constants/chains';
+
+// KAIROS contract address (lowercase for comparison)
+const KAIROS_ADDR = KAIROS_TOKEN.address.toLowerCase();
 
 export const useStore = create((set, get) => ({
   // ── Auth State ──
@@ -132,8 +135,12 @@ export const useStore = create((set, get) => ({
     if (balances.tokens) {
       for (const token of balances.tokens) {
         if (!token.hasBalance) continue;
-        const priceData = tokenPrices[token.address.toLowerCase()];
-        const price = priceData?.usd || 0;
+        const addr = token.address.toLowerCase();
+        const priceData = tokenPrices[addr];
+        // KAIROS is a USD-pegged stablecoin — always $1.00 if no price feed
+        // Check by address (BSC) or by symbol (other chains where address differs)
+        const isKairos = addr === KAIROS_ADDR || token.symbol === 'KAIROS';
+        const price = priceData?.usd || (isKairos ? 1.00 : 0);
         total += parseFloat(token.balance) * price;
       }
     }

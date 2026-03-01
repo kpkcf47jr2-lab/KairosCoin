@@ -1,10 +1,15 @@
 // ═══════════════════════════════════════════════════════
-//  KAIROS WALLET — Service Worker v3
+//  KAIROS WALLET — Service Worker
 //  Push Notifications + Offline Cache + Background Sync
+//  
+//  IMPORTANT: Bump BUILD_ID on every deploy to force
+//  cache invalidation for ALL users automatically.
 // ═══════════════════════════════════════════════════════
 
-const CACHE_NAME = 'kairos-wallet-v3';
-const RUNTIME_CACHE = 'kairos-runtime-v3';
+// ── AUTO-VERSION: change this on every deploy ──
+const BUILD_ID = '20260228a';
+const CACHE_NAME = `kairos-wallet-${BUILD_ID}`;
+const RUNTIME_CACHE = `kairos-runtime-${BUILD_ID}`;
 
 const STATIC_ASSETS = [
   '/',
@@ -17,11 +22,18 @@ const STATIC_ASSETS = [
   '/icons/favicon-16.png',
 ];
 
-// External domains to never cache
+// External domains to NEVER cache (APIs, RPCs, data feeds)
+// Any RPC/API host must be listed here to prevent stale data
 const BYPASS_HOSTS = [
+  // Price feeds & explorers
   'coingecko', 'bscscan', 'etherscan', 'polygonscan', 'arbiscan',
-  'snowscan', 'basescan', 'walletconnect', 'infura', 'publicnode',
-  'ankr', 'cloudflare', 'onrender.com', 'turso',
+  'snowscan', 'basescan',
+  // RPC providers — CRITICAL: never cache blockchain data
+  'binance.org', 'publicnode', 'ankr', 'llamarpc', 'infura',
+  'alchemy', 'quicknode', 'chainstack', 'pokt',
+  // Backend & third party
+  'onrender.com', 'turso', 'walletconnect', 'cloudflare',
+  'transak', 'safe.global',
 ];
 
 // ── Install — Pre-cache static shell ──
@@ -56,7 +68,8 @@ self.addEventListener('fetch', (event) => {
   // Skip external APIs/RPCs
   if (BYPASS_HOSTS.some((h) => url.hostname.includes(h))) return;
 
-  // Cache-first for static assets (JS, CSS, images, fonts)
+  // Stale-while-revalidate for static assets (JS, CSS, images, fonts)
+  // Serves cached version instantly but fetches fresh copy in background
   if (
     url.origin === self.location.origin &&
     (request.destination === 'script' ||
@@ -67,16 +80,17 @@ self.addEventListener('fetch', (event) => {
       url.pathname.startsWith('/icons/'))
   ) {
     event.respondWith(
-      caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(RUNTIME_CACHE).then((c) => c.put(request, clone));
-          }
-          return response;
-        });
-      })
+      caches.open(RUNTIME_CACHE).then((cache) =>
+        cache.match(request).then((cached) => {
+          const fetchPromise = fetch(request).then((response) => {
+            if (response.ok) {
+              cache.put(request, response.clone());
+            }
+            return response;
+          }).catch(() => cached);
+          return cached || fetchPromise;
+        })
+      )
     );
     return;
   }

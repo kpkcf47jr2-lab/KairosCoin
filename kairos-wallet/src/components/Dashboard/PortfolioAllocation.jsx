@@ -123,7 +123,10 @@ export default function PortfolioAllocation() {
     if (balances.tokens) {
       for (const token of balances.tokens) {
         if (!token.hasBalance) continue;
-        const price = tokenPrices[token.address.toLowerCase()]?.usd || 0;
+        const addr = token.address.toLowerCase();
+        // KAIROS = $1.00 stablecoin peg if no price feed (works on all chains)
+        const isKairos = addr === KAIROS_TOKEN.address.toLowerCase() || token.symbol === 'KAIROS';
+        const price = tokenPrices[addr]?.usd || (isKairos ? 1.00 : 0);
         const bal = parseFloat(token.balance || 0);
         const value = bal * price;
         if (value > 0.01) {

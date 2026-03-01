@@ -120,14 +120,19 @@ export async function getTokenPrices(chainId, tokenAddresses) {
 }
 
 /**
- * Get KAIROS price from PancakeSwap V2 (real DEX price)
- * Queries the router for KAIROS -> WBNB -> BUSD path
+ * Get KAIROS price — tries DEX pools first, falls back to $1.00 peg
+ * KAIROS is a USD-pegged stablecoin (1 KAIROS = 1 USD)
+ * Priority: KairosSwap → PancakeSwap → $1.00 peg fallback
  */
 const KAIROS_ADDRESS = '0x14D41707269c7D8b8DFa5095b38824a46dA05da3';
+const KAIROS_SWAP_ROUTER = '0x4F8C99a49d04790Ea8C48CC60F88DB327e509Cd6';
 const PANCAKE_ROUTER = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
 const WBNB = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
 const BUSD = '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56';
 const USDT_BSC = '0x55d398326f99059fF775485246999027B3197955';
+
+// Stablecoin peg price — KAIROS is always worth $1.00 USD
+const KAIROS_PEG_PRICE = 1.00;
 
 export async function getKairosPrice() {
   const cacheKey = 'kairos_price';
@@ -137,29 +142,43 @@ export async function getKairosPrice() {
   }
 
   try {
-    // Try to get KAIROS price via PancakeSwap router getAmountsOut
-    // KAIROS -> WBNB -> USDT path
     const { ethers } = await import('ethers');
     const provider = new ethers.JsonRpcProvider('https://bsc-dataseed1.binance.org', 56, { staticNetwork: true });
     const routerAbi = ['function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts)'];
-    const router = new ethers.Contract(PANCAKE_ROUTER, routerAbi, provider);
-    
     const amountIn = ethers.parseUnits('1', 18); // 1 KAIROS
     
-    // Try KAIROS -> WBNB -> USDT
     let usdPrice = 0;
+
+    // 1) Try KairosSwap Router first (our own AMM)
     try {
-      const amounts = await router.getAmountsOut(amountIn, [KAIROS_ADDRESS, WBNB, USDT_BSC]);
-      usdPrice = parseFloat(ethers.formatUnits(amounts[2], 18));
+      const kRouter = new ethers.Contract(KAIROS_SWAP_ROUTER, routerAbi, provider);
+      const amounts = await kRouter.getAmountsOut(amountIn, [KAIROS_ADDRESS, USDT_BSC]);
+      usdPrice = parseFloat(ethers.formatUnits(amounts[1], 18));
     } catch {
-      // Try KAIROS -> WBNB -> BUSD as fallback
+      // KairosSwap pool not available
+    }
+
+    // 2) Try PancakeSwap KAIROS -> WBNB -> USDT
+    if (usdPrice === 0) {
       try {
-        const amounts = await router.getAmountsOut(amountIn, [KAIROS_ADDRESS, WBNB, BUSD]);
+        const pRouter = new ethers.Contract(PANCAKE_ROUTER, routerAbi, provider);
+        const amounts = await pRouter.getAmountsOut(amountIn, [KAIROS_ADDRESS, WBNB, USDT_BSC]);
         usdPrice = parseFloat(ethers.formatUnits(amounts[2], 18));
       } catch {
-        // No liquidity pool found - return 0
-        usdPrice = 0;
+        // Try KAIROS -> WBNB -> BUSD
+        try {
+          const pRouter = new ethers.Contract(PANCAKE_ROUTER, routerAbi, provider);
+          const amounts = await pRouter.getAmountsOut(amountIn, [KAIROS_ADDRESS, WBNB, BUSD]);
+          usdPrice = parseFloat(ethers.formatUnits(amounts[2], 18));
+        } catch {
+          // No PancakeSwap pool either
+        }
       }
+    }
+
+    // 3) Fallback: KAIROS is a USD-pegged stablecoin → $1.00
+    if (usdPrice === 0) {
+      usdPrice = KAIROS_PEG_PRICE;
     }
     
     const result = { usd: usdPrice, change24h: 0, timestamp: Date.now() };
@@ -167,7 +186,10 @@ export async function getKairosPrice() {
     return result;
   } catch (err) {
     console.error('Failed to get KAIROS price:', err);
-    return cached || { usd: 0, change24h: 0 };
+    // Even on total failure, return peg price — KAIROS = $1.00
+    const result = { usd: KAIROS_PEG_PRICE, change24h: 0, timestamp: Date.now() };
+    priceCache.set(cacheKey, result);
+    return result;
   }
 }
 

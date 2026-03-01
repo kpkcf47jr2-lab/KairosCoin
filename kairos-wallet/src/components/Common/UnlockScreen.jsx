@@ -138,14 +138,12 @@ export default function UnlockScreen() {
           {isUnlocking ? t('unlock.decrypting', 'Descifrando...') : isLockedOut ? 'Bloqueado...' : t('unlock.unlock')}
         </button>
 
-        {attempts >= 3 && (
-          <button
-            onClick={handleReset}
-            className="text-red-400/60 text-xs hover:text-red-400 transition-colors"
-          >
-            Eliminar wallet y restaurar con frase semilla
-          </button>
-        )}
+        <button
+          onClick={handleReset}
+          className="text-red-400/60 text-xs hover:text-red-400 transition-colors"
+        >
+          {attempts >= 3 ? 'Eliminar wallet y restaurar con frase semilla' : '¿Olvidaste tu contraseña? Restaurar'}
+        </button>
       </motion.div>
 
       {/* Reset Wallet Confirmation Modal */}

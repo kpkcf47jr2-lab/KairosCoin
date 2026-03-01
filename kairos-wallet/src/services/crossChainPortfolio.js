@@ -6,8 +6,11 @@
 
 import { CHAINS, CHAIN_ORDER, ERC20_ABI, DEFAULT_TOKENS } from '../constants/chains';
 import { getProvider } from './blockchain';
-import { getNativePrice, getTokenPrices } from './prices';
+import { getNativePrice, getTokenPrices, getKairosPrice } from './prices';
 import { ethers } from 'ethers';
+
+// KAIROS contract address (same on BSC/Base/Arbitrum)
+const KAIROS_ADDRESS = '0x14D41707269c7D8b8DFa5095b38824a46dA05da3'.toLowerCase();
 
 const CROSS_CHAIN_CACHE_KEY = 'kairos_crosschain_portfolio';
 const CACHE_TTL = 60000; // 1 minute
@@ -90,8 +93,24 @@ export async function getCrossChainPortfolio(address) {
       let tokenPrices = {};
       if (tokenAddresses.length > 0) {
         try {
-          tokenPrices = await getTokenPrices(chainId, tokenAddresses);
+          // Exclude KAIROS from CoinGecko request — it won't be listed there
+          const nonKairosAddresses = tokenAddresses.filter(a => a.toLowerCase() !== KAIROS_ADDRESS);
+          if (nonKairosAddresses.length > 0) {
+            tokenPrices = await getTokenPrices(chainId, nonKairosAddresses);
+          }
         } catch {}
+      }
+
+      // Inject KAIROS price if present (USD-pegged stablecoin)
+      const hasKairos = tokens.some(t => t.address?.toLowerCase() === KAIROS_ADDRESS);
+      if (hasKairos) {
+        try {
+          const kairosPrice = await getKairosPrice();
+          tokenPrices[KAIROS_ADDRESS] = { usd: kairosPrice.usd, change24h: kairosPrice.change24h || 0 };
+        } catch {
+          // Fallback to peg price
+          tokenPrices[KAIROS_ADDRESS] = { usd: 1.00, change24h: 0 };
+        }
       }
 
       // Calculate USD values
