@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: March 2, 2026 (Session 24 — GMX V2 → Kairos Exchange Engine + Real Execution)
+#  Last Updated: March 2, 2026 (Session 24 — KAIROS Prominence + Launchpad + List Token + CFD Model)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -1838,6 +1838,78 @@ Complete rebrand of perpetual/leverage trading from GMX V2 to Kairos Exchange En
 - Fund relayer wallet with USDT + BNB on BSC for real on-chain execution
 - Get 0x API key for optimal multi-DEX routing
 - Monitor first real leveraged trades
+
+---
+
+### Session 24b — CFD Execution Model + KAIROS Prominence + Launchpad + List Token (Mar 2, 2026)
+
+**1. CFD Execution Model as Default**
+- `backend/src/services/dexRouter.js` — Positions tracked at real Binance prices, P&L settled in KAIROS
+- Default mode is CFD (no on-chain gas needed), optional on-chain hedging when relayer funded
+- `executionMode` field ('cfd' or 'on-chain') added to position responses
+- `getStatus()` returns `mode: "Kairos Exchange Engine (CFD + optional on-chain hedging)"`
+- `backend/src/routes/perps.js` — Updated open/account responses with execution mode info
+- `kairos-trade/src/components/Kairos/KairosBroker.jsx` — Banner updated to "Precios reales de Binance en tiempo real"
+- **Commit:** `5035ae9`
+
+**2. KAIROS Stablecoin Prominence in Exchange**
+- `kairos-exchange/src/pages/SwapPage.jsx` — Added prominent banner above SwapCard:
+  - KAIROS logo, "$1.00" price badge, "OFFICIAL STABLECOIN" badge
+  - Features: 1:1 Backed (Shield), 0 slippage (Zap), 4 chains (CheckCircle)
+  - "Pair with KAIROS" CTA link to /list-token
+- `kairos-exchange/src/components/TokenSelector.jsx`:
+  - Popular tokens: KAIROS has gold gradient background + ★ star badge
+  - Token list: KAIROS row has gradient highlight + border
+  - "STABLECOIN" badge with animated pulse dot
+  - Subtitle "1 KAIROS = $1.00 USD • Official Stablecoin" under KAIROS name
+
+**3. Launchpad Page (New)**
+- `kairos-exchange/src/pages/LaunchpadPage.jsx` — Full token launchpad on KairosSwap
+  - Hero with gradient text + subtitle
+  - Benefits grid: KairosSwap DEX listing, marketing support, 0% KAIROS listing fee, community access
+  - Featured project: KAIROS (LIVE) with stats (price $1.00, chains 4, market cap)
+  - Application form: project name, symbol, contract, email, description
+  - 3-step "How it works" section
+  - Bilingual EN/ES
+
+**4. List Your Token Page (New)**
+- `kairos-exchange/src/pages/ListTokenPage.jsx` — Self-service token listing on KairosSwap
+  - Step 1: Enter BSC contract address → auto-resolve via BscScan API
+  - Step 2: Choose pair token (KAIROS recommended with premium benefits banner)
+  - KAIROS pairing benefits: 0% listing fee, featured on homepage, launchpad access, free marketing
+  - Step 3: CTA to create pool on Pools page
+  - Shows KairosSwap Factory + Router addresses
+  - Bilingual EN/ES
+
+**5. Navigation Updates**
+- `kairos-exchange/src/App.jsx` — Added routes `/launchpad` and `/list-token`
+- `kairos-exchange/src/components/Header.jsx` — Added Launchpad (Rocket) + List Token (Plus) nav items
+- `kairos-exchange/src/components/MobileNav.jsx` — Replaced Portfolio with Launchpad in bottom nav
+- `kairos-exchange/src/i18n.js` — Added `nav_launchpad` and `nav_list_token` in EN + ES
+
+**Commit:** `6a08bff` — Deployed to:
+- Exchange: ✅ https://kairos-exchange-app.netlify.app
+- Trade App: ✅ https://kairos-trade.netlify.app (prev commit)
+- Backend: ✅ https://kairos-api-u6k5.onrender.com (Render auto-deploy)
+
+**Files Modified/Created:**
+- `backend/src/services/dexRouter.js` (CFD model)
+- `backend/src/routes/perps.js` (execution mode)
+- `kairos-trade/src/components/Kairos/KairosBroker.jsx` (banner)
+- `kairos-exchange/src/pages/SwapPage.jsx` (KAIROS banner)
+- `kairos-exchange/src/pages/LaunchpadPage.jsx` (**NEW**)
+- `kairos-exchange/src/pages/ListTokenPage.jsx` (**NEW**)
+- `kairos-exchange/src/components/TokenSelector.jsx` (KAIROS prominence)
+- `kairos-exchange/src/components/Header.jsx` (nav items)
+- `kairos-exchange/src/components/MobileNav.jsx` (bottom nav)
+- `kairos-exchange/src/App.jsx` (routes)
+- `kairos-exchange/src/i18n.js` (translations)
+
+**Next Steps:**
+- Chrome Web Store: Submit kairos-extension as Chrome wallet
+- Fund relayer wallet for on-chain execution
+- Get 0x API key for optimal multi-DEX routing
+- CoinGecko listing when liquidity reaches requirement
 
 ---
 
