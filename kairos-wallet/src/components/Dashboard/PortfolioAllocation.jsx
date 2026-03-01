@@ -8,7 +8,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, TrendingUp, TrendingDown, PieChart, DollarSign, BarChart2,
-  Globe, Loader2, RefreshCw,
+  Globe, Loader2, RefreshCw, ChevronRight, Send, Download, ArrowLeftRight,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { CHAINS, CHAIN_ORDER, KAIROS_TOKEN } from '../../constants/chains';
@@ -75,7 +75,7 @@ function DonutChart({ slices, size = 160, stroke = 28 }) {
 export default function PortfolioAllocation() {
   const {
     activeChainId, activeAddress, balances, tokenPrices, nativePrice, goBack,
-    getTotalPortfolioValue,
+    getTotalPortfolioValue, navigate, setTokenDetailData,
   } = useStore();
 
   const chain = CHAINS[activeChainId];
@@ -224,7 +224,7 @@ export default function PortfolioAllocation() {
               )}
             </div>
 
-            {/* Allocation breakdown */}
+            {/* Allocation breakdown — tap to see detail + Send/Receive/Swap */}
             <div className="space-y-2">
               {allocations.map((item, i) => (
                 <motion.div
@@ -232,7 +232,11 @@ export default function PortfolioAllocation() {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.05 }}
-                  className="flex items-center gap-3 bg-dark-800/50 rounded-xl p-3 border border-dark-700/50"
+                  className="flex items-center gap-3 bg-dark-800/50 rounded-xl p-3 border border-dark-700/50 cursor-pointer active:scale-[0.98] active:bg-dark-700/50 transition-all"
+                  onClick={() => {
+                    setTokenDetailData(item.token);
+                    navigate('tokenDetail');
+                  }}
                 >
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                   <TokenIcon token={item.token} chainId={activeChainId} size={28} />
@@ -251,9 +255,17 @@ export default function PortfolioAllocation() {
                       style={{ width: `${item.pct * 100}%`, backgroundColor: item.color }}
                     />
                   </div>
+                  <ChevronRight size={14} className="text-dark-500 flex-shrink-0" />
                 </motion.div>
               ))}
             </div>
+
+            {/* Quick hint */}
+            {allocations.length > 0 && (
+              <p className="text-center text-dark-500 text-[10px] mt-1">
+                Toca un token para Enviar, Recibir o Swap
+              </p>
+            )}
           </>
         )}
 
