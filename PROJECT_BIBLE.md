@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: Mar 1, 2026 (Session 25 — Safe Ownership Transfer + Safe UI in Wallet)
+#  Last Updated: Mar 1, 2026 (Session 26 — Safe Relayer + Auto Mint/Burn + Admin Panel)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -30,6 +30,7 @@
 - **Solidity:** 0.8.24, OpenZeppelin v5.4
 - **Owner/Deployer Wallet:** `0xCee44904A6aA94dEa28754373887E07D4B6f4968`
 - **Contract Owner:** Gnosis Safe `0xC84f261c7e7Cffdf3e9972faD88cE59400d5E5A8` (transferred Mar 1, 2026)
+- **Safe Owners:** `0xCee44904...` (Deployer/Relayer) + `0x37935A6A...` (Phone Wallet) — Threshold: 1-of-2
 
 | Chain | Address | Explorer |
 |-------|---------|----------|
@@ -2072,11 +2073,54 @@ User reported Kairos Wallet showing $0.00 despite 9.9M KAIROS on-chain. Multi-la
 
 **Security model:**
 - Contract owner = Safe (on-chain multisig)
-- Safe owner = Kairos Wallet on phone (key never on computer)
-- `.env` deployer key can NO LONGER control the contract
-- Future: add Ledger/second device as owner #2, threshold → 2-of-2
+- Safe owners: Deployer/Relayer (`0xCee449...`) + Phone Wallet (`0x37935A...`) — threshold 1-of-2
+- Either owner can execute mint/burn/pause/etc through the Safe
+- Backend `blockchain.js` routes all mint/burn through Safe `execTransaction`
+- Admin Panel in Kairos Wallet for full token management from phone
 
-**Commits:** `28d5804`, plus this session's commit
+**Commits:** `28d5804`, `889c09f`
+
+---
+
+### Session 26 — Safe Relayer + Auto Mint/Burn + Admin Panel (Mar 1, 2026)
+
+**What was done:**
+1. **Added Deployer as Safe Owner #2**
+   - Built addOwner UI in SafeScreen (password verification + Safe TX signing)
+   - Funded phone wallet with 0.005 BNB for gas
+   - User executed addOwnerWithThreshold from phone → Deployer added
+   - Safe: 1-of-2 threshold (either wallet can sign)
+   - Safe nonce: 1 (addOwner TX confirmed)
+
+2. **Updated Backend Mint/Burn to Route Through Safe**
+   - `backend/src/services/blockchain.js` completely rewritten for Safe flow
+   - New `executeSafeTransaction()` helper: encodes call → gets Safe TX hash → signs with eth_sign (v+=4) → execTransaction
+   - `mint()` and `burn()` now go through Safe instead of direct contract calls
+   - Tested: minted 1 KAIROS via Safe (TX: `0xa1ce9c23...`, block 83994049)
+
+3. **Built Token Admin Panel in Kairos Wallet**
+   - New `kairos-wallet/src/components/Admin/AdminPanel.jsx` — full admin dashboard
+   - Sections: Resumen, Mint, Burn, Transfer, Pause/Unpause, Blacklist, Fees, Caps, Settings
+   - All actions route through Gnosis Safe execTransaction
+   - Password verification before every action
+   - Real-time token stats (supply, minted, burned, fees, status)
+   - Address lookup tool (balance, blacklist status, fee exempt)
+   - Only accessible to Safe owners (access control)
+   - Accessible via: Dashboard → Safe → Admin Panel
+
+4. **System Health Check Script**
+   - `scripts/health-check.js` — full system verification
+   - Checks: contract state, Safe owners, balances, backend API, wallet app
+   - Result: 5/5 checks passed, all systems operational
+
+**Key changes:**
+- `backend/src/services/blockchain.js` — Safe execTransaction for mint/burn
+- `kairos-wallet/src/components/Admin/AdminPanel.jsx` — new admin panel
+- `kairos-wallet/src/components/Safe/SafeScreen.jsx` — addOwner UI + Admin Panel link
+- `kairos-wallet/src/App.jsx` — added 'admin' route
+- `scripts/test-safe-mint.js`, `scripts/health-check.js`, `scripts/verify-safe-owners.js` etc.
+
+**Commits:** `0948076`, `edfea2e`, `1b8754b`
 
 ---
 
