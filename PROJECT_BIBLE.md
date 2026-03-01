@@ -158,6 +158,8 @@
 | Purpose | Address |
 |---------|---------|
 | Owner/Deposit/Redemption Wallet | `0xCee44904A6aA94dEa28754373887E07D4B6f4968` |
+| **Gnosis Safe (BSC)** | **`0xC84f261c7e7Cffdf3e9972faD88cE59400d5E5A8`** |
+| Safe Signer (Mario) | `0x37935A6AD6A5e7f096B759952F41D464CAe82be8` |
 | KAIROS Contract | `0x14D41707269c7D8b8DFa5095b38824a46dA05da3` |
 | PancakeSwap Pair | `0xfCb17119D559E47803105581A28584813FAffb49` |
 | KairosSwap Factory (BSC) | `0xB5891c54199d539CB8afd37BFA9E17370095b9D9` |
