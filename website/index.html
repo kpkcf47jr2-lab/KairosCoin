@@ -729,12 +729,14 @@
           fetch(`${API}/api/reserves`).then(r => r.json()).catch(() => null)
         ]);
         if (supplyRes) {
-          document.getElementById('lv-supply').textContent = fmt(supplyRes.totalSupply || supplyRes.total_supply || 0) + ' KAIROS';
-          document.getElementById('lv-circulating').textContent = fmt(supplyRes.circulatingSupply || supplyRes.circulating_supply || 0) + ' KAIROS';
-          document.getElementById('lv-burned').textContent = fmt(supplyRes.totalBurned || supplyRes.total_burned || 0) + ' KAIROS';
+          const s = supplyRes.data || supplyRes;
+          document.getElementById('lv-supply').textContent = fmt(s.totalSupply || s.total_supply || 0) + ' KAIROS';
+          document.getElementById('lv-circulating').textContent = fmt(s.circulatingSupply || s.circulating_supply || 0) + ' KAIROS';
+          document.getElementById('lv-burned').textContent = fmt(s.totalBurned || s.total_burned || 0) + ' KAIROS';
         }
         if (reservesRes) {
-          const ratio = reservesRes.backing_ratio || reservesRes.backingRatio || '100';
+          const r = reservesRes.data || reservesRes;
+          const ratio = r.backing?.ratio || r.backing_ratio || r.backingRatio || '100';
           document.getElementById('lv-ratio').textContent = parseFloat(ratio).toFixed(1) + '%';
         }
         document.getElementById('lv-status').innerHTML = '<span style="color:#10B981;">● Operational</span>';

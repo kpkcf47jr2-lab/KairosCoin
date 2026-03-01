@@ -14,6 +14,21 @@ const logger = require("../utils/logger");
 //  PUBLIC ENDPOINTS
 // ═════════════════════════════════════════════════════════════════════════════
 
+// GET /api/referral/info — Referral program info
+router.get("/info", (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      program: "Kairos Referral Program",
+      signupBonus: 100,
+      referralBonus: 20,
+      currency: "KAIROS",
+      maxReferrals: "Unlimited",
+      description: "Earn 100 KAIROS on signup + 20 KAIROS per friend referred",
+    },
+  });
+});
+
 // GET /api/referral/validate/:code — Check if a referral code is valid
 router.get("/validate/:code", (req, res) => {
   try {

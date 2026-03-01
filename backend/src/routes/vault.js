@@ -23,9 +23,19 @@ function requireWallet(req, res, next) {
 // ═════════════════════════════════════════════════════════════════════════════
 
 /**
- * GET /api/vault/info
+ * GET /api/vault/info | /api/vault/stats
  * Global vault metrics: TVL, APY, price per share, etc.
  */
+router.get("/stats", (req, res) => {
+  try {
+    const info = vaultEngine.getVaultInfo();
+    res.json(info);
+  } catch (err) {
+    logger.error("Vault stats error", { error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/info", (req, res) => {
   try {
     const info = vaultEngine.getVaultInfo();

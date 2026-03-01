@@ -190,6 +190,22 @@ app.get("/", (req, res) => {
         "GET /api/health/ping": "Simple ping",
         "GET /api/health/stats": "Operation statistics",
         "GET /api/engine/status": "Auto mint/burn engine status",
+        "GET /api/engine/info": "Auto mint/burn engine status (alias)",
+      },
+      trading: {
+        "GET /api/margin/prices": "Current prices for all trading pairs",
+        "GET /api/margin/pairs": "Supported trading pairs + leverage tiers",
+        "GET /api/margin/leverage-tiers": "Leverage tiers and fee structure",
+        "GET /api/perps/status": "Perpetual trading engine status",
+        "GET /api/vault/info": "Vault TVL, APY, and metrics",
+        "GET /api/vault/stats": "Vault stats (alias of /info)",
+        "GET /api/treasury/stats": "Treasury fee collection stats",
+      },
+      referral: {
+        "GET /api/referral/info": "Referral program details",
+        "GET /api/referral/stats": "Global referral stats",
+        "GET /api/referral/leaderboard": "Top referrers",
+        "GET /api/referral/validate/:code": "Validate referral code",
       },
       admin: {
         "POST /api/mint": "Mint KAIROS (requires master API key)",
@@ -202,6 +218,7 @@ app.get("/", (req, res) => {
         "GET  /api/fiat/stats": "Fiat purchase statistics (requires master API key)",
       },
       fiat: {
+        "GET  /api/fiat/providers": "Available fiat on-ramp providers",
         "POST /api/fiat/create-order": "Create fiat purchase order",
         "GET  /api/fiat/order/:id": "Get fiat order status",
         "GET  /api/fiat/orders?wallet=0x...": "List orders for a wallet",
@@ -243,7 +260,7 @@ const { feesRouter } = require("./routes/supply");
 app.use("/api", feesRouter);
 
 // ── Auto Engine Status ───────────────────────────────────────────────────────
-app.get("/api/engine/status", (req, res) => {
+app.get(["/api/engine/status", "/api/engine/info"], (req, res) => {
   res.json({
     success: true,
     data: {

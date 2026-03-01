@@ -18,6 +18,29 @@ const config = require("../config");
 const router = express.Router();
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  GET /api/fiat/providers — Available fiat on-ramp providers
+// ═══════════════════════════════════════════════════════════════════════════════
+
+router.get("/providers", (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      {
+        id: "transak",
+        name: "Transak",
+        status: "pending_kyb",
+        currencies: ["USD", "EUR", "GBP"],
+        paymentMethods: ["credit_card", "debit_card", "bank_transfer"],
+        minAmount: 30,
+        maxAmount: 5000,
+        fees: "1.5% - 5.5%",
+      },
+    ],
+    note: "Additional providers coming soon (MoonPay, Ramp Network)",
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  POST /api/fiat/create-order — Frontend creates an order before opening Transak
 // ═══════════════════════════════════════════════════════════════════════════════
 

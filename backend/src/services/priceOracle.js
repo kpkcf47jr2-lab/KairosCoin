@@ -12,7 +12,7 @@ let pollInterval = null;
 const POLL_MS = 3000;     // Poll every 3 seconds
 const STALE_MS = 30000;   // Price considered stale after 30s
 
-// Supported pairs for margin trading (30+ top pairs available on Binance.US)
+// Supported pairs for margin trading (33+ top pairs available on Binance)
 const SUPPORTED_PAIRS = [
   // Top 10
   'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT',
@@ -25,6 +25,8 @@ const SUPPORTED_PAIRS = [
   'HBARUSDT', 'TIAUSDT', 'PEPEUSDT', 'SHIBUSDT',
   // Extra popular
   'BONKUSDT', 'RENDERUSDT', 'ENAUSDT',
+  // Heatmap additions
+  'MATICUSDT', 'FTMUSDT', 'INJUSDT', 'JUPUSDT',
 ];
 
 // ═════════════════════════════════════════════════════════════════════════════

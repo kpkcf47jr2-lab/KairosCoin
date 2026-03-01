@@ -78,6 +78,23 @@ router.get("/pairs", (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
+//  GET /api/margin/leverage-tiers — Standalone leverage tiers endpoint
+// ═══════════════════════════════════════════════════════════════════════════════
+
+router.get("/leverage-tiers", (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      tiers: marginEngine.LEVERAGE_TIERS,
+      fees: {
+        maker: marginEngine.MAKER_FEE_PCT,
+        taker: marginEngine.TAKER_FEE_PCT,
+      },
+    },
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 //  GET /api/margin/account — Get margin account summary with live P&L
 // ═══════════════════════════════════════════════════════════════════════════════
 

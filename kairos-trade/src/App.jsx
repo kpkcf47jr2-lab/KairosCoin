@@ -144,6 +144,36 @@ function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [validatingSession, setValidatingSession] = useState(isAuthenticated);
 
+  // ── Valid pages for URL routing ──
+  const VALID_PAGES = ['dashboard','chart','bots','simulator','brokers','ai','strategies','history','alerts','portfolio','multichart','heatmap','journal','risk','kairos-broker','kairos-vault','kairos-treasury','buy-kairos','wallet','settings'];
+
+  // ── URL → State: read path on mount & popstate ──
+  useEffect(() => {
+    const pageFromPath = () => {
+      const path = window.location.pathname.replace(/^\/+/, '').replace(/\/+$/, '') || 'dashboard';
+      return VALID_PAGES.includes(path) ? path : 'dashboard';
+    };
+    // Set initial page from URL
+    const urlPage = pageFromPath();
+    if (urlPage !== useStore.getState().currentPage) setPage(urlPage);
+
+    // Listen for browser back/forward
+    const onPop = () => {
+      const p = pageFromPath();
+      if (p !== useStore.getState().currentPage) setPage(p);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── State → URL: push URL when page changes ──
+  useEffect(() => {
+    const target = currentPage === 'dashboard' ? '/' : `/${currentPage}`;
+    if (window.location.pathname !== target) {
+      window.history.pushState(null, '', target);
+    }
+  }, [currentPage]);
+
   // Seed factory strategies on first load
   useEffect(() => { seedDefaultStrategies(); }, []);
 
