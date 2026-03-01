@@ -14,6 +14,8 @@ import BridgePage from './pages/BridgePage';
 import PortfolioPage from './pages/PortfolioPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import HistoryPage from './pages/HistoryPage';
+import LaunchpadPage from './pages/LaunchpadPage';
+import ListTokenPage from './pages/ListTokenPage';
 import { useStore } from './store';
 
 export default function App() {
@@ -40,6 +42,8 @@ export default function App() {
           <Route path="/portfolio" element={<PortfolioPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/launchpad" element={<LaunchpadPage />} />
+          <Route path="/list-token" element={<ListTokenPage />} />
         </Routes>
       </div>
 

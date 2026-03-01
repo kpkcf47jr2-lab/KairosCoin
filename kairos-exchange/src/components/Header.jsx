@@ -4,7 +4,7 @@ import { useStore } from '../store';
 import { CHAINS } from '../config/chains';
 import { WALLET_OPTIONS } from '../services/wallet';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeftRight, BarChart3, ScrollText, Briefcase, TrendingUp, Droplets, ArrowRightLeft, Globe } from 'lucide-react';
+import { ArrowLeftRight, BarChart3, ScrollText, Briefcase, TrendingUp, Droplets, ArrowRightLeft, Globe, Rocket, Plus } from 'lucide-react';
 
 const NAV_ITEMS = [
   { path: '/', label: 'nav_swap', Icon: ArrowLeftRight },
@@ -14,6 +14,8 @@ const NAV_ITEMS = [
   { path: '/analytics', label: 'nav_analytics', Icon: TrendingUp },
   { path: '/pools', label: 'nav_pools', Icon: Droplets },
   { path: '/bridge', label: 'nav_bridge', Icon: ArrowRightLeft },
+  { path: '/launchpad', label: 'nav_launchpad', Icon: Rocket },
+  { path: '/list-token', label: 'nav_list_token', Icon: Plus },
 ];
 
 export default function Header() {

@@ -1,13 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeftRight, BarChart3, Briefcase, Droplets, ArrowRightLeft } from 'lucide-react';
+import { ArrowLeftRight, BarChart3, Briefcase, Droplets, ArrowRightLeft, Rocket } from 'lucide-react';
 
 const BOTTOM_ITEMS = [
   { path: '/', label: 'nav_swap', Icon: ArrowLeftRight },
   { path: '/limit', label: 'nav_limit', Icon: BarChart3 },
-  { path: '/portfolio', label: 'nav_portfolio', Icon: Briefcase },
   { path: '/pools', label: 'nav_pools', Icon: Droplets },
+  { path: '/launchpad', label: 'nav_launchpad', Icon: Rocket },
   { path: '/bridge', label: 'nav_bridge', Icon: ArrowRightLeft },
 ];
 

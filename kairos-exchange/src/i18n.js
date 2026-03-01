@@ -20,6 +20,8 @@ const resources = {
       'nav_analytics': 'Analytics',
       'nav_pools': 'Pools',
       'nav_bridge': 'Bridge',
+      'nav_launchpad': 'Launchpad',
+      'nav_list_token': 'List Token',
       // Swap
       'swap': 'Swap',
       'you_sell': 'You sell',
@@ -209,6 +211,8 @@ const resources = {
       'nav_analytics': 'Análisis',
       'nav_pools': 'Pools',
       'nav_bridge': 'Bridge',
+      'nav_launchpad': 'Launchpad',
+      'nav_list_token': 'Listar Token',
       'swap': 'Swap',
       'you_sell': 'Vendes',
       'you_receive': 'Recibes',

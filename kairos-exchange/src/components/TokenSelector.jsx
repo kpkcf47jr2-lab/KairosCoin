@@ -103,7 +103,7 @@ export default function TokenSelector() {
           </div>
         )}
 
-        {/* Popular tokens */}
+        {/* Popular tokens — KAIROS first & highlighted */}
         <div className="px-4 pt-3 flex flex-wrap gap-1.5">
           {allTokens.slice(0, 6).map(token => (
             <button
@@ -115,12 +115,15 @@ export default function TokenSelector() {
                   ? 'bg-brand-500/20 text-brand-400 border-brand-500/40'
                   : token.address === otherToken?.address
                     ? 'bg-white/3 text-white/20 border-white/5 cursor-not-allowed'
-                    : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
+                    : token.isKairos
+                      ? 'bg-gradient-to-r from-brand-500/20 to-yellow-500/10 text-brand-400 border-brand-500/30 hover:border-brand-500/60 hover:shadow-[0_0_12px_rgba(212,175,55,0.15)] ring-1 ring-brand-500/10'
+                      : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white'
                 }`}
             >
               {token.logoURI && <img src={token.logoURI} alt="" className="w-4 h-4 rounded-full" onError={(e) => e.target.style.display='none'} />}
               {token.isKairos && !token.logoURI && <span className="text-brand-400 text-xs">◆</span>}
               {token.symbol}
+              {token.isKairos && <span className="text-[8px] text-brand-400/80">★</span>}
             </button>
           ))}
         </div>
@@ -162,6 +165,7 @@ export default function TokenSelector() {
                   className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
                     isSelected ? 'bg-brand-500/10 border border-brand-500/20' :
                     isOther ? 'opacity-30 cursor-not-allowed' :
+                    token.isKairos ? 'bg-gradient-to-r from-brand-500/5 to-transparent hover:from-brand-500/10 border border-brand-500/10' :
                     'hover:bg-white/5'
                   }`}
                 >
@@ -180,13 +184,18 @@ export default function TokenSelector() {
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm font-semibold text-white">{token.symbol}</span>
                       {token.isKairos && (
-                        <span className="px-1.5 py-0.5 text-[9px] font-bold bg-brand-500/20 text-brand-400 rounded-md">KAIROS</span>
+                        <span className="px-1.5 py-0.5 text-[9px] font-bold bg-brand-500/20 text-brand-400 rounded-md flex items-center gap-0.5">
+                          <span className="w-1 h-1 bg-brand-400 rounded-full animate-pulse" /> STABLECOIN
+                        </span>
                       )}
                       {token.isCustom && (
                         <span className="px-1.5 py-0.5 text-[9px] font-bold bg-blue-500/20 text-blue-400 rounded-md">{t('imported')}</span>
                       )}
                     </div>
                     <p className="text-xs text-white/40 truncate">{token.name}</p>
+                    {token.isKairos && (
+                      <p className="text-[10px] text-brand-400/60 font-medium">1 KAIROS = $1.00 USD • Official Stablecoin</p>
+                    )}
                   </div>
 
                   {/* Selected check */}
