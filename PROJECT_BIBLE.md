@@ -1913,5 +1913,39 @@ Complete rebrand of perpetual/leverage trading from GMX V2 to Kairos Exchange En
 
 ---
 
+### Session 24c — Simple ↔ Pro Toggle (Coinbase Model) (Mar 2, 2026)
+
+Added cross-app toggle switches so users can seamlessly switch between Kairos Exchange (Simple) and Kairos 777 Trade (Pro), matching the Coinbase / Coinbase Advanced model.
+
+**Architecture:**
+| App | Role | URL |
+|-----|------|-----|
+| **Kairos Exchange** | Simple (like Coinbase) | https://kairos-exchange-app.netlify.app |
+| **Kairos 777 Trade** | Pro/Advanced (like Coinbase Advanced) | https://kairos-trade.netlify.app |
+
+**Changes:**
+1. **Exchange Header** — `Simple | Pro` pill toggle next to logo (desktop). Simple highlighted in gold, Pro links to Trade app.
+2. **Exchange MobileNav** — `Simple | Pro` toggle strip above bottom navigation tabs (mobile). Full-width responsive toggle.
+3. **Trade Header** — `Simple | Pro` pill toggle in top-right action bar. Pro highlighted with gold glow, Simple links to Exchange app.
+4. **Trade Sidebar** — `Simple | Pro` toggle at bottom of sidebar (above collapse button). Adapts to collapsed/expanded sidebar state. Accessible via hamburger menu on mobile.
+
+**Commit:** `1ffd990` — Deployed to:
+- Exchange: ✅ https://kairos-exchange-app.netlify.app
+- Trade: ✅ https://kairos-trade.netlify.app
+
+**Files Modified:**
+- `kairos-exchange/src/components/Header.jsx` (toggle + Zap icon)
+- `kairos-exchange/src/components/MobileNav.jsx` (toggle strip + reduced to 4 items)
+- `kairos-trade/src/components/Layout/Header.jsx` (toggle + ArrowLeftRight icon)
+- `kairos-trade/src/components/Layout/Sidebar.jsx` (toggle + ArrowLeftRight icon)
+
+**Next Steps:**
+- Chrome Web Store: Submit kairos-extension as Chrome wallet
+- Fund relayer wallet for on-chain execution
+- Get 0x API key for optimal multi-DEX routing
+- CoinGecko listing when liquidity reaches requirement
+
+---
+
 *This file should be updated after every significant work session.*
 *To onboard a new Copilot chat: "Read PROJECT_BIBLE.md and continue from where we left off."*
