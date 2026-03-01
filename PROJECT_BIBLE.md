@@ -2126,7 +2126,7 @@ User reported Kairos Wallet showing $0.00 despite 9.9M KAIROS on-chain. Multi-la
 
 ### Session 24 — Wallet & Trade App Improvements (Production Polish)
 
-**Date:** 2025-07-11
+**Date:** 2026-03-01
 
 **Stripe Account Status:**
 - Account `acct_1T3mCiRqBM6dtNaA` **REJECTED** — `disabled_reason: under_review`, error `verification_supportability` (cryptocurrency restricted category)
@@ -2162,9 +2162,28 @@ User reported Kairos Wallet showing $0.00 despite 9.9M KAIROS on-chain. Multi-la
 - `kairos-trade/src/components/Kairos/BuyKairos.jsx` — Import API_HOST
 - `kairos-trade/src/components/Kairos/KairosTreasury.jsx` — Import API_HOST
 
-**Build Status:** Both apps compile successfully. Netlify token expired — needs renewal for deploy.
+**Build Status:** Both apps compile successfully.
+
+**Deploys:**
+- Trade: ✅ https://kairos-trade.netlify.app (deploy `69a3f249`)
+- Wallet: ✅ https://kairos-wallet.netlify.app (deploy `69a3f25d`)
+- Netlify token renewed: `nfp_iSeKAZP4UYALcgFUzENCx79hgKKEFtbue963` (updated in all files)
+
+**Commits:** `266bd93` (improvements), `cc0dbae` (token update + deploy)
 
 **Note:** Stripe Crypto program application submitted — watch for email response.
+
+**Current Status (end of session):**
+- All infrastructure live and operational
+- Wallet: https://kairos-wallet.netlify.app ✅
+- Trade: https://kairos-trade.netlify.app ✅
+- Exchange: https://kairos-exchange-app.netlify.app ✅
+- Backend: https://kairos-api-u6k5.onrender.com ✅
+- Website: https://kairos-777.com ✅
+- Stripe: REJECTED for crypto — applied to Stripe Crypto program, awaiting response
+- Transak KYB: submitted Feb 22, 2026 — waiting approval
+- iOS apps: submitted to App Store (pending review)
+- Chrome extension: CWS submission pending
 
 ---
 
