@@ -379,6 +379,7 @@ export default function Dashboard() {
             { icon: Landmark, label: 'Vault', screen: 'vault', color: 'bg-emerald-500/10 text-emerald-400' },
             { icon: PieChart, label: 'Portfolio', screen: 'portfolio', color: 'bg-violet-500/10 text-violet-400' },
             { icon: Bell, label: 'Alertas', screen: 'alerts', color: 'bg-kairos-500/10 text-kairos-400', badge: alertCount },
+            { icon: Shield, label: 'Safe', screen: 'safe', color: 'bg-green-500/10 text-green-400' },
             { icon: Shield, label: 'Auditoría', screen: 'tokenaudit', color: 'bg-red-500/10 text-red-400' },
             { icon: TrendingUp, label: 'Gas', screen: 'gas', color: 'bg-amber-500/10 text-amber-400' },
             { icon: Clock, label: t('action.history'), screen: 'history', color: 'bg-kairos-500/10 text-kairos-400' },

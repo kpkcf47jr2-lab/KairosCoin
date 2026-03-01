@@ -46,6 +46,7 @@ const PortfolioAllocation = lazy(() => import('./components/Dashboard/PortfolioA
 const NotificationCenter = lazy(() => import('./components/Common/NotificationCenter'));
 const RPCHealthScreen = lazy(() => import('./components/Settings/RPCHealthScreen'));
 const DAppConnectScreen = lazy(() => import('./components/Connect/DAppConnectScreen'));
+const SafeScreen = lazy(() => import('./components/Safe/SafeScreen'));
 
 const pageVariants = {
   initial: { opacity: 0, x: 20 },
@@ -217,6 +218,8 @@ export default function App() {
         return <RPCHealthScreen key="rpchealth" />;
       case 'dappconnect':
         return <DAppConnectScreen key="dappconnect" />;
+      case 'safe':
+        return <SafeScreen key="safe" />;
       default:
         return <LoadingScreen key="loading" />;
     }
