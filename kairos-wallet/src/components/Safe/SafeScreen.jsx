@@ -9,13 +9,15 @@ import { motion } from 'framer-motion';
 import {
   ArrowLeft, Shield, Users, RefreshCw, Copy, Check,
   ExternalLink, Send, ChevronRight, Info, Lock,
-  Wallet, AlertTriangle, Hash, Layers,
+  Wallet, AlertTriangle, Hash, Layers, Plus, Loader2, Key,
 } from 'lucide-react';
+import { ethers } from 'ethers';
 import { useStore } from '../../store/useStore';
-import { formatAddress } from '../../services/wallet';
+import { formatAddress, unlockVault } from '../../services/wallet';
 
 // ── Safe Constants ──
 const SAFE_ADDRESS = '0xC84f261c7e7Cffdf3e9972faD88cE59400d5E5A8';
+const RELAYER_ADDRESS = '0xCee44904A6aA94dEa28754373887E07D4B6f4968'; // Backend relayer for auto mint/burn
 const SAFE_ABI = [
   'function getOwners() view returns (address[])',
   'function getThreshold() view returns (uint256)',
@@ -103,12 +105,19 @@ function padAddress(addr) {
 }
 
 export default function SafeScreen() {
-  const { navigate, activeAddress, showToast } = useStore();
+  const { navigate, activeAddress, showToast, getActiveAccount } = useStore();
 
   const [loading, setLoading] = useState(true);
   const [safeInfo, setSafeInfo] = useState(null);
   const [hasCopied, setHasCopied] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  
+  // Add owner state
+  const [showAddOwner, setShowAddOwner] = useState(false);
+  const [addOwnerPassword, setAddOwnerPassword] = useState('');
+  const [addOwnerLoading, setAddOwnerLoading] = useState(false);
+  const [addOwnerError, setAddOwnerError] = useState('');
+  const [addOwnerTx, setAddOwnerTx] = useState(null);
 
   const loadSafeInfo = useCallback(async () => {
     setLoading(true);
@@ -156,6 +165,90 @@ export default function SafeScreen() {
 
   const openExplorer = () => {
     window.open(`https://bscscan.com/address/${SAFE_ADDRESS}`, '_blank');
+  };
+
+  // ── Add Relayer as Safe Owner ──
+  const handleAddRelayer = async () => {
+    setAddOwnerError('');
+    setAddOwnerTx(null);
+
+    // 1. Verify password & get private key
+    let vault;
+    try {
+      vault = await unlockVault(addOwnerPassword);
+    } catch {
+      setAddOwnerError('Contraseña incorrecta');
+      return;
+    }
+
+    const account = vault.accounts?.find(a => a.address.toLowerCase() === activeAddress.toLowerCase())
+      || vault.importedAccounts?.find(a => a.address.toLowerCase() === activeAddress.toLowerCase());
+    if (!account?.privateKey) {
+      setAddOwnerError('No se encontró la clave privada de esta wallet');
+      return;
+    }
+
+    setAddOwnerLoading(true);
+    try {
+      const provider = new ethers.JsonRpcProvider('https://bsc-dataseed1.binance.org');
+      const signer = new ethers.Wallet(account.privateKey, provider);
+
+      const SAFE_EXEC_ABI = [
+        'function getTransactionHash(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, uint256 _nonce) view returns (bytes32)',
+        'function execTransaction(address to, uint256 value, bytes data, uint8 operation, uint256 safeTxGas, uint256 baseGas, uint256 gasPrice, address gasToken, address refundReceiver, bytes signatures) returns (bool)',
+        'function nonce() view returns (uint256)',
+      ];
+      const safe = new ethers.Contract(SAFE_ADDRESS, SAFE_EXEC_ABI, signer);
+
+      // 2. Encode addOwnerWithThreshold(relayer, 1) — keep threshold at 1
+      const addOwnerData = ethers.AbiCoder.defaultAbiCoder().encode(
+        ['address', 'uint256'],
+        [RELAYER_ADDRESS, 1]
+      );
+      const addOwnerCalldata = '0x0d582f13' + addOwnerData.slice(2); // addOwnerWithThreshold selector
+
+      // 3. Get nonce & compute Safe TX hash
+      const nonce = await safe.nonce();
+      const safeTxHash = await safe.getTransactionHash(
+        SAFE_ADDRESS, // to (self-call)
+        0,            // value
+        addOwnerCalldata,
+        0,            // CALL
+        0, 0, 0,      // gas params
+        ethers.ZeroAddress, ethers.ZeroAddress,
+        nonce
+      );
+
+      // 4. Sign (eth_sign style: v += 4)
+      const sig = ethers.getBytes(await signer.signMessage(ethers.getBytes(safeTxHash)));
+      sig[64] += 4;
+      const adjustedSig = ethers.hexlify(sig);
+
+      // 5. Execute
+      const tx = await safe.execTransaction(
+        SAFE_ADDRESS,
+        0,
+        addOwnerCalldata,
+        0,
+        0, 0, 0,
+        ethers.ZeroAddress, ethers.ZeroAddress,
+        adjustedSig,
+        { gasLimit: 200000 }
+      );
+
+      setAddOwnerTx(tx.hash);
+      showToast('Transacción enviada...', 'success');
+
+      await tx.wait();
+      showToast('Relayer agregado como owner', 'success');
+      setShowAddOwner(false);
+      setAddOwnerPassword('');
+      loadSafeInfo(); // Refresh
+    } catch (err) {
+      console.error('addOwner error:', err);
+      setAddOwnerError(err.reason || err.message || 'Error desconocido');
+    }
+    setAddOwnerLoading(false);
   };
 
   return (
@@ -354,6 +447,105 @@ export default function SafeScreen() {
                 })}
               </div>
             </motion.div>
+
+            {/* Add Relayer Button — only show if relayer is not already an owner */}
+            {isOwner && safeInfo && !safeInfo.owners.some(o => o.toLowerCase() === RELAYER_ADDRESS.toLowerCase()) && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.22 }}
+              >
+                {!showAddOwner ? (
+                  <button
+                    onClick={() => setShowAddOwner(true)}
+                    className="w-full flex items-center gap-3 p-4 rounded-2xl bg-kairos-500/10 border border-kairos-500/20 hover:bg-kairos-500/20 transition"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-kairos-500/20 flex items-center justify-center">
+                      <Plus size={20} className="text-kairos-400" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="text-sm font-semibold text-kairos-400">Agregar Relayer Automático</p>
+                      <p className="text-[10px] text-dark-400">Permite mint/burn automático desde el backend</p>
+                    </div>
+                    <ChevronRight size={16} className="text-kairos-400" />
+                  </button>
+                ) : (
+                  <div className="rounded-2xl bg-white/[0.03] border border-kairos-500/20 p-4 space-y-3">
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Key size={14} className="text-kairos-400" />
+                      Agregar Relayer como Owner #2
+                    </h3>
+                    <p className="text-[10px] text-dark-400">
+                      Esto agregará la wallet del backend ({formatAddress(RELAYER_ADDRESS)}) como segundo owner del Safe.
+                      El backend podrá hacer mint/burn automático. Tú puedes quitarlo en cualquier momento.
+                    </p>
+                    <input
+                      type="password"
+                      placeholder="Contraseña del wallet"
+                      value={addOwnerPassword}
+                      onChange={e => setAddOwnerPassword(e.target.value)}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-dark-500 focus:outline-none focus:border-kairos-500/50"
+                    />
+                    {addOwnerError && (
+                      <p className="text-xs text-red-400">{addOwnerError}</p>
+                    )}
+                    {addOwnerTx && (
+                      <a
+                        href={`https://bscscan.com/tx/${addOwnerTx}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-kairos-400 underline block"
+                      >
+                        Ver TX en BscScan →
+                      </a>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setShowAddOwner(false); setAddOwnerError(''); setAddOwnerPassword(''); }}
+                        className="flex-1 py-2.5 rounded-xl bg-white/5 text-dark-300 text-sm hover:bg-white/10 transition"
+                        disabled={addOwnerLoading}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={handleAddRelayer}
+                        disabled={!addOwnerPassword || addOwnerLoading}
+                        className="flex-1 py-2.5 rounded-xl bg-kairos-500 text-dark-950 text-sm font-semibold hover:bg-kairos-400 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                      >
+                        {addOwnerLoading ? (
+                          <>
+                            <Loader2 size={14} className="animate-spin" />
+                            Firmando...
+                          </>
+                        ) : (
+                          'Confirmar'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Relayer already added indicator */}
+            {safeInfo && safeInfo.owners.some(o => o.toLowerCase() === RELAYER_ADDRESS.toLowerCase()) && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.22 }}
+                className="rounded-2xl bg-green-500/5 border border-green-500/20 p-4"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
+                    <Check size={20} className="text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-green-400">Relayer Activo</p>
+                    <p className="text-[10px] text-dark-400">Mint/burn automático habilitado</p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             {/* Security Info */}
             <motion.div
