@@ -4,7 +4,7 @@ import { useStore } from '../store';
 import { CHAINS } from '../config/chains';
 import { WALLET_OPTIONS } from '../services/wallet';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeftRight, BarChart3, ScrollText, Briefcase, TrendingUp, Droplets, ArrowRightLeft, Globe, Rocket, Plus } from 'lucide-react';
+import { ArrowLeftRight, BarChart3, ScrollText, Briefcase, TrendingUp, Droplets, ArrowRightLeft, Globe, Rocket, Plus, Zap } from 'lucide-react';
 
 const NAV_ITEMS = [
   { path: '/', label: 'nav_swap', Icon: ArrowLeftRight },
@@ -43,6 +43,18 @@ export default function Header() {
               <p className="text-[10px] text-white/30 leading-none mt-0.5">{t('dex_aggregator')}</p>
             </div>
           </NavLink>
+
+          {/* Simple ↔ Pro toggle */}
+          <div className="hidden sm:flex items-center ml-4 bg-white/5 border border-white/10 rounded-xl p-0.5">
+            <div className="px-3 py-1.5 rounded-lg bg-brand-500/20 text-brand-400 text-[11px] font-bold">
+              Simple
+            </div>
+            <a href="https://kairos-trade.netlify.app" target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-medium text-white/40 hover:text-white/70 hover:bg-white/5 transition-all">
+              <Zap className="w-3 h-3" />
+              Pro
+            </a>
+          </div>
 
           <div className="flex items-center gap-2">
             <button onClick={toggleLang} className="px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-white/50 hover:text-white hover:bg-white/10 transition-all" title={t('language')}>

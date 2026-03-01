@@ -5,7 +5,7 @@ import {
   LayoutDashboard, BarChart3, Bot, Link2, Brain, History,
   Settings, Wallet, LogOut, ChevronLeft, ChevronRight, Zap,
   Play, Bell, Crown, User, Sparkles, Activity, BookOpen,
-  Shield, Grid3x3, CreditCard, TrendingUp, Landmark
+  Shield, Grid3x3, CreditCard, TrendingUp, Landmark, ArrowLeftRight
 } from 'lucide-react';
 import useStore from '../../store/useStore';
 import { isAdmin } from '../../constants';
@@ -366,6 +366,24 @@ export default function Sidebar({ forceMobileOpen }) {
             )}
           </AnimatePresence>
         </button>
+      </div>
+
+      {/* Simple ↔ Pro toggle — above collapse */}
+      <div className={`${isExpanded ? 'px-5' : 'px-2'} pb-3`} style={{ borderTop: '1px solid rgba(30,34,45,0.4)' }}>
+        <div className={`flex items-center ${isExpanded ? 'gap-1' : 'flex-col gap-1'} bg-white/[0.02] border border-[var(--border)]/40 rounded-xl p-1 mt-3`}>
+          <a href="https://kairos-exchange-app.netlify.app" target="_blank" rel="noopener noreferrer"
+            className={`flex items-center justify-center gap-1.5 rounded-lg text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-white/[0.04] transition-all
+              ${isExpanded ? 'flex-1 px-3 py-2' : 'w-full py-2'}`}>
+            <ArrowLeftRight size={isExpanded ? 13 : 16} />
+            {isExpanded && <span className="text-[11px] font-medium">Simple</span>}
+          </a>
+          <div className={`flex items-center justify-center gap-1.5 rounded-lg bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/15
+            ${isExpanded ? 'flex-1 px-3 py-2' : 'w-full py-2'}`}>
+            <Zap size={isExpanded ? 13 : 16} />
+            {isExpanded && <span className="text-[11px] font-bold">Pro</span>}
+            {!isExpanded && <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />}
+          </div>
+        </div>
       </div>
 
       {/* Collapse toggle — desktop only */}

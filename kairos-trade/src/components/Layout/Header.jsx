@@ -1,5 +1,5 @@
 // Kairos Trade — Top Header Bar (Premium v2.1 — i18n + Mobile Responsive)
-import { Search, Bell, Wifi, WifiOff, Brain, TrendingUp, TrendingDown, Globe, Volume2, Menu, X } from 'lucide-react';
+import { Search, Bell, Wifi, WifiOff, Brain, TrendingUp, TrendingDown, Globe, Volume2, Menu, X, ArrowLeftRight } from 'lucide-react';
 import { useState } from 'react';
 import useStore from '../../store/useStore';
 import { getBase, formatPair, QUOTE } from '../../utils/pairUtils';
@@ -86,6 +86,19 @@ export default function Header({ onMenuToggle, mobileMenuOpen }) {
           {connected ? <Wifi size={12} /> : <WifiOff size={12} />}
           <span className="font-semibold truncate max-w-[60px] md:max-w-[100px] hidden sm:inline">{connected && connectedBroker ? connectedBroker.name || connectedBroker.broker : 'Demo'}</span>
           {connected && <span className="w-1.5 h-1.5 rounded-full bg-[var(--green)] animate-pulse" />}
+        </div>
+
+        {/* Pro ↔ Simple toggle */}
+        <div className="flex items-center bg-white/[0.03] border border-[var(--border)]/50 rounded-lg p-0.5">
+          <a href="https://kairos-exchange-app.netlify.app" target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-medium text-[var(--text-dim)] hover:text-[var(--text)] transition-all">
+            <ArrowLeftRight size={11} />
+            <span className="hidden sm:inline">Simple</span>
+          </a>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--gold)]/10 text-[var(--gold)] text-[10px] font-bold border border-[var(--gold)]/15">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--gold)] animate-pulse" />
+            Pro
+          </div>
         </div>
 
         {/* Language toggle */}
