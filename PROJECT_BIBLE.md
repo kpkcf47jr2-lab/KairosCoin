@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: Feb 28, 2026 (Session 24e — Wallet $0 Balance Critical Fix + Hardening)
+#  Last Updated: Mar 1, 2026 (Session 25 — Safe Ownership Transfer + Safe UI in Wallet)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -29,6 +29,7 @@
 ### Smart Contracts (Multi-Chain)
 - **Solidity:** 0.8.24, OpenZeppelin v5.4
 - **Owner/Deployer Wallet:** `0xCee44904A6aA94dEa28754373887E07D4B6f4968`
+- **Contract Owner:** Gnosis Safe `0xC84f261c7e7Cffdf3e9972faD88cE59400d5E5A8` (transferred Mar 1, 2026)
 
 | Chain | Address | Explorer |
 |-------|---------|----------|
@@ -2040,12 +2041,42 @@ User reported Kairos Wallet showing $0.00 despite 9.9M KAIROS on-chain. Multi-la
 **Commit:** `d6ce406`
 
 **Next Steps:**
-- Create Gnosis Safe (user needs ~0.005 BNB for gas)
-- Deploy KairosCoin v2 (MINTER_ROLE) to BSC
-- transferOwnership to Safe
-- addMinter for relayer wallet
+- addMinter for relayer wallet (via Safe)
 - Chrome Web Store submission
 - CoinGecko listing when liquidity is sufficient
+- Add second owner to Safe (hardware wallet / second device)
+
+---
+
+### Session 25 — Safe Ownership Transfer + Safe UI (Mar 1, 2026)
+
+**What was done:**
+1. **Transferred KairosCoin ownership to Gnosis Safe**
+   - `transferOwnership()` from `0xCee449...` to Safe `0xC84f26...`
+   - TX: `0x73a67d06800dfd875d67898fda0d8b2eaea29dcf8d822b972bdaa3910a99c1d3`
+   - Block: 83989785
+   - Safe owner: `0x37935A6AD6A5e7f096B759952F41D464CAe82be8` (Kairos Wallet)
+   - Threshold: 1-of-1 (upgrade to 2-of-N when second device available)
+
+2. **Built Safe UI in Kairos Wallet**
+   - New SafeScreen component (raw RPC, no ethers dependency)
+   - Shows: address, owners, threshold, nonce, BNB/KAIROS balances, owner status
+   - Security info section explaining what a Safe is
+   - Accessible via Shield button on Dashboard
+   - Deployed to https://kairos-wallet.netlify.app
+
+3. **Created Safe operational scripts**
+   - `scripts/safe-exec.js` — CLI for Safe operations (transfer-ownership, add-minter, send-bnb, etc.)
+   - `scripts/verify-safe.js` — Quick Safe verification
+   - `scripts/transfer-ownership-to-safe.js` — One-time ownership transfer
+
+**Security model:**
+- Contract owner = Safe (on-chain multisig)
+- Safe owner = Kairos Wallet on phone (key never on computer)
+- `.env` deployer key can NO LONGER control the contract
+- Future: add Ledger/second device as owner #2, threshold → 2-of-2
+
+**Commits:** `28d5804`, plus this session's commit
 
 ---
 
