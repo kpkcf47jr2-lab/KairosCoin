@@ -1,6 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  KAIROSCOIN — PROJECT BIBLE
-#  Last Updated: March 2, 2026 (Session 24d — Deep Production Audit + Critical Fixes)
+#  Last Updated: Feb 28, 2026 (Session 24e — Wallet $0 Balance Critical Fix + Hardening)
 #
 #  PURPOSE: This is the single source of truth for the entire KairosCoin project.
 #  If you lose your Copilot chat, give this document to a new session and it will
@@ -1988,6 +1988,60 @@ Comprehensive live production audit as a normal user across all apps. Found and 
 - Fund relayer wallet (need ≥ 0.031 BNB more to clear DEGRADED)
 - Get 0x API key for multi-DEX routing
 - Deploy KAIROS on Ethereum (only chain without it)
+- Chrome Web Store submission
+- CoinGecko listing when liquidity is sufficient
+
+### Session 24e — Wallet $0 Balance Critical Fix + Hardening (Feb 28, 2026)
+
+User reported Kairos Wallet showing $0.00 despite 9.9M KAIROS on-chain. Multi-layered investigation revealed **CSP (Content-Security-Policy)** as the root cause.
+
+**ROOT CAUSE:** `_headers` file had `connect-src` whitelist that only included `bsc-dataseed1.binance.org`. The ethers v6 `FallbackProvider` sends requests to all 4 BSC RPCs simultaneously and needs quorum (2+ responses). Since 3/4 RPCs were blocked by CSP, the provider failed silently → `balanceOf` returned 0 → portfolio showed $0.00.
+
+**Secondary issues found & fixed:**
+| # | Issue | Fix |
+|---|-------|-----|
+| 1 | **CSP blocking 3/4 BSC RPCs** | Changed `connect-src` to `*` (allow all RPC/API connections) |
+| 2 | **SW cache-first strategy** | Changed to stale-while-revalidate (serves cached, fetches fresh in background) |
+| 3 | **SW version never changed** | Added `BUILD_ID` constant — change on every deploy for automatic cache invalidation |
+| 4 | **SW registration cached by browser** | Added `{ updateViaCache: 'none' }` to `register()` + auto-update check every 60s |
+| 5 | **No KAIROS price fallback** | Added 5-layer $1.00 fallback: KairosSwap → PancakeSwap → peg price → store → portfolio |
+| 6 | **KAIROS price only on BSC** | Extended $1.00 fallback to ALL chains (detect by symbol, not just address) |
+| 7 | **Phone unlock bug after reinstall** | `hasWallet()` now checks both flag AND vault exist; cleans stale flags |
+| 8 | **Restore button hidden** | "¿Olvidaste tu contraseña?" always visible (was hidden until 3 failed attempts) |
+| 9 | **No emergency balance fallback** | Added raw `fetch()` KAIROS balance call that bypasses ethers.js entirely |
+| 10 | **SW didn't bypass all RPCs** | Expanded `BYPASS_HOSTS` to include all RPC providers (binance.org, publicnode, ankr, llamarpc, alchemy, etc.) |
+
+**Files Changed (10):**
+- `kairos-wallet/public/sw.js` — BUILD_ID versioning, stale-while-revalidate, expanded BYPASS_HOSTS
+- `kairos-wallet/public/_headers` — CSP `connect-src *`
+- `kairos-wallet/.netlify/netlify.toml` — Same CSP fix
+- `kairos-wallet/netlify.toml` — NEW: no-cache headers for sw.js + index.html, immutable for hashed assets
+- `kairos-wallet/index.html` — `updateViaCache: 'none'`, auto-update every 60s
+- `kairos-wallet/src/components/Dashboard/Dashboard.jsx` — Emergency KAIROS balance, cross-chain price, SW force update
+- `kairos-wallet/src/store/useStore.js` — KAIROS detection by symbol (cross-chain)
+- `kairos-wallet/src/components/Dashboard/PortfolioAllocation.jsx` — Same cross-chain fix
+- `kairos-wallet/src/services/prices.js` — KairosSwap → PancakeSwap → $1.00 fallback chain
+- `kairos-wallet/src/services/wallet.js` — hasWallet() vault verification
+- `kairos-wallet/src/components/Common/UnlockScreen.jsx` — Restore always visible
+
+**Protection Layers (to prevent $0 ever again):**
+1. CSP allows all connections (`connect-src *`)
+2. SW never caches RPC/API responses (expanded BYPASS_HOSTS)
+3. SW uses stale-while-revalidate for JS (not cache-first)
+4. SW has BUILD_ID that changes per deploy → forces cache invalidation
+5. Browser checks for SW updates every 60 seconds
+6. Netlify serves sw.js with `no-cache, no-store, must-revalidate`
+7. KAIROS price has 5-layer $1.00 fallback
+8. Emergency raw fetch() balance as last resort
+9. KAIROS detected by symbol across all chains
+
+**Commit:** `d6ce406`
+
+**Next Steps:**
+- Create Gnosis Safe (user needs ~0.005 BNB for gas)
+- Deploy KairosCoin v2 (MINTER_ROLE) to BSC
+- transferOwnership to Safe
+- addMinter for relayer wallet
 - Chrome Web Store submission
 - CoinGecko listing when liquidity is sufficient
 
